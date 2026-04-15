@@ -1,6 +1,6 @@
-primero que nada instalar node en el equipo
+Instalacion necesaria de node.js en el equipo para las ejecuciones tipo NPM
 
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -- ejecutar en una pestaña de powershell en modo admin para forzar la ejecucion via powershell en el proyecto (a mi gusto mas seguro)
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -- ejecutar en una pestaña de powershell en modo admin para forzar la ejecucion via powershell en el proyecto (mucho mas flexible)
 
 Y -- para aceptar los terminos
 
@@ -18,7 +18,9 @@ Dependencias Frontend
 npm install
 npm install react-router-dom axios
 npm install -D tailwindcss postcss autoprefixer
-npm vite -D install
+npm install -D vite
 npx tailwindcss init -p
 npm run
 npm run dev
+
+-- antes de compilar para trabajar running run dev en backend y frontend para que ambos protocolos se esuchen
