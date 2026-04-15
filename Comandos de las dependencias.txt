@@ -1,0 +1,21 @@
+primero que nada instalar node en el equipo
+
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -- ejecutar en una pestaña de powershell en modo admin para forzar la ejecucion via powershell en el proyecto (a mi gusto mas seguro)
+
+Y -- para aceptar los terminos
+
+Dependencias backend
+
+npm install express cors morgan dotenv jsonwebtoken bcryptjs
+npm install prisma @prisma/client
+npx prisma generate
+npm install -D nodemon
+npm run dev -- para probar las dependencias
+
+
+Dependencias Frontend
+
+npm install
+npm install react-router-dom axios
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
