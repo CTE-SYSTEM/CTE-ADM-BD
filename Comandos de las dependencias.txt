@@ -23,4 +23,4 @@ npx tailwindcss init -p
 npm run
 npm run dev
 
--- antes de compilar para trabajar running run dev en backend y frontend para que ambos protocolos se esuchen
+-- antes de compilar para trabajar 'npm run dev' en backend y frontend para que ambos protocolos se esuchen
