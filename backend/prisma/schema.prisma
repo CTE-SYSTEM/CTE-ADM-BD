@@ -1,40 +1,182 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "sqlserver"
+  // Nota: La URL se maneja en prisma.config.ts para Prisma 7
 }
 
-// Minimal models for quick testing (temporary)
+// --- TABLA DE SEGURIDAD ---
 
-model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String
-  role      String   @default("USER")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Usuarios {
+  id_usuario         Int      @id @default(autoincrement())
+  nombre_usuario     String   @unique
+  contrasena_hash    String
+  correo_electronico String?
+  rol                String   // Admin, Tecnico, Recepcion
+  activo             Boolean  @default(true)
+  fecha_creacion     DateTime @default(now())
 
-  clientes  Cliente[]
+  @@map("Usuarios")
 }
 
-model Cliente {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-  apellido  String
-  email     String   @unique
-  telefono  String?
-  direccion String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userId    Int?
-  user      User?    @relation(fields: [userId], references: [id])
+// --- TABLAS DEL PROYECTO ---
+
+model Clientes {
+  id_cliente          Int       @id @default(autoincrement())
+  nombre              String    @db.NVarChar(100)
+  telefono            String?   @db.NVarChar(20)
+  direccion           String?   @db.NVarChar(150)
+  correo              String?   @db.NVarChar(100)
+  contacto_secundario String?   @db.NVarChar(100)
+  equipos             Equipos[]
+
+  @@map("Clientes")
 }
 
-// Other models omitted temporarily to avoid complex referential cycles and enums
-// Restore full schema later for production SQL Server migration
+model Equipos {
+  id_equipo    Int            @id @default(autoincrement())
+  cliente_id   Int
+  marca        String?        @db.NVarChar(50)
+  tipo         String?        @db.NVarChar(100)
+  numero_serie String?        @db.NVarChar(100)
+  modelo       String?        @db.NVarChar(100)
+  cliente      Clientes       @relation(fields: [cliente_id], references: [id_cliente])
+  diagnosticos Diagnosticos[]
+
+  @@map("Equipos")
+}
+
+model Tecnicos {
+  id_tecnico   Int            @id @default(autoincrement())
+  nombre       String         @db.NVarChar(100)
+  especialidad String?        @db.NVarChar(100)
+  horario      String?        @db.NVarChar(50)
+  contacto     String?        @db.NVarChar(100)
+  diagnosticos Diagnosticos[]
+  ordenes      Ordenes[]
+
+  @@map("Tecnicos")
+}
+
+model Diagnosticos {
+  id_diagnostico  Int       @id @default(autoincrement())
+  equipo_id       Int
+  tecnico_id      Int
+  falla_reportada String?   @db.NVarChar(200)
+  diagnostico_real String?  @db.NVarChar(200)
+  fecha_hora      DateTime? @default(now())
+  equipo          Equipos   @relation(fields: [equipo_id], references: [id_equipo])
+  tecnico         Tecnicos  @relation(fields: [tecnico_id], references: [id_tecnico])
+  ordenes         Ordenes[]
+
+  @@map("Diagnosticos")
+}
+
+model Ordenes {
+  id_orden       Int          @id @default(autoincrement())
+  diagnostico_id Int
+  tecnico_id     Int
+  prioridad      String?      @db.NVarChar(20)
+  estado         String?      @db.NVarChar(50)
+  fecha_ingreso  DateTime?    @default(now())
+  tipo_equipo    String?      @db.NVarChar(100)
+  
+  // CORRECCIÓN: Se añade NoAction para evitar ciclos de cascada en SQL Server
+  diagnostico    Diagnosticos @relation(fields: [diagnostico_id], references: [id_diagnostico], onUpdate: NoAction, onDelete: NoAction)
+  tecnico        Tecnicos     @relation(fields: [tecnico_id], references: [id_tecnico], onUpdate: NoAction, onDelete: NoAction)
+  
+  facturas       Facturas[]
+
+  @@map("Ordenes")
+}
+
+model Categorias_Repuestos {
+  id_tipo_repuesto Int         @id @default(autoincrement())
+  nombre_tipo      String?     @db.NVarChar(100)
+  electronico      String?     @db.NVarChar(50)
+  repuestos        Repuestos[]
+
+  @@map("Categorias_Repuestos")
+}
+
+model Repuestos {
+  id_repuesto      Int                  @id @default(autoincrement())
+  tipo_repuesto_id Int
+  ubicacion        String?              @db.NVarChar(100)
+  n_serie          String?              @db.NVarChar(100)
+  nombre           String?              @db.NVarChar(100)
+  descripcion      String?              @db.NVarChar(200)
+  costo_unitario   Decimal?             @db.Decimal(18, 2)
+  categoria        Categorias_Repuestos @relation(fields: [tipo_repuesto_id], references: [id_tipo_repuesto])
+  compras          Compras[]
+  detalles_factura Facturas_Detalles[]
+
+  @@map("Repuestos")
+}
+
+model Proveedores {
+  id_proveedor Int       @id @default(autoincrement())
+  nombre       String    @db.NVarChar(100)
+  telefono     String?   @db.NVarChar(20)
+  direccion    String?   @db.NVarChar(150)
+  correo       String?   @db.NVarChar(100)
+  compras      Compras[]
+
+  @@map("Proveedores")
+}
+
+model Compras {
+  id_compra        Int         @id @default(autoincrement())
+  repuesto_id      Int
+  proveedor_id     Int
+  origen_proveedor String?     @db.NVarChar(100)
+  documento        String?     @db.NVarChar(100)
+  fecha_obtencion  DateTime?   @default(now())
+  cantidad         Int?
+  costo_unitario   Decimal?    @db.Decimal(18, 2)
+  proveedor        Proveedores @relation(fields: [proveedor_id], references: [id_proveedor])
+  repuesto         Repuestos   @relation(fields: [repuesto_id], references: [id_repuesto])
+
+  @@map("Compras")
+}
+
+model Facturas {
+  id_factura   Int                 @id @default(autoincrement())
+  orden_id     Int
+  fecha_emision DateTime?          @default(now())
+  subtotal     Decimal?            @db.Decimal(18, 2)
+  impuestos    Decimal?            @db.Decimal(18, 2)
+  total        Decimal?            @db.Decimal(18, 2)
+  estado_pago  String?             @db.NVarChar(50)
+  metodo_pago  String?             @db.NVarChar(50)
+  orden        Ordenes             @relation(fields: [orden_id], references: [id_orden])
+  detalles     Facturas_Detalles[]
+  garantias    Garantias[]
+
+  @@map("Facturas")
+}
+
+model Facturas_Detalles {
+  id_detalle_repuesto Int       @id @default(autoincrement())
+  factura_id          Int
+  repuesto_id         Int
+  cantidad_usada      Int?
+  factura             Facturas  @relation(fields: [factura_id], references: [id_factura])
+  repuesto            Repuestos @relation(fields: [repuesto_id], references: [id_repuesto])
+
+  @@map("Facturas_Detalles")
+}
+
+model Garantias {
+  id_garantia       Int       @id @default(autoincrement())
+  factura_id        Int
+  condiciones       String?   @db.NVarChar(1000)
+  duracion_meses    Int?
+  fecha_inicio      DateTime? @db.Date
+  fecha_vencimiento DateTime? @db.Date
+  factura           Facturas  @relation(fields: [factura_id], references: [id_factura])
+
+  @@map("Garantias")
+}
