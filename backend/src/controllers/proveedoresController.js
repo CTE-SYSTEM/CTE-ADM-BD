@@ -1,4 +1,9 @@
-const getProveedores = (req, res) => res.json({ ok: true, message: 'Ruta proveedores funcionando' });
-const createProveedor = (req, res) => res.json({ ok: true, message: 'Proveedor creado' });
+// controllers/proveedoresController.js
+// Exportamos cada función para que la ruta pueda "verlas"
+export const getProveedores = (req, res) => {
+    res.json({ ok: true, message: 'Ruta proveedores funcionando' });
+};
 
-module.exports = { getProveedores, createProveedor };
+export const createProveedor = (req, res) => {
+    res.json({ ok: true, message: 'Proveedor creado' });
+};

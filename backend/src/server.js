@@ -1,17 +1,29 @@
 // server.js - Punto de entrada del backend
-require('dotenv').config();
-const app = require('./app/app');
+import 'dotenv/config';
+import app from './app/app.js'; // IMPORTANTE: Agregamos el .js al final
 
-// Rutas
-app.use('/api/auth', require('./routes/modules/auth/auth'));
-app.use('/api/clientes', require('./routes/clientes'));
-app.use('/api/tecnicos', require('./routes/tecnicos'));
-app.use('/api/equipos', require('./routes/equipos'));
-app.use('/api/ordenes', require('./routes/ordenes'));
-app.use('/api/repuestos', require('./routes/repuestos'));
-app.use('/api/proveedores', require('./routes/proveedores'));
-app.use('/api/facturas', require('./routes/facturas'));
-app.use('/api/garantias', require('./routes/garantias'));
+// Importación de Rutas
+// En modo "module", Node necesita la ruta completa con extensión .js
+import authRoutes from './routes/modules/auth/auth.js';
+import clientesRoutes from './routes/clientes.js';
+import tecnicosRoutes from './routes/tecnicos.js';
+import equiposRoutes from './routes/equipos.js';
+import ordenesRoutes from './routes/ordenes.js';
+import repuestosRoutes from './routes/repuestos.js';
+import proveedoresRoutes from './routes/proveedores.js';
+import facturasRoutes from './routes/facturas.js';
+import garantiasRoutes from './routes/garantias.js';
+
+// Uso de Rutas
+app.use('/api/auth', authRoutes);
+app.use('/api/clientes', clientesRoutes);
+app.use('/api/tecnicos', tecnicosRoutes);
+app.use('/api/equipos', equiposRoutes);
+app.use('/api/ordenes', ordenesRoutes);
+app.use('/api/repuestos', repuestosRoutes);
+app.use('/api/proveedores', proveedoresRoutes);
+app.use('/api/facturas', facturasRoutes);
+app.use('/api/garantias', garantiasRoutes);
 
 // Puerto
 const PORT = process.env.PORT || 5000;

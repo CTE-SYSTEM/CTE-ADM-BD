@@ -1,4 +1,9 @@
-const getRepuestos = (req, res) => res.json({ ok: true, message: 'Ruta repuestos funcionando' });
-const createRepuesto = (req, res) => res.json({ ok: true, message: 'Repuesto creado' });
+// controllers/repuestosController.js
 
-module.exports = { getRepuestos, createRepuesto };
+export const getRepuestos = (req, res) => {
+    res.json({ ok: true, message: 'Ruta repuestos funcionando' });
+};
+
+export const createRepuesto = (req, res) => {
+    res.json({ ok: true, message: 'Repuesto creado' });
+};

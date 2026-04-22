@@ -1,8 +1,10 @@
-const express = require('express');
-const router = express.Router();
-const { getRepuestos, createRepuesto } = require('../controllers/repuestosController');
+// routes/repuestos.js
+import { Router } from 'express';
+const router = Router();
+// No olvides el .js, es el requisito del modo "type: module"
+import { getRepuestos, createRepuesto } from '../controllers/repuestosController.js';
 
 router.get('/', getRepuestos);
 router.post('/', createRepuesto);
 
-module.exports = router;
+export default router;

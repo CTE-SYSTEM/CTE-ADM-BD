@@ -1,8 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const { getClientes, createCliente } = require('../controllers/clientesController');
+// routes/clientes.js
+import { Router } from 'express';
+const router = Router();
+
+// IMPORTANTE: Recuerda el .js al final siempre
+import { getClientes, createCliente } from '../controllers/clientesController.js';
 
 router.get('/', getClientes);
 router.post('/', createCliente);
 
-module.exports = router;
+export default router;

@@ -1,8 +1,10 @@
-const express = require('express');
-const router = express.Router();
-const { getFacturas, createFactura } = require('../controllers/facturasController');
+// routes/facturas.js
+import { Router } from 'express';
+const router = Router();
+// Agregamos el .js y usamos import
+import { getFacturas, createFactura } from '../controllers/facturasController.js';
 
 router.get('/', getFacturas);
 router.post('/', createFactura);
 
-module.exports = router;
+export default router;

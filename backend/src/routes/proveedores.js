@@ -1,8 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const { getProveedores, createProveedor } = require('../controllers/proveedoresController');
+// routes/proveedores.js
+import { Router } from 'express';
+const router = Router();
+
+// El .js es vital para que Node no se pierda
+import { getProveedores, createProveedor } from '../controllers/proveedoresController.js';
 
 router.get('/', getProveedores);
 router.post('/', createProveedor);
 
-module.exports = router;
+export default router;

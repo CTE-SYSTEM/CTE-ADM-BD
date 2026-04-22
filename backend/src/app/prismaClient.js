@@ -1,17 +1,11 @@
+// src/app/prismaClient.js
 // prismaClient.js - Singleton para la instancia de Prisma
-const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
-const { PrismaClient } = require('../../generated/prisma/client');
+import { PrismaClient } from '@prisma/client';
 
-const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL || 'file:./dev.db',
+// No le pases NADA al constructor.
+// Prisma leerá el .env directamente desde el shell.
+const prisma = new PrismaClient({
+  datasourceUrl: process.env.DATABASE_URL
 });
 
-let prisma;
-
-if (!global.prisma) {
-  global.prisma = new PrismaClient({ adapter });
-}
-
-prisma = global.prisma;
-
-module.exports = prisma;
+export default prisma;

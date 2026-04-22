@@ -1,4 +1,9 @@
-const getTecnicos = (req, res) => res.json({ ok: true, message: 'Ruta tecnicos funcionando' });
-const createTecnico = (req, res) => res.json({ ok: true, message: 'Tecnico creado' });
+// controllers/tecnicosController.js
+// Exportamos cada función individualmente
+export const getTecnicos = (req, res) => {
+    res.json({ ok: true, message: 'Ruta tecnicos funcionando' });
+};
 
-module.exports = { getTecnicos, createTecnico };
+export const createTecnico = (req, res) => {
+    res.json({ ok: true, message: 'Tecnico creado' });
+};

@@ -1,11 +1,13 @@
-const express = require('express');
-const router = express.Router();
+// RUTA: backend/src/routes/modules/auth/auth.js
+import { Router } from 'express';
+const router = Router();
 
-// Controladores
-const { register, login } = require('../../../controllers/authController');
+// IMPORTANTE: En ES Modules, siempre debes poner la extensión .js al importar tus archivos
+import { register, login } from '../../../controllers/authController.js';
 
 // Rutas
 router.post('/register', register);
 router.post('/login', login);
 
-module.exports = router;
+// CAMBIO CLAVE: Exportación moderna
+export default router;

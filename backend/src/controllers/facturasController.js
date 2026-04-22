@@ -1,4 +1,9 @@
-const getFacturas = (req, res) => res.json({ ok: true, message: 'Ruta facturas funcionando' });
-const createFactura = (req, res) => res.json({ ok: true, message: 'Factura creada' });
+// controllers/facturasController.js
+// Usamos export const para que la ruta los encuentre
+export const getFacturas = (req, res) => {
+    res.json({ ok: true, message: 'Ruta facturas funcionando' });
+};
 
-module.exports = { getFacturas, createFactura };
+export const createFactura = (req, res) => {
+    res.json({ ok: true, message: 'Factura creada' });
+};

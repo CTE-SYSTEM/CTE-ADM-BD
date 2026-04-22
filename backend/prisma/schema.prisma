@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlserver"
-  // Nota: La URL se maneja en prisma.config.ts para Prisma 7
+  url      = env("DATABASE_URL")
 }
 
 // --- TABLA DE SEGURIDAD ---

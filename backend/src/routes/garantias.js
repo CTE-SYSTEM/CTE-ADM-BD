@@ -1,8 +1,9 @@
-const express = require('express');
-const router = express.Router();
-const { getGarantias, createGarantia } = require('../controllers/garantiasController');
+// routes/garantias.js
+import { Router } from 'express';
+const router = Router();
+import { getGarantias, createGarantia } from '../controllers/garantiasController.js';
 
 router.get('/', getGarantias);
 router.post('/', createGarantia);
 
-module.exports = router;
+export default router;
