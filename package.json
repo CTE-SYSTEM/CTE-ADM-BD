@@ -2,12 +2,12 @@
   "name": "proyecto-general",
   "devDependencies": {
     "@types/node": "^25.6.0",
-    "typescript": "^6.0.3",
-    "concurrently": "^9.1.0" 
+    "concurrently": "^9.1.0",
+    "typescript": "^6.0.3"
   },
   "scripts": {
-  "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend/project-bd\"",
-  "backend": "npm run dev --prefix backend",
-  "frontend": "npm run dev --prefix frontend/project-bd"
-}
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend/project-bd\"",
+    "backend": "npm run dev --prefix backend",
+    "frontend": "npm run dev --prefix frontend/project-bd"
+  }
 }

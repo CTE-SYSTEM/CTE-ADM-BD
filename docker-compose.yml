@@ -10,25 +10,34 @@ services:
       - MSSQL_PID=Express
     ports:
       - "1433:1433"
+      
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'TuPasswordSeguro123!' -Q 'SELECT 1' -C"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: ./backend
     container_name: backend_cte
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       - DATABASE_URL=sqlserver://db:1433;database=Centro_Tecnico_Electronico;user=sa;password=TuPasswordSeguro123!;encrypt=true;trustServerCertificate=true
     ports:
-      - "3000:3000"
+      - "5000:5000"
     volumes:
       - ./backend:/app
       - /app/node_modules
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: frontend_cte
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend/project-bd:/app
+      - ./frontend:/app
       - /app/node_modules
