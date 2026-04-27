@@ -13,6 +13,16 @@ const Sidebar = ({ open = true }) => {
     { name: 'Repuestos', to: '/repuestos' },
     { name: 'Proveedores', to: '/proveedores' },
     { name: 'Facturación', to: '/facturacion' },
+    // Sección Secretaria
+    { name: 'Secretaria', to: '/secretaria', section: 'secretaria' },
+    { name: 'Nueva Orden', to: '/secretaria/nueva-orden', section: 'secretaria' },
+    { name: 'Clientes', to: '/secretaria/clientes', section: 'secretaria' },
+    { name: 'Equipos', to: '/secretaria/equipos', section: 'secretaria' },
+    { name: 'Proveedores', to: '/secretaria/proveedores', section: 'secretaria' },
+    { name: 'Repuestos', to: '/secretaria/repuestos', section: 'secretaria' },
+    { name: 'Compras', to: '/secretaria/compras', section: 'secretaria' },
+    // Sección Técnico Jefe
+    { name: 'Técnico Jefe', to: '/tecnico-jefe', section: 'tecnico' },
   ];
 
   return (

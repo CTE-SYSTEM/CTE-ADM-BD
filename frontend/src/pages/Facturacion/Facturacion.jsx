@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import Facturacion from '../../features/facturacion/Facturacion';
 
-const Facturacion = () => {
+const FacturacionPage = () => {
   const [facturas, setFacturas] = useState([]);
   const [form, setForm] = useState({ numeroFactura: '', subtotal: '', iva: '', total: '', estado: 'PENDIENTE', clienteId: '', ordenId: '' });
 
@@ -68,4 +67,4 @@ const Facturacion = () => {
   );
 };
 
-export default Facturacion;
+export default FacturacionPage;

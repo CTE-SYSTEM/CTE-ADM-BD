@@ -3,57 +3,59 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlserver"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// --- TABLA DE SEGURIDAD ---
+// para logica de el sistema de perfiles y usuarios
 
 model Usuarios {
   id_usuario         Int      @id @default(autoincrement())
   nombre_usuario     String   @unique
   contrasena_hash    String
   correo_electronico String?
-  rol                String   // Admin, Tecnico, Recepcion
+  rol                String   // Admin, Jefe Tecnico, Tecnico, Recepcion
   activo             Boolean  @default(true)
   fecha_creacion     DateTime @default(now())
 
   @@map("Usuarios")
 }
 
-// --- TABLAS DEL PROYECTO ---
+// --- CLIENTES Y EQUIPOS ---
 
 model Clientes {
   id_cliente          Int       @id @default(autoincrement())
-  nombre              String    @db.NVarChar(100)
-  telefono            String?   @db.NVarChar(20)
-  direccion           String?   @db.NVarChar(150)
-  correo              String?   @db.NVarChar(100)
-  contacto_secundario String?   @db.NVarChar(100)
+  nombre              String    
+  telefono            String?   
+  direccion           String?   
+  correo              String?   
+  contacto_secundario String?   
   equipos             Equipos[]
 
   @@map("Clientes")
 }
 
 model Equipos {
-  id_equipo    Int            @id @default(autoincrement())
+  id_equipo    Int           @id @default(autoincrement())
   cliente_id   Int
-  marca        String?        @db.NVarChar(50)
-  tipo         String?        @db.NVarChar(100)
-  numero_serie String?        @db.NVarChar(100)
-  modelo       String?        @db.NVarChar(100)
-  cliente      Clientes       @relation(fields: [cliente_id], references: [id_cliente])
+  marca        String?       
+  tipo         String?       
+  numero_serie String?       
+  modelo       String?       
+  cliente      Clientes      @relation(fields: [cliente_id], references: [id_cliente])
   diagnosticos Diagnosticos[]
 
   @@map("Equipos")
 }
 
+// --- FLUJO DE TRABAJO ---
+
 model Tecnicos {
-  id_tecnico   Int            @id @default(autoincrement())
-  nombre       String         @db.NVarChar(100)
-  especialidad String?        @db.NVarChar(100)
-  horario      String?        @db.NVarChar(50)
-  contacto     String?        @db.NVarChar(100)
+  id_tecnico   Int           @id @default(autoincrement())
+  nombre       String        
+  especialidad String?       
+  horario      String?       
+  contacto     String?       
   diagnosticos Diagnosticos[]
   ordenes      Ordenes[]
 
@@ -64,9 +66,16 @@ model Diagnosticos {
   id_diagnostico  Int       @id @default(autoincrement())
   equipo_id       Int
   tecnico_id      Int
-  falla_reportada String?   @db.NVarChar(200)
-  diagnostico_real String?  @db.NVarChar(200)
+  falla_reportada String?   
+  diagnostico_real String?  
   fecha_hora      DateTime? @default(now())
+  estado           String    @default("PENDIENTE") // PENDIENTE, EN_REVISION, COMPLETADO
+  
+  // Checks de Recepción solicitados
+  deja_cargador   Boolean   @default(false)
+  enciende        Boolean   @default(false)
+  usa_corriente_ac Boolean  @default(false) // Si no usa cargador, se prueba con toma de pared
+
   equipo          Equipos   @relation(fields: [equipo_id], references: [id_equipo])
   tecnico         Tecnicos  @relation(fields: [tecnico_id], references: [id_tecnico])
   ordenes         Ordenes[]
@@ -75,27 +84,30 @@ model Diagnosticos {
 }
 
 model Ordenes {
-  id_orden       Int          @id @default(autoincrement())
-  diagnostico_id Int
-  tecnico_id     Int
-  prioridad      String?      @db.NVarChar(20)
-  estado         String?      @db.NVarChar(50)
-  fecha_ingreso  DateTime?    @default(now())
-  tipo_equipo    String?      @db.NVarChar(100)
+  id_orden        Int           @id @default(autoincrement())
+  diagnostico_id  Int
+  tecnico_id      Int
+  prioridad       String?       // Urgente - Alta - Normal
+  estado          String?       @default("PENDIENTE") // INGRESADO, REPARACION, FINALIZADO
+  fecha_ingreso   DateTime?     @default(now())
+  tipo_equipo     String?       
   
-  // CORRECCIÓN: Se añade NoAction para evitar ciclos de cascada en SQL Server
-  diagnostico    Diagnosticos @relation(fields: [diagnostico_id], references: [id_diagnostico], onUpdate: NoAction, onDelete: NoAction)
-  tecnico        Tecnicos     @relation(fields: [tecnico_id], references: [id_tecnico], onUpdate: NoAction, onDelete: NoAction)
+  diagnostico     Diagnosticos  @relation(fields: [diagnostico_id], references: [id_diagnostico])
+  tecnico         Tecnicos      @relation(fields: [tecnico_id], references: [id_tecnico])
   
-  facturas       Facturas[]
+  // Salida de repuestos ligada a la orden y no a la factura
+  repuestos_usados Ordenes_Repuestos[]
+  facturas        Facturas[]
 
   @@map("Ordenes")
 }
 
+// --- REPUESTOS E INVENTARIO (BAJO PEDIDO) ---
+
 model Categorias_Repuestos {
-  id_tipo_repuesto Int         @id @default(autoincrement())
-  nombre_tipo      String?     @db.NVarChar(100)
-  electronico      String?     @db.NVarChar(50)
+  id_tipo_repuesto Int                 @id @default(autoincrement())
+  nombre_tipo      String?             
+  electronico      String?             
   repuestos        Repuestos[]
 
   @@map("Categorias_Repuestos")
@@ -104,24 +116,44 @@ model Categorias_Repuestos {
 model Repuestos {
   id_repuesto      Int                  @id @default(autoincrement())
   tipo_repuesto_id Int
-  ubicacion        String?              @db.NVarChar(100)
-  n_serie          String?              @db.NVarChar(100)
-  nombre           String?              @db.NVarChar(100)
-  descripcion      String?              @db.NVarChar(200)
-  costo_unitario   Decimal?             @db.Decimal(18, 2)
+  nombre           String?              
+  descripcion      String?              
+  costo_individual Decimal?             @db.Decimal(18, 2) // Se actualiza con la última compra se necesita un trigger
+  porcentaje_de_ganacia     Decimal?             @db.Decimal(18, 2) // Lo que le cobras al cliente o por otra pate lo que se saca de gaancia si un 20 o 30 $
+  
   categoria        Categorias_Repuestos @relation(fields: [tipo_repuesto_id], references: [id_tipo_repuesto])
   compras          Compras[]
-  detalles_factura Facturas_Detalles[]
+  ordenes_detalles Ordenes_Repuestos[]
 
   @@map("Repuestos")
 }
 
+// Esta tabla reemplaza a Facturas_Detalles
+model Ordenes_Repuestos {
+  id_detalle_repuesto Int       @id @default(autoincrement())
+  orden_id            Int
+  repuesto_id         Int
+  cantidad_usada      Int?      @default(1)
+  
+  // El Check de aprobación del Jefe Técnico 
+  estado_aprobacion   String    @default("PENDIENTE") // PENDIENTE, APROBADO, DENEGADO
+  
+  orden               Ordenes   @relation(fields: [orden_id], references: [id_orden])
+  repuesto            Repuestos @relation(fields: [repuesto_id], references: [id_repuesto])
+
+  @@map("Ordenes_Repuestos")
+}
+
+// --- COMPRAS Y PROVEEDORES ---
+
 model Proveedores {
   id_proveedor Int       @id @default(autoincrement())
-  nombre       String    @db.NVarChar(100)
-  telefono     String?   @db.NVarChar(20)
-  direccion    String?   @db.NVarChar(150)
-  correo       String?   @db.NVarChar(100)
+  nombre       String    
+  telefono     String?   
+  direccion    String?   
+  correo       String?
+  web          String?   
+  notas        String?   // Para anotar horarios o si tienen buenos repuestos o si incluso hubo problemas con las piezas
   compras      Compras[]
 
   @@map("Proveedores")
@@ -131,51 +163,45 @@ model Compras {
   id_compra        Int         @id @default(autoincrement())
   repuesto_id      Int
   proveedor_id     Int
-  origen_proveedor String?     @db.NVarChar(100)
-  documento        String?     @db.NVarChar(100)
+  documento        String?     // Número de recibo o factura de la tienda
   fecha_obtencion  DateTime?   @default(now())
   cantidad         Int?
   costo_unitario   Decimal?    @db.Decimal(18, 2)
+  metodo_pago      String?     // Efectivo, Transferencia
+  
   proveedor        Proveedores @relation(fields: [proveedor_id], references: [id_proveedor])
   repuesto         Repuestos   @relation(fields: [repuesto_id], references: [id_repuesto])
 
   @@map("Compras")
 }
 
+// --- FACTURACIÓN Y POST-VENTA ---
+
 model Facturas {
-  id_factura   Int                 @id @default(autoincrement())
-  orden_id     Int
-  fecha_emision DateTime?          @default(now())
-  subtotal     Decimal?            @db.Decimal(18, 2)
-  impuestos    Decimal?            @db.Decimal(18, 2)
-  total        Decimal?            @db.Decimal(18, 2)
-  estado_pago  String?             @db.NVarChar(50)
-  metodo_pago  String?             @db.NVarChar(50)
-  orden        Ordenes             @relation(fields: [orden_id], references: [id_orden])
-  detalles     Facturas_Detalles[]
-  garantias    Garantias[]
+  id_factura    Int       @id @default(autoincrement())
+  orden_id      Int
+  fecha_emision DateTime? @default(now())
+  monto_repuestos Decimal? @db.Decimal(18, 2) // La suma de lo que se uso
+  mano_obra       Decimal? @db.Decimal(18, 2) // El costo del servicio técnico
+  
+  subtotal      Decimal?  @db.Decimal(18, 2) // monto repuestos + mano de obra
+  impuestos     Decimal?  @db.Decimal(18, 2)
+  total         Decimal?  @db.Decimal(18, 2)
+  
+  metodo_pago   String?   
+  orden         Ordenes   @relation(fields: [orden_id], references: [id_orden])
+  garantias     Garantias[]
 
   @@map("Facturas")
-}
-
-model Facturas_Detalles {
-  id_detalle_repuesto Int       @id @default(autoincrement())
-  factura_id          Int
-  repuesto_id         Int
-  cantidad_usada      Int?
-  factura             Facturas  @relation(fields: [factura_id], references: [id_factura])
-  repuesto            Repuestos @relation(fields: [repuesto_id], references: [id_repuesto])
-
-  @@map("Facturas_Detalles")
 }
 
 model Garantias {
   id_garantia       Int       @id @default(autoincrement())
   factura_id        Int
-  condiciones       String?   @db.NVarChar(1000)
+  condiciones       String?   
   duracion_meses    Int?
-  fecha_inicio      DateTime? @db.Date
-  fecha_vencimiento DateTime? @db.Date
+  fecha_inicio      DateTime? 
+  fecha_vencimiento DateTime? 
   factura           Facturas  @relation(fields: [factura_id], references: [id_factura])
 
   @@map("Garantias")

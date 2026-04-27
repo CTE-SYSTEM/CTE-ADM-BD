@@ -8,8 +8,18 @@ import Tecnicos from './features/tecnicos/Tecnicos';
 import Equipos from './features/equipos/Equipos';
 import Ordenes from './features/ordenes/Ordenes';
 import Inventario from './features/inventario/Inventario';
-import Facturacion from './features/facturacion/Facturacion';
+import Facturacion from './pages/Facturacion/Facturacion';
 import Login from './pages/Auth/Login';
+// Importaciones de Secretaria
+import SecretariaDashboard from './pages/Secretaria/SecretariaDashboard';
+import ClientesSecretaria from './pages/Secretaria/Clientes';
+import EquiposSecretaria from './pages/Secretaria/Equipos';
+import ProveedoresSecretaria from './pages/Secretaria/Proveedores';
+import RepuestosSecretaria from './pages/Secretaria/Repuestos';
+import ComprasSecretaria from './pages/Secretaria/Compras';
+import NuevaOrden from './pages/Secretaria/NuevaOrden';
+// Importaciones de Técnico Jefe
+import TecnicoJefeDashboard from './pages/TecnicoJefe/TecnicoJefeDashboard';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import './App.css';
 
@@ -43,6 +53,7 @@ function App() {
           {
             element: <MainLayout />,
             children: [
+              // Rutas de Administrador
               { index: true, element: <RequireAuth><Dashboard /></RequireAuth> },
               { path: 'clientes', element: <RequireAuth><Clientes /></RequireAuth> },
               { path: 'tecnicos', element: <RequireAuth><Tecnicos /></RequireAuth> },
@@ -50,6 +61,16 @@ function App() {
               { path: 'ordenes', element: <RequireAuth><Ordenes /></RequireAuth> },
               { path: 'inventario', element: <RequireAuth><Inventario /></RequireAuth> },
               { path: 'facturacion', element: <RequireAuth><Facturacion /></RequireAuth> },
+              // Rutas de Secretaria
+              { path: 'secretaria', element: <RequireAuth><SecretariaDashboard /></RequireAuth> },
+              { path: 'secretaria/clientes', element: <RequireAuth><ClientesSecretaria /></RequireAuth> },
+              { path: 'secretaria/equipos', element: <RequireAuth><EquiposSecretaria /></RequireAuth> },
+              { path: 'secretaria/proveedores', element: <RequireAuth><ProveedoresSecretaria /></RequireAuth> },
+              { path: 'secretaria/repuestos', element: <RequireAuth><RepuestosSecretaria /></RequireAuth> },
+              { path: 'secretaria/compras', element: <RequireAuth><ComprasSecretaria /></RequireAuth> },
+              { path: 'secretaria/nueva-orden', element: <RequireAuth><NuevaOrden /></RequireAuth> },
+              // Rutas de Técnico Jefe
+              { path: 'tecnico-jefe', element: <RequireAuth><TecnicoJefeDashboard /></RequireAuth> },
             ],
           },
           { path: 'login', element: <Login /> },
