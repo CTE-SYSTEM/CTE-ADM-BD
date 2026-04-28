@@ -48,3 +48,26 @@ Al entrar por primera vez, debes registrar el servidor de la base de datos con l
 
 > [!TIP]
 > **Para ver el modelo de datos visual:** Haz clic derecho sobre la base de datos `Centro_Tecnico_Electronico` en el panel izquierdo y selecciona la opción **ERD Tool**. Esto generará automáticamente el diagrama con todas las relaciones y llaves foráneas.
+
+### 3. creacion de usuarios
+
+> **los comando para asi dar o meter datos a usuarios desde el script de sql**
+> Get-Content backend/scripts/crear_usuarios.sql -Raw | docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico
+
+> **Para verificar si los usuarios se crearon correctamente sin entrar a herramientas gráficas:**
+>docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c --% "SELECT * FROM \"Usuarios\";"
+
+> **para hacerlo manualmente**
+> docker exec -it postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico
+Nota: Una vez dentro, escribe SELECT * FROM "Usuarios"; (recuerda el punto y coma ;) y usa \q para salir.
+
+**Nombres de perfiles y su contraseña**
+
+# admin_pro
+# secretarian_ana
+# jefe_tecnico
+# tecnico_juan
+
+**contraseña de todos**
+
+> 1234

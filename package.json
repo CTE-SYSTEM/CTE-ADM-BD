@@ -9,5 +9,8 @@
     "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend/project-bd\"",
     "backend": "npm run dev --prefix backend",
     "frontend": "npm run dev --prefix frontend/project-bd"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0"
   }
 }
