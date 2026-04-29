@@ -23,6 +23,8 @@ const Sidebar = ({ open = true }) => {
     { name: 'Compras', to: '/secretaria/compras', section: 'secretaria' },
     // Sección Técnico Jefe
     { name: 'Técnico Jefe', to: '/tecnico-jefe', section: 'tecnico' },
+    // Sección Técnico
+    { name: 'Técnico', to: '/tecnico', section: 'tecnico' },
   ];
 
   return (

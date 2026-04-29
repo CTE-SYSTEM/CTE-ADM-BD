@@ -1,53 +1,63 @@
-// controllers/authController.js
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import prisma from '../app/prismaClient.js'; // Asegúrate de agregar el .js
+import { PrismaClient } from '@prisma/client';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
+const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || 'tu_clave_secreta_provisional';
 
-// Registro de usuario
-export const register = async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'username and password required' });
-
-    // Ajusté 'user' a 'Usuarios' para que coincida con tu schema.prisma
-    const existing = await prisma.usuarios.findUnique({ where: { nombre_usuario: username } });
-    if (existing) return res.status(409).json({ error: 'Usuario ya existe' });
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    await prisma.usuarios.create({ 
-      data: { 
-        nombre_usuario: username, 
-        contrasena_hash: hashedPassword,
-        rol: 'Tecnico' // Rol por defecto
-      } 
-    });
-    res.status(201).json({ message: 'Usuario registrado' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error en registro' });
-  }
-};
-
-// Login de usuario
 export const login = async (req, res) => {
+  console.log("--------------------------------------------------");
+  console.log("🚀 INTENTO DE LOGIN RECIBIDO");
+  
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+    console.log(`📩 Datos recibidos -> Usuario: [${username}], Password: [${password}]`);
 
-    const user = await prisma.usuarios.findUnique({ where: { nombre_usuario: username } });
-    if (!user || !(await bcrypt.compare(password, user.contrasena_hash))) {
-      return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!username || !password) {
+      console.log("❌ FALLO: Campos vacíos");
+      return res.status(400).json({ message: 'Usuario y contraseña requeridos' });
     }
-    const token = jwt.sign({ id: user.id_usuario }, JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token });
+
+    // 1. Buscamos al usuario
+    const usuario = await prisma.usuarios.findUnique({
+      where: { nombre_usuario: username }
+    });
+
+    if (!usuario) {
+      console.log(`❌ FALLO: El usuario [${username}] NO existe en la base de datos.`);
+      return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
+    }
+
+    console.log(`✅ Usuario encontrado: [${usuario.nombre_usuario}] con Rol: [${usuario.rol}]`);
+    console.log(`🔑 Hash en DB: ${usuario.contrasena_hash}`);
+
+    // 2. Comparación de contraseña
+    const esValida = await bcrypt.compare(password, usuario.contrasena_hash);
+
+    if (!esValida) {
+      console.log(`❌ FALLO: La contraseña para [${username}] es INCORRECTA.`);
+      return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
+    }
+
+    // 3. ÉXITO
+    console.log("🎉 ÉXITO: Contraseña correcta. Generando token...");
+
+    const token = jwt.sign(
+      { id_usuario: usuario.id_usuario, rol: usuario.rol },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    console.log("📦 Enviando respuesta exitosa al frontend.");
+    return res.json({
+      token,
+      id: usuario.id_usuario,
+      nombre: usuario.nombre_usuario,
+      rol: usuario.rol
+    });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error en login' });
+    console.error("🔥 ERROR CRÍTICO:", error);
+    return res.status(500).json({ message: 'Error interno en el servidor' });
   }
 };
-
-// Rutas de prueba
-export const getAuth = (req, res) => res.json({ ok: true, message: 'Ruta auth funcionando' });
-export const createAuth = (req, res) => res.json({ ok: true, message: 'Auth creado' });

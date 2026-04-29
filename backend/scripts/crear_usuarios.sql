@@ -5,3 +5,5 @@ INSERT INTO "Usuarios" (nombre_usuario, contrasena_hash, rol, correo_electronico
 ('jefe_tecnico', '1234', 'TecnicoJefe', 'jefe@cte.com', true),
 ('tecnico_juan', '1234', 'Tecnico', 'tecnico@cte.com', true)
 ON CONFLICT (nombre_usuario) DO NOTHING;
+
+# esta mala por que no tiene el hash, pero es solo para pruebas, no se va a usar en producción
