@@ -1,43 +1,54 @@
 import React from 'react';
-import { Users, Laptop, Package, Truck, FileText, Clock } from 'lucide-react';
-import MissionVision from '../../components/MissionVision';
-import Table from '../../components/Table';
+import { Link } from 'react-router-dom';
+import { Users, Laptop, ClipboardCheck, Truck } from 'lucide-react';
 
 const SecretariaDashboard = () => {
-  // Datos de ejemplo - reemplazar con datos reales de la API
-  const stats = {
-    clientes: 45,
-    equipos: 78,
-    repuestos: 156,
-    proveedores: 12,
-    ordenesPendientes: 8,
-    ordenesHoy: 3,
-  };
-
-  // Órdenes recientes
-  const ordenesRecientes = [
-    { id: 'ORD-001', cliente: 'Juan Pérez', equipo: 'Laptop HP', estado: 'Pendiente', fecha: '2026-04-25' },
-    { id: 'ORD-002', cliente: 'María García', equipo: 'Impresora Epson', estado: 'En Revisión', fecha: '2026-04-25' },
-    { id: 'ORD-003', cliente: 'Carlos López', equipo: 'Computadora Dell', estado: 'Completado', fecha: '2026-04-24' },
-    { id: 'ORD-004', cliente: 'Ana Martínez', equipo: 'Tablet Samsung', estado: 'Pendiente', fecha: '2026-04-24' },
+  const quickActions = [
+    {
+      title: 'Ingresar Equipos',
+      description: 'Registrar un equipo nuevo en taller para revisión y diagnóstico.',
+      icon: Laptop,
+      url: '/secretaria/equipos',
+      color: 'bg-indigo-500',
+    },
+    {
+      title: 'Ver Clientes',
+      description: 'Acceder a la lista de clientes registrados y su información.',
+      icon: Users,
+      url: '/secretaria/clientes',
+      color: 'bg-blue-500',
+    },
+    {
+      title: 'Equipos Listos',
+      description: 'Ver equipos listos para entrega y gestionar su salida.',
+      icon: ClipboardCheck,
+      url: '/secretaria/equipos',
+      color: 'bg-emerald-500',
+    },
   ];
 
-  const columnasOrdenes = [
-    { header: 'ID', accessor: 'id' },
-    { header: 'Cliente', accessor: 'cliente' },
-    { header: 'Equipo', accessor: 'equipo' },
-    { header: 'Estado', accessor: 'estado' },
-    { header: 'Fecha', accessor: 'fecha' },
-  ];
-
-  // Tarjetas de estadísticas
-  const statCards = [
-    { title: 'Clientes Registrados', value: stats.clientes, icon: Users, color: 'bg-blue-500' },
-    { title: 'Equipos en Taller', value: stats.equipos, icon: Laptop, color: 'bg-green-500' },
-    { title: 'Repuestos en Stock', value: stats.repuestos, icon: Package, color: 'bg-purple-500' },
-    { title: 'Proveedores', value: stats.proveedores, icon: Truck, color: 'bg-orange-500' },
-    { title: 'Órdenes Pendientes', value: stats.ordenesPendientes, icon: Clock, color: 'bg-red-500' },
-    { title: 'Órdenes del Día', value: stats.ordenesHoy, icon: FileText, color: 'bg-teal-500' },
+  const equiposListos = [
+    {
+      id: 'EQ-101',
+      cliente: 'Juan Pérez',
+      equipo: 'Laptop HP Pavilion',
+      fechaIngreso: '2026-04-18',
+      estado: 'Listo para Entrega',
+    },
+    {
+      id: 'EQ-102',
+      cliente: 'María García',
+      equipo: 'Impresora Epson L3150',
+      fechaIngreso: '2026-04-20',
+      estado: 'Listo para Entrega',
+    },
+    {
+      id: 'EQ-103',
+      cliente: 'Carlos López',
+      equipo: 'Tablet Samsung Galaxy',
+      fechaIngreso: '2026-04-22',
+      estado: 'Listo para Entrega',
+    },
   ];
 
   return (
@@ -52,41 +63,78 @@ const SecretariaDashboard = () => {
         </p>
       </div>
 
-      {/* Misión y Visión */}
-      <MissionVision />
-
-      {/* Estadísticas */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          Resumen del Día
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {statCards.map((card, index) => (
-            <div
-              key={index}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow"
+      <section className="grid gap-4 md:grid-cols-3 mb-8">
+        {quickActions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Link
+              key={action.title}
+              to={action.url}
+              className="group bg-white rounded-2xl border border-gray-200 p-6 hover:shadow-lg transition-shadow"
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-gray-500">{card.title}</span>
-                <div className={`p-2 rounded-lg ${card.color}`}>
-                  <card.icon className="w-4 h-4 text-white" />
-                </div>
+              <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl text-white ${action.color} mb-4`}>
+                <Icon className="w-6 h-6" />
               </div>
-              <div className="text-2xl font-bold text-gray-800">{card.value}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">{action.title}</h2>
+              <p className="text-sm text-gray-500">{action.description}</p>
+              <div className="mt-4 inline-flex items-center text-indigo-600 group-hover:text-indigo-700 font-medium">
+                Ver más
+              </div>
+            </Link>
+          );
+        })}
+      </section>
 
-      {/* Órdenes Recientes */}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          Órdenes Recientes
-        </h2>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <Table columns={columnasOrdenes} data={ordenesRecientes} />
+      <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-800">Equipos listos para salida</h2>
+            <p className="text-sm text-gray-500">Revisa los equipos preparados y tramita la entrega al cliente.</p>
+          </div>
+          <Link
+            to="/secretaria/equipos"
+            className="inline-flex items-center justify-center rounded-full border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+          >
+            Ver todos los equipos
+          </Link>
         </div>
-      </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm text-gray-600">
+            <thead>
+              <tr>
+                <th className="border-b border-gray-200 px-4 py-3">Código</th>
+                <th className="border-b border-gray-200 px-4 py-3">Cliente</th>
+                <th className="border-b border-gray-200 px-4 py-3">Equipo</th>
+                <th className="border-b border-gray-200 px-4 py-3">Fecha ingreso</th>
+                <th className="border-b border-gray-200 px-4 py-3">Estado</th>
+                <th className="border-b border-gray-200 px-4 py-3">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {equiposListos.map((equipo) => (
+                <tr key={equipo.id} className="hover:bg-gray-50">
+                  <td className="border-b border-gray-100 px-4 py-3 font-medium text-gray-800">{equipo.id}</td>
+                  <td className="border-b border-gray-100 px-4 py-3">{equipo.cliente}</td>
+                  <td className="border-b border-gray-100 px-4 py-3">{equipo.equipo}</td>
+                  <td className="border-b border-gray-100 px-4 py-3">{equipo.fechaIngreso}</td>
+                  <td className="border-b border-gray-100 px-4 py-3">
+                    <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      {equipo.estado}
+                    </span>
+                  </td>
+                  <td className="border-b border-gray-100 px-4 py-3">
+                    <button className="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-2 text-white text-sm hover:bg-indigo-700 transition-colors">
+                      <Truck className="mr-2 h-4 w-4" />
+                      Salida
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 };
