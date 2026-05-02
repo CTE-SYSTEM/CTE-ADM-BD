@@ -7,28 +7,26 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "db:sync": "prisma db push",
-    "studio": "prisma studio --port 5555 --browser none --hostname 0.0.0.0",
-    "db:seed": "powershell -Command \"Get-Content scripts/crear_usuarios.sql -Raw | docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico\"",
-    "db:check": "powershell -Command \"docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c --% \\\"SELECT * FROM \\\\\\\"Usuarios\\\\\\\";\\\"\"",
-    "db:hash-fix": "powershell -Command \"docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c --% \\\"UPDATE \\\\\\\"Usuarios\\\\\\\" SET contrasena_hash = '$2b$10$L9vMdfSclS7M3.B5I6S9X.8A2Z6iP5l1n5m6n7o8p9q0r1s2t3u4v';\\\"\""
+    "db:generate": "prisma generate",
+    "studio": "prisma studio --port 5555",
+    "// SEED": "Usa el seed nativo de Prisma si es posible, si no, este comando es más limpio:",
+    "db:seed": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico < scripts/crear_usuarios.sql",
+    "// CHECKS": "Comandos simplificados para ver tablas rápidamente",
+    "db:check:users": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT * FROM \"Usuarios\";'",
+    "db:check:clientes": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT * FROM \"Clientes\";'",
+    "db:hash-fix": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"UPDATE \\\"Usuarios\\\" SET contrasena_hash = '$2b$10$L9vMdfSclS7M3.B5I6S9X.8A2Z6iP5l1n5m6n7o8p9q0r1s2t3u4v';\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@prisma/client": "^5.22.0",
-    "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
-    "prisma": "^5.22.0",
-    "tedious": "^14.2.0"
+    "prisma": "^5.22.0"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
     "nodemon": "^3.1.14"
   }
 }

@@ -1,4 +1,3 @@
-// App.jsx
 import React, { useState, useContext } from 'react';
 import { createBrowserRouter, RouterProvider, Outlet, Navigate } from 'react-router-dom';
 
@@ -12,10 +11,9 @@ import { AuthProvider, AuthContext } from './context/AuthContext';
 // Páginas de Auth
 import Login from './pages/Auth/Login';
 
-// --- SECCIÓN ADMINISTRADOR (Rutas verificadas en capturas) ---
-// La carpeta se llama DashboardAdmin y el archivo Dashboard
+// --- SECCIÓN ADMINISTRADOR ---
 import Dashboard from './pages/DashboardAdmin/Dashboard'; 
-import Clientes from './features/clientes/clientes'; // Nota: Verifica si es minúscula
+import Clientes from './features/clientes/clientes'; 
 import Equipos from './features/equipos/equipos';
 import Tecnicos from './features/tecnicos/tecnicos';
 import Ordenes from './features/ordenes/ordenes';
@@ -30,7 +28,8 @@ import ProveedoresSecretaria from './pages/Secretaria/Proveedores';
 import RepuestosSecretaria from './pages/Secretaria/Repuestos';
 import ComprasSecretaria from './pages/Secretaria/Compras';
 import FacturacionSecretaria from './pages/Secretaria/Facturacion';
-import NuevaOrden from './pages/Secretaria/NuevaOrden';
+import Diagnostico from './pages/Secretaria/Diagnostico';
+import NuevaOrden from './pages/Secretaria/NuevaOrden'; 
 
 // --- SECCIÓN TÉCNICOS ---
 import TecnicoDashboard from './pages/Tecnico/TecnicoDashboard'; 
@@ -84,7 +83,9 @@ function App() {
               { path: 'secretaria/repuestos', element: <RequireAuth><RepuestosSecretaria /></RequireAuth> },
               { path: 'secretaria/compras', element: <RequireAuth><ComprasSecretaria /></RequireAuth> },
               { path: 'secretaria/facturacion', element: <RequireAuth><FacturacionSecretaria /></RequireAuth> },
+              // Ambas rutas ahora apuntan al componente Diagnostico
               { path: 'secretaria/nueva-orden', element: <RequireAuth><NuevaOrden /></RequireAuth> },
+              { path: 'secretaria/diagnostico', element: <RequireAuth><Diagnostico /></RequireAuth> },
 
               // Rutas Técnicos
               { path: 'tecnico', element: <RequireAuth><TecnicoDashboard /></RequireAuth> },

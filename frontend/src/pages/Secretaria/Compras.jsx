@@ -1,319 +1,151 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
-import { Plus, Search, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
+import { createCompra, getCompras } from '../../services/comprasService';
+import { getProveedores } from '../../services/proveedoresService';
+import { getRepuestos } from '../../services/repuestosService';
 
-// Formulario para Asignar Repuestos a Proveedor
-const CompraForm = ({ onSubmit, onCancel, initialData = null, proveedores = [], repuestos = [] }) => {
+const CompraForm = ({ onSubmit, onCancel, proveedores = [], repuestos = [] }) => {
   const [formData, setFormData] = useState({
-    proveedorId: initialData?.proveedorId || '',
-    repuestoIds: initialData?.repuestoIds || [],
+    proveedor_id: '',
+    repuesto_id: '',
+    documento: '',
+    fecha_obtencion: '',
+    cantidad: '',
+    costo_unitario: '',
+    metodo_pago: '',
   });
 
-  const handleProveedorChange = (e) => {
-    setFormData((prev) => ({ ...prev, proveedorId: e.target.value }));
-  };
-
-  const handleRepuestoToggle = (repuestoId) => {
-    setFormData((prev) => {
-      const current = prev.repuestoIds || [];
-      if (current.includes(repuestoId)) {
-        return { ...prev, repuestoIds: current.filter((id) => id !== repuestoId) };
-      } else {
-        return { ...prev, repuestoIds: [...current, repuestoId] };
-      }
-    });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  const selectedProveedor = proveedores.find((p) => p.id === parseInt(formData.proveedorId));
+  const handleChange = (e) => setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Proveedor
-        </label>
-        <select
-          name="proveedorId"
-          value={formData.proveedorId}
-          onChange={handleProveedorChange}
-          required
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        >
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Select label="Proveedor" name="proveedor_id" value={formData.proveedor_id} onChange={handleChange} required>
           <option value="">Seleccione un proveedor</option>
-          {proveedores.map((proveedor) => (
-            <option key={proveedor.id} value={proveedor.id}>
-              {proveedor.nombre}
-            </option>
-          ))}
-        </select>
+          {proveedores.map((proveedor) => <option key={proveedor.id_proveedor} value={proveedor.id_proveedor}>{proveedor.nombre}</option>)}
+        </Select>
+        <Select label="Repuesto" name="repuesto_id" value={formData.repuesto_id} onChange={handleChange} required>
+          <option value="">Seleccione un repuesto</option>
+          {repuestos.map((repuesto) => <option key={repuesto.id_repuesto} value={repuesto.id_repuesto}>{repuesto.nombre}</option>)}
+        </Select>
+        <Field label="Documento" name="documento" value={formData.documento} onChange={handleChange} placeholder="Factura o recibo" />
+        <Field label="Fecha de obtencion" name="fecha_obtencion" type="date" value={formData.fecha_obtencion} onChange={handleChange} />
+        <Field label="Cantidad" name="cantidad" type="number" min="1" value={formData.cantidad} onChange={handleChange} />
+        <Field label="Costo unitario" name="costo_unitario" type="number" min="0" step="0.01" value={formData.costo_unitario} onChange={handleChange} />
+        <Select label="Metodo de pago" name="metodo_pago" value={formData.metodo_pago} onChange={handleChange}>
+          <option value="">Seleccione metodo</option>
+          <option value="Efectivo">Efectivo</option>
+          <option value="Transferencia">Transferencia</option>
+          <option value="Tarjeta">Tarjeta</option>
+        </Select>
       </div>
-
-      {formData.proveedorId && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Repuestos que surte este proveedor
-          </label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
-            {repuestos.map((repuesto) => (
-              <label
-                key={repuesto.id}
-                className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
-                  formData.repuestoIds.includes(repuesto.id)
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={formData.repuestoIds.includes(repuesto.id)}
-                  onChange={() => handleRepuestoToggle(repuesto.id)}
-                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
-                />
-                <div className="ml-3">
-                  <div className="text-sm font-medium text-gray-800">{repuesto.nombre}</div>
-                  <div className="text-xs text-gray-500">{repuesto.categoria}</div>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="flex justify-end gap-3 pt-4">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={formData.repuestoIds.length === 0}
-          className="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-        >
-          {initialData ? 'Actualizar' : 'Guardar'}
-        </button>
+        <button type="button" onClick={onCancel} className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Cancelar</button>
+        <button type="submit" className="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Guardar</button>
       </div>
     </form>
   );
 };
 
-// Componente principal de Compras (Proveedor-Repuesto)
+const Field = ({ label, ...props }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <input {...props} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+  </div>
+);
+
+const Select = ({ label, children, ...props }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <select {...props} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">{children}</select>
+  </div>
+);
+
 const Compras = () => {
+  const [compras, setCompras] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
+  const [repuestos, setRepuestos] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [editingCompra, setEditingCompra] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [proveedores] = useState([
-    { id: 1, nombre: 'TechParts Nicaragua' },
-    { id: 2, nombre: 'Electrónica Central' },
-    { id: 3, nombre: 'Repuestos Express' },
-  ]);
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [comprasResponse, proveedoresResponse, repuestosResponse] = await Promise.all([getCompras(), getProveedores(), getRepuestos()]);
+      setCompras(comprasResponse.data.data || []);
+      setProveedores(proveedoresResponse.data.data || []);
+      setRepuestos(repuestosResponse.data.data || []);
+    } catch {
+      setError('No se pudieron cargar las compras');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const [repuestos] = useState([
-    { id: 1, nombre: 'Pantalla HP 15.6"', categoria: 'Pantallas' },
-    { id: 2, nombre: 'Batería Dell Inspiron', categoria: 'Baterías' },
-    { id: 3, nombre: 'Cargador Lenovo', categoria: 'Cargadores' },
-    { id: 4, nombre: 'Teclado Samsung', categoria: 'Teclados' },
-    { id: 5, nombre: 'Disco SSD 256GB', categoria: 'Discos Duros' },
-    { id: 6, nombre: 'Memoria RAM 8GB', categoria: 'Memoria RAM' },
-  ]);
-
-  // Datos de ejemplo - relación muchos a muchos
-  const [compras, setCompras] = useState([
-    { 
-      id: 1, 
-      proveedor: 'TechParts Nicaragua', 
-      repuestos: ['Pantalla HP 15.6"', 'Batería Dell Inspiron', 'Cargador Lenovo'],
-      cantidad: 3,
-      fecha: '2026-04-20'
-    },
-    { 
-      id: 2, 
-      proveedor: 'Electrónica Central', 
-      repuestos: ['Teclado Samsung', 'Disco SSD 256GB'],
-      cantidad: 2,
-      fecha: '2026-04-18'
-    },
-    { 
-      id: 3, 
-      proveedor: 'Repuestos Express', 
-      repuestos: ['Memoria RAM 8GB', 'Cargador Lenovo'],
-      cantidad: 2,
-      fecha: '2026-04-15'
-    },
-  ]);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const columnas = [
-    { header: 'ID', accessor: 'id' },
-    { header: 'Proveedor', accessor: 'proveedor' },
-    { 
-      header: 'Repuestos', 
-      accessor: 'repuestos',
-      render: (row) => (
-        <div className="flex flex-wrap gap-1">
-          {row.repuestos.map((rep, idx) => (
-            <span key={idx} className="px-2 py-1 bg-gray-100 text-xs rounded-full">
-              {rep}
-            </span>
-          ))}
-        </div>
-      ),
-    },
+    { header: 'ID', accessor: 'id_compra' },
+    { header: 'Proveedor', accessor: 'proveedor', render: (row) => row.proveedor?.nombre || '' },
+    { header: 'Repuesto', accessor: 'repuesto', render: (row) => row.repuesto?.nombre || '' },
+    { header: 'Documento', accessor: 'documento' },
+    { header: 'Fecha', accessor: 'fecha_obtencion', render: (row) => row.fecha_obtencion ? new Date(row.fecha_obtencion).toLocaleDateString() : '' },
     { header: 'Cantidad', accessor: 'cantidad' },
-    { header: 'Fecha', accessor: 'fecha' },
-    {
-      header: 'Acciones',
-      accessor: 'acciones',
-      render: (row) => (
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleEdit(row)}
-            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-            title="Editar"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => handleDelete(row.id)}
-            className="p-1 text-red-600 hover:bg-red-50 rounded"
-            title="Eliminar"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      ),
-    },
+    { header: 'Costo', accessor: 'costo_unitario', render: (row) => row.costo_unitario ? `C$ ${Number(row.costo_unitario).toFixed(2)}` : '' },
+    { header: 'Pago', accessor: 'metodo_pago' },
   ];
 
-  const filteredCompras = compras.filter((compra) =>
-    compra.proveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    compra.repuestos.some((r) => r.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredCompras = compras.filter((compra) => {
+    const term = searchTerm.toLowerCase();
+    return [compra.proveedor?.nombre, compra.repuesto?.nombre, compra.documento, compra.metodo_pago].some((value) =>
+      String(value || '').toLowerCase().includes(term)
+    );
+  });
 
   const handleSubmit = async (data) => {
     setLoading(true);
     setError(null);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      
-      const proveedor = proveedores.find((p) => p.id === parseInt(data.proveedorId));
-      const repuestosAsignados = repuestos.filter((r) => data.repuestoIds.includes(r.id));
-      const repuestosNombres = repuestosAsignados.map((r) => r.nombre);
-
-      const compraData = {
-        proveedor: proveedor?.nombre || '',
-        repuestos: repuestosNombres,
-        cantidad: repuestosNombres.length,
-        fecha: new Date().toISOString().split('T')[0],
-      };
-
-      if (editingCompra) {
-        setCompras((prev) =>
-          prev.map((c) => (c.id === editingCompra.id ? { ...compraData, id: c.id } : c))
-        );
-      } else {
-        setCompras((prev) => [...prev, { ...compraData, id: Date.now() }]);
-      }
+      await createCompra(data);
       setShowForm(false);
-      setEditingCompra(null);
-    } catch (err) {
+      await loadData();
+    } catch {
       setError('Error al guardar la compra');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = (compra) => {
-    setEditingCompra(compra);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('¿Está seguro de eliminar esta relación?')) {
-      setLoading(true);
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setCompras((prev) => prev.filter((c) => c.id !== id));
-      } catch (err) {
-        setError('Error al eliminar la compra');
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-1">Gestión de Compras</h2>
-        <p className="text-gray-500">Administra qué proveedores surten qué repuestos</p>
+        <h2 className="text-2xl font-bold mb-1">Gestion de Compras</h2>
+        <p className="text-gray-500">Campos reales: proveedor, repuesto, documento, fecha, cantidad, costo y metodo de pago.</p>
       </div>
-
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
-
+      {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">{error}</div>}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar compras..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
+          <input type="text" placeholder="Buscar compras..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
         </div>
-        <button
-          onClick={() => {
-            setEditingCompra(null);
-            setShowForm(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Nueva Relación
+        <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
+          <Plus className="w-4 h-4" /> Nueva Compra
         </button>
       </div>
-
       {showForm && (
         <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold mb-4">
-            {editingCompra ? 'Editar Relación' : 'Nueva Relación Proveedor-Repuesto'}
-          </h3>
-          <CompraForm
-            onSubmit={handleSubmit}
-            onCancel={() => {
-              setShowForm(false);
-              setEditingCompra(null);
-            }}
-            initialData={editingCompra}
-            proveedores={proveedores}
-            repuestos={repuestos}
-          />
+          <h3 className="text-lg font-semibold mb-4">Nueva Compra</h3>
+          <CompraForm onSubmit={handleSubmit} onCancel={() => setShowForm(false)} proveedores={proveedores} repuestos={repuestos} />
         </div>
       )}
-
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">
-            <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-2"></div>
-            Cargando...
-          </div>
-        ) : (
-          <Table columns={columnas} data={filteredCompras} />
-        )}
+        {loading ? <div className="p-8 text-center text-gray-500">Cargando...</div> : <Table columns={columnas} data={filteredCompras} />}
       </div>
     </div>
   );

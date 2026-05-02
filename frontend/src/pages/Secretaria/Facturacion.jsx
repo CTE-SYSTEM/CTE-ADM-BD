@@ -1,70 +1,134 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import Table from '../../components/Table';
+import { createFactura, getFacturas } from '../../services/facturasService';
+import { getOrdenes } from '../../services/ordenesService';
 
 const FacturacionPage = () => {
   const [facturas, setFacturas] = useState([]);
-  const [form, setForm] = useState({ numeroFactura: '', subtotal: '', iva: '', total: '', estado: 'PENDIENTE', clienteId: '', ordenId: '' });
+  const [ordenes, setOrdenes] = useState([]);
+  const [form, setForm] = useState({
+    orden_id: '',
+    monto_repuestos: '',
+    mano_obra: '',
+    impuestos: '',
+    metodo_pago: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    setFacturas([
-      { id: 1, numeroFactura: 'FAC001', subtotal: 100.00, iva: 16.00, total: 116.00, estado: 'PENDIENTE', clienteId: 1 },
-    ]);
-  }, []);
+  const subtotal = useMemo(() => {
+    return Number(form.monto_repuestos || 0) + Number(form.mano_obra || 0);
+  }, [form.monto_repuestos, form.mano_obra]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Crear factura:', form);
+  const total = useMemo(() => subtotal + Number(form.impuestos || 0), [subtotal, form.impuestos]);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [facturasResponse, ordenesResponse] = await Promise.all([getFacturas(), getOrdenes()]);
+      setFacturas(facturasResponse.data.data || []);
+      setOrdenes(ordenesResponse.data.data || []);
+    } catch {
+      setError('No se pudo cargar facturacion');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await createFactura({
+        ...form,
+        subtotal: subtotal.toFixed(2),
+        total: total.toFixed(2),
+      });
+      setForm({ orden_id: '', monto_repuestos: '', mano_obra: '', impuestos: '', metodo_pago: '' });
+      await loadData();
+    } catch {
+      setError('Error al crear la factura');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const columnas = [
+    { header: 'ID', accessor: 'id_factura' },
+    { header: 'Orden', accessor: 'orden_id' },
+    { header: 'Cliente', accessor: 'cliente', render: (row) => row.orden?.diagnostico?.equipo?.cliente?.nombre || '' },
+    { header: 'Fecha', accessor: 'fecha_emision', render: (row) => row.fecha_emision ? new Date(row.fecha_emision).toLocaleDateString() : '' },
+    { header: 'Repuestos', accessor: 'monto_repuestos', render: (row) => row.monto_repuestos ? `C$ ${Number(row.monto_repuestos).toFixed(2)}` : '' },
+    { header: 'Mano obra', accessor: 'mano_obra', render: (row) => row.mano_obra ? `C$ ${Number(row.mano_obra).toFixed(2)}` : '' },
+    { header: 'Impuestos', accessor: 'impuestos', render: (row) => row.impuestos ? `C$ ${Number(row.impuestos).toFixed(2)}` : '' },
+    { header: 'Total', accessor: 'total', render: (row) => row.total ? `C$ ${Number(row.total).toFixed(2)}` : '' },
+    { header: 'Pago', accessor: 'metodo_pago' },
+  ];
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Facturación</h1>
-      <form onSubmit={handleSubmit} className="mb-6 bg-white p-4 rounded shadow">
-        <div className="grid grid-cols-2 gap-4">
-          <input type="text" placeholder="Número Factura" value={form.numeroFactura} onChange={(e) => setForm({...form, numeroFactura: e.target.value})} className="border p-2 rounded" />
-          <input type="number" step="0.01" placeholder="Subtotal" value={form.subtotal} onChange={(e) => setForm({...form, subtotal: e.target.value})} className="border p-2 rounded" />
-          <input type="number" step="0.01" placeholder="IVA" value={form.iva} onChange={(e) => setForm({...form, iva: e.target.value})} className="border p-2 rounded" />
-          <input type="number" step="0.01" placeholder="Total" value={form.total} onChange={(e) => setForm({...form, total: e.target.value})} className="border p-2 rounded" />
-          <select value={form.estado} onChange={(e) => setForm({...form, estado: e.target.value})} className="border p-2 rounded">
-            <option value="PENDIENTE">Pendiente</option>
-            <option value="PAGADA">Pagada</option>
-            <option value="CANCELADA">Cancelada</option>
-          </select>
-          <input type="number" placeholder="Cliente ID" value={form.clienteId} onChange={(e) => setForm({...form, clienteId: e.target.value})} className="border p-2 rounded" />
-          <input type="number" placeholder="Orden ID" value={form.ordenId} onChange={(e) => setForm({...form, ordenId: e.target.value})} className="border p-2 rounded" />
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-1">Facturacion</h1>
+        <p className="text-gray-500">Campos reales: orden, montos de repuestos, mano de obra, impuestos, total y metodo de pago.</p>
+      </div>
+
+      {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">{error}</div>}
+
+      <form onSubmit={handleSubmit} className="mb-6 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Orden</label>
+            <select required value={form.orden_id} onChange={(e) => setForm({ ...form, orden_id: e.target.value })} className="w-full border p-2 rounded-lg">
+              <option value="">Seleccione una orden</option>
+              {ordenes.map((orden) => (
+                <option key={orden.id_orden} value={orden.id_orden}>
+                  #{orden.id_orden} - {orden.diagnostico?.equipo?.cliente?.nombre || 'Sin cliente'}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Field label="Monto repuestos" value={form.monto_repuestos} onChange={(value) => setForm({ ...form, monto_repuestos: value })} />
+          <Field label="Mano de obra" value={form.mano_obra} onChange={(value) => setForm({ ...form, mano_obra: value })} />
+          <Field label="Impuestos" value={form.impuestos} onChange={(value) => setForm({ ...form, impuestos: value })} />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Metodo de pago</label>
+            <select value={form.metodo_pago} onChange={(e) => setForm({ ...form, metodo_pago: e.target.value })} className="w-full border p-2 rounded-lg">
+              <option value="">Seleccione metodo</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Transferencia">Transferencia</option>
+              <option value="Tarjeta">Tarjeta</option>
+            </select>
+          </div>
+          <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
+            <div className="text-sm text-gray-500">Subtotal</div>
+            <div className="font-semibold">C$ {subtotal.toFixed(2)}</div>
+            <div className="text-sm text-gray-500 mt-2">Total</div>
+            <div className="font-semibold">C$ {total.toFixed(2)}</div>
+          </div>
         </div>
-        <button type="submit" className="mt-4 bg-blue-500 text-white px-4 py-2 rounded">Crear Factura</button>
+        <button type="submit" disabled={loading} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg disabled:opacity-60">
+          Crear Factura
+        </button>
       </form>
-      <table className="w-full bg-white rounded shadow">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="p-2">Número Factura</th>
-            <th className="p-2">Subtotal</th>
-            <th className="p-2">IVA</th>
-            <th className="p-2">Total</th>
-            <th className="p-2">Estado</th>
-            <th className="p-2">Cliente ID</th>
-            <th className="p-2">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {facturas.map(factura => (
-            <tr key={factura.id}>
-              <td className="p-2">{factura.numeroFactura}</td>
-              <td className="p-2">${factura.subtotal}</td>
-              <td className="p-2">${factura.iva}</td>
-              <td className="p-2">${factura.total}</td>
-              <td className="p-2">{factura.estado}</td>
-              <td className="p-2">{factura.clienteId}</td>
-              <td className="p-2">
-                <button className="text-blue-500 mr-2">Editar</button>
-                <button className="text-red-500">Eliminar</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        {loading ? <div className="p-8 text-center text-gray-500">Cargando...</div> : <Table columns={columnas} data={facturas} />}
+      </div>
     </div>
   );
 };
+
+const Field = ({ label, value, onChange }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <input type="number" min="0" step="0.01" value={value} onChange={(e) => onChange(e.target.value)} className="w-full border p-2 rounded-lg" />
+  </div>
+);
 
 export default FacturacionPage;

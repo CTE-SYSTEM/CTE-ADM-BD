@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken');
-const prisma = require('../app/prismaClient');
+import jwt from 'jsonwebtoken';
+import prisma from '../app/prismaClient.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 
@@ -21,4 +21,4 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = authMiddleware;
+export default authMiddleware;

@@ -1,16 +1,20 @@
 {
-  "name": "proyecto-general",
-  "devDependencies": {
-    "@types/node": "^25.6.0",
-    "concurrently": "^9.1.0",
-    "typescript": "^6.0.3"
-  },
+  "name": "cte-adm-bd",
+  "version": "1.0.0",
+  "description": "Proyecto Centro Técnico Electrónico - Administración y Base de Datos",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend/project-bd\"",
-    "backend": "npm run dev --prefix backend",
-    "frontend": "npm run dev --prefix frontend/project-bd"
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "db:up": "docker-compose up -d db",
+    "db:down": "docker-compose down db",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
   },
-  "dependencies": {
-    "bcrypt": "^6.0.0"
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "wait-on": "^9.0.5"
   }
 }

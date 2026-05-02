@@ -1,7 +1,7 @@
 // frontend/src/pages/Tecnico/TecnicoDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { Package, AlertCircle, CheckCircle, Clock, Wrench, X } from 'lucide-react';
-import { EstadoBadge, PrioridadBadge } from "../Secretaria/NuevaOrden";
+import { EstadoBadge, PrioridadBadge } from "../Secretaria/Diagnostico";
 import Sidebar from '../../components/Sidebar';
 import Navbar from '../../components/Navbar';
 
