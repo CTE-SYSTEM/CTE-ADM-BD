@@ -1,8 +1,9 @@
+// frontend/src/pages/Secretaria/Clientes.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // Importado para la redirección
 import Table from '../../components/Table';
 import { Plus, Search, Edit, Trash2, ArrowRight } from 'lucide-react';
-import { createCliente, deleteCliente, getClientes, updateCliente } from '../../services/clientesService';
+import { createCliente, deleteCliente, getClientes, updateCliente } from '../../services/secretaria/clientesService';
 
 const emptyCliente = {
   nombre: '',

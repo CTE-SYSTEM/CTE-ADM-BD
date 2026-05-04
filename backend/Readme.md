@@ -64,7 +64,7 @@ Nota: Una vez dentro, escribe SELECT * FROM "Usuarios"; (recuerda el punto y com
 **Nombres de perfiles y su contraseña**
 
 # admin_pro
-# secretarian_ana
+# secretariana_ana
 # jefe_tecnico
 # tecnico_juan
 

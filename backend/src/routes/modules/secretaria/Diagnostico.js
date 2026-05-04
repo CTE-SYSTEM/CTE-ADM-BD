@@ -6,8 +6,9 @@ const router = express.Router();
 // Asegúrate de que los nombres coincidan con lo que hay en DiagnosticoControllers.js
 import { 
     createDiagnostico, 
-    getDiagnosticos, // <--- ESTA FALTABA
-    updateEstadoDiagnostico // <--- PARA CAMBIAR EL ESTADO DESPUÉS
+    getDiagnosticos, 
+    updateDiagnostico,
+    updateEstadoDiagnostico 
 } from '../../../controllers/Secretaria/DiagnosticoControllers.js';
 
 // Rutas configuradas para /api/secretaria/diagnostico
@@ -18,6 +19,9 @@ router.post('/create', createDiagnostico);
 
 // GET /api/secretaria/diagnostico -> Para listar todos (SOLUCIONA EL 404)
 router.get('/', getDiagnosticos);
+
+// PUT /api/secretaria/diagnostico/:id -> Para actualizar el diagnóstico completo
+router.put('/:id', updateDiagnostico);
 
 // PATCH /api/secretaria/diagnostico/:id/estado -> Para aprobar/rechazar
 router.patch('/:id/estado', updateEstadoDiagnostico);

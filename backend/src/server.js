@@ -1,41 +1,68 @@
-// server.js - Punto de entrada del backend
 import 'dotenv/config';
-import app from './app/app.js'; 
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import app from './app/app.js'; // Asumiendo que aquí inicias express()
 import './config/database.js'; 
 
-// Importación de Rutas - Corregidas para que coincidan con tu estructura src/routes/
-import authRoutes from './routes/modules/auth/auth.js';
-import clientesRoutes from './routes/clientes.js';
-import tecnicosRoutes from './routes/tecnicos.js';
-import equiposRoutes from './routes/equipos.js';
-import ordenesRoutes from './routes/ordenes.js';
-import repuestosRoutes from './routes/repuestos.js';
-import proveedoresRoutes from './routes/proveedores.js';
-import comprasRoutes from './routes/compras.js';
-import facturasRoutes from './routes/facturas.js';
-import garantiasRoutes from './routes/garantias.js';
+// --- 1. CONFIGURACIÓN DE MIDDLEWARES ---
+// Morgan para ver las peticiones en la consola del terminal
+app.use(morgan('dev'));
 
-// RUTA CRÍTICA PARA SECRETARÍA
+// CORS: Permite que tu frontend (Vite) se comunique con el backend
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}));
+
+// VITAL: Estos dos permiten que Express lea el cuerpo (body) de los JSON que envías
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// --- 2. IMPORTACIÓN DE RUTAS ---
+import authRoutes from './routes/auth/auth.js';
+import SecretariaRoutes from './routes/modules/secretaria/Secretaria.js';
+import clientesRoutes from './routes/modules/secretaria/clientes.js';
+import tecnicosRoutes from './routes/modules/Tecnico/tecnicos.js';
+import equiposRoutes from './routes/modules/secretaria/equipos.js';
+import createOrden from './routes/modules/secretaria/NuevaOrden.js';
+import repuestosRoutes from './routes/modules/secretaria/Repuesto.js';
+import proveedoresRoutes from './routes/modules/secretaria/Proveedores.js';
+import comprasRoutes from './routes/modules/secretaria/compras.js';
+import facturasRoutes from './routes/modules/secretaria/facturas.js';
+import garantiasRoutes from './routes/modules/secretaria/garantias.js';
 import diagnosticoRoutes from './routes/modules/secretaria/Diagnostico.js';
 
-// Uso de Rutas de la API
+// --- 3. USO DE RUTAS (API) ---
 app.use('/api/auth', authRoutes);
 app.use('/api/clientes', clientesRoutes);
 app.use('/api/tecnicos', tecnicosRoutes);
 app.use('/api/equipos', equiposRoutes);
-app.use('/api/ordenes', ordenesRoutes);
+app.use('/api/ordenes', createOrden);
 app.use('/api/repuestos', repuestosRoutes);
 app.use('/api/proveedores', proveedoresRoutes);
 app.use('/api/compras', comprasRoutes);
 app.use('/api/facturas', facturasRoutes);
 app.use('/api/garantias', garantiasRoutes);
 
-// Uso de Rutas de Secretaría
+// --- 4. USO DE RUTAS DE MÓDULOS ---
+app.use('/api/secretaria', SecretariaRoutes);
 app.use('/api/secretaria/diagnostico', diagnosticoRoutes);
 
-// Puerto
+// --- 5. MANEJO DE ERRORES GLOBAL (Opcional pero recomendado) ---
+app.use((err, req, res, next) => {
+    console.error("❌ Error interno:", err.stack);
+    res.status(500).send({ message: 'Algo salió mal en el servidor' });
+});
+
+// --- 6. ARRANQUE DEL SERVIDOR ---
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`✅ Rutas de Diagnóstico listas en /api/secretaria/diagnostico`);
+
+// IMPORTANTE: Escuchar en '0.0.0.0' para que Docker exponga el servicio correctamente
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n ==========================================`);
+    console.log(`   SERVIDOR CORRIENDO EN: http://localhost:${PORT}`);
+    console.log(`   MODO: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`   SISTEMA: Centro Técnico Electrónico`);
+    console.log(`   ==========================================\n`);
 });

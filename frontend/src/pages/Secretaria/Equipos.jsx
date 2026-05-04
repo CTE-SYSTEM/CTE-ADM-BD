@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Table from '../../components/Table';
 import { Plus, Search, Edit, Trash2, Phone, User } from 'lucide-react';
-import { getClientes } from '../../services/clientesService';
-import { createEquipo, deleteEquipo, getEquipos, updateEquipo } from '../../services/equiposService';
+import { getClientes } from '../../services/secretaria/clientesService';
+import { createEquipo, deleteEquipo, getEquipos, updateEquipo } from '../../services/secretaria/equiposService';
 
 const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], preSelectedClient = null }) => {
   const [formData, setFormData] = useState({

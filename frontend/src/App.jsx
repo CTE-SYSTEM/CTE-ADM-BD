@@ -12,13 +12,13 @@ import { AuthProvider, AuthContext } from './context/AuthContext';
 import Login from './pages/Auth/Login';
 
 // --- SECCIÓN ADMINISTRADOR ---
-import Dashboard from './pages/DashboardAdmin/Dashboard'; 
-import Clientes from './features/clientes/clientes'; 
-import Equipos from './features/equipos/equipos';
-import Tecnicos from './features/tecnicos/tecnicos';
-import Ordenes from './features/ordenes/ordenes';
-import Inventario from './features/inventario/inventario';
-import FacturacionAdmin from './features/facturacion/facturacion'; 
+import Dashboard from './pages/DashboardAdmin/Dashboard';
+import Clientes from './features/clientes/Clientes';
+import Equipos from './features/equipos/Equipos';
+import Tecnicos from './features/tecnicos/Tecnicos';
+import Ordenes from './features/ordenes/Ordenes';
+import Inventario from './features/inventario/Inventario';
+import FacturacionAdmin from './features/facturacion/Facturacion'; 
 
 // --- SECCIÓN SECRETARIA (Carpeta pages/Secretaria) ---
 import SecretariaDashboard from './pages/Secretaria/SecretariaDashboard';
@@ -29,7 +29,7 @@ import RepuestosSecretaria from './pages/Secretaria/Repuestos';
 import ComprasSecretaria from './pages/Secretaria/Compras';
 import FacturacionSecretaria from './pages/Secretaria/Facturacion';
 import Diagnostico from './pages/Secretaria/Diagnostico';
-import NuevaOrden from './pages/Secretaria/NuevaOrden'; 
+import NuevaOrden from './pages/Secretaria/Nuevaorden'; 
 
 // --- SECCIÓN TÉCNICOS ---
 import TecnicoDashboard from './pages/Tecnico/TecnicoDashboard'; 

@@ -1,7 +1,8 @@
+// frontend/src/pages/Secretaria/Facturacion.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import Table from '../../components/Table';
-import { createFactura, getFacturas } from '../../services/facturasService';
-import { getOrdenes } from '../../services/ordenesService';
+import { createFactura, getFacturas } from '../../services/secretaria/facturasService';
+import { getOrdenes } from '../../services/secretaria/ordenesService';
 
 const FacturacionPage = () => {
   const [facturas, setFacturas] = useState([]);

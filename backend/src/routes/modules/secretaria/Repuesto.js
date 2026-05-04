@@ -1,10 +1,11 @@
+// backend/src/routes/modules/secretaria/Repuesto.js
 import { Router } from 'express';
 import { 
   getRepuestos, 
   createRepuesto, 
   updateRepuesto, 
   deleteRepuesto 
-} from '../../../controllers/Secretaria/RepuestosController.js';
+} from '../../../controllers/Secretaria/RepuestoControllers.js';
 
 const router = Router();
 

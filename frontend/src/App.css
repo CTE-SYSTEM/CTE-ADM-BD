@@ -17,16 +17,40 @@
   outline-offset: 2px;
 }
 
-/* Remove .hero nesting for now (not used) */
+/* --- ESTILO DE SCROLLBAR SOBRIO Y REDONDEADO --- */
 
-/* Remove #center nesting for now (not used) */
+/* Contenedor que activa el scroll */
+.custom-scrollbar {
+  /* Asegura que el scroll sea suave en dispositivos táctiles */
+  scrollbar-gutter: stable; 
+}
 
-/* Remove #next-steps nesting for now (not used) */
+/* Tamaño de la barra (6px para que sea discreta) */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
 
-/* Remove #docs nesting for now (not used) */
+/* El carril por donde corre la barra (transparente para no ensuciar) */
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
 
-/* Remove #next-steps ul nesting for now (not used) */
+/* La "manija" o barra que se mueve */
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  /* Usamos un gris suave que pegue con tu interfaz blanca/gris */
+  background: #e2e8f0; 
+  border-radius: 20px; /* Totalmente redondeada */
+  transition: background 0.3s;
+}
 
-/* Remove #spacer nesting for now (not used) */
+/* Cambio sutil al pasar el mouse para dar feedback al usuario */
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1; 
+}
 
-/* Remove .ticks nesting for now (not used) */
+/* Estilo para Firefox (que usa propiedades distintas) */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}

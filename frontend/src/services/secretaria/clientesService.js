@@ -1,4 +1,5 @@
-import api from './api';
+// frontend/src/services/secretaria/clientesService.js
+import api from '../api';
 
 export const getClientes = () => api.get('/clientes');
 export const createCliente = (data) => api.post('/clientes', data);

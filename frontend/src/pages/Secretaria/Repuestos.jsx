@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { 
   createRepuesto, deleteRepuesto, getRepuestos, updateRepuesto 
-} from '../../services/repuestosService';
+} from '../../services/secretaria/repuestosService';
 
 const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [] }) => {
   const [formData, setFormData] = useState({
@@ -18,7 +18,7 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [] 
     porcentaje_de_ganacia: '',
   });
 
-  // CORRECCIÓN: Rellenar datos al editar y limpiar al crear
+  // Rellenar datos al editar y limpiar al crear
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -27,7 +27,6 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [] 
         categoria_nombre: initialData.categoria?.nombre_tipo || '',
         electronico: initialData.categoria?.electronico || '',
         costo_individual: initialData.costo_individual || '',
-        // Conversión decimal a entero para el usuario (0.05 -> 5)
         porcentaje_de_ganacia: initialData.porcentaje_de_ganacia 
           ? (Number(initialData.porcentaje_de_ganacia) * 100).toFixed(0) 
           : '',
@@ -40,13 +39,16 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [] 
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Obtener lista única de electrónicos sugeridos
   const electronicosSugeridos = [...new Set(categorias.map(c => c.electronico).filter(Boolean))];
 
   const handleSubmitInternal = (e) => {
     e.preventDefault();
-    // CORRECCIÓN: Conversión a decimal antes de enviar al backend
+    
+    // Aseguramos que los datos numéricos y de texto sean correctos antes de enviar
     const dataToSend = {
       ...formData,
+      electronico: String(formData.electronico), // Forzamos String para evitar el "Si/No"
       porcentaje_de_ganacia: parseFloat(formData.porcentaje_de_ganacia || 0) / 100,
       costo_individual: parseFloat(formData.costo_individual || 0)
     };
@@ -69,11 +71,16 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [] 
             <div className="flex gap-2">
               <select 
                 className="w-1/3 px-2 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                name="categoria_nombre"
                 onChange={(e) => {
                   const val = e.target.value;
                   if(!val) return;
                   const cat = categorias.find(c => c.nombre_tipo === val);
-                  setFormData(prev => ({ ...prev, categoria_nombre: val, electronico: cat?.electronico || prev.electronico }));
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    categoria_nombre: val, 
+                    electronico: cat?.electronico || prev.electronico 
+                  }));
                 }}
                 value={categorias.some(c => c.nombre_tipo === formData.categoria_nombre) ? formData.categoria_nombre : ""}
               >
@@ -91,16 +98,17 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [] 
             </div>
           </div>
 
-          {/* Tipo de Electrónico - CORREGIDO PARA EVITAR EL "SI" */}
+          {/* Tipo de Electrónico */}
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Tipo de Electrónico</label>
             <div className="flex gap-2">
               <select 
                 className="w-1/3 px-2 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-                onChange={(e) => setFormData(prev => ({ ...prev, electronico: e.target.value }))}
+                name="electronico"
+                onChange={handleChange}
                 value={electronicosSugeridos.includes(formData.electronico) ? formData.electronico : ""}
               >
-                <option value="">Sugeridos</option>
+                <option value="" disabled>Sugeridos</option>
                 {electronicosSugeridos.map((elec, idx) => <option key={idx} value={elec}>{elec}</option>)}
               </select>
               <input 
@@ -168,15 +176,20 @@ const Repuestos = () => {
       const response = await getRepuestos();
       const data = response.data.data || [];
       setRepuestos(data);
+      
+      // Extraer categorías únicas para los selectores
       const catsUnicas = data.reduce((acc, current) => {
-        if (current.categoria && !acc.find(c => c.id_tipo_repuesto === current.categoria.id_tipo_repuesto)) {
+        if (current.categoria && !acc.find(c => c.nombre_tipo === current.categoria.nombre_tipo)) {
           acc.push(current.categoria);
         }
         return acc;
       }, []);
       setCategorias(catsUnicas);
-    } catch (err) { setError('Error al cargar datos'); } 
-    finally { setLoading(false); }
+    } catch (err) { 
+      setError('Error al cargar datos'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -192,8 +205,11 @@ const Repuestos = () => {
       setShowForm(false);
       setEditingRepuesto(null);
       await loadData();
-    } catch (err) { setError('Error al procesar solicitud'); } 
-    finally { setLoading(false); }
+    } catch (err) { 
+      setError('Error al procesar solicitud'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleDelete = async (id) => {
@@ -201,7 +217,9 @@ const Repuestos = () => {
     try {
       await deleteRepuesto(id);
       await loadData();
-    } catch (err) { setError('Error al eliminar'); }
+    } catch (err) { 
+      setError('Error al eliminar'); 
+    }
   };
 
   const filteredRepuestos = repuestos.filter(r => {

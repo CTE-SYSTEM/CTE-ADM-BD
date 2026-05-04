@@ -1,7 +1,8 @@
+// frontend/src/pages/Secretaria/Nuevaorden.jsx
 import React, { useEffect, useState } from 'react';
 import { Loader2, Search, CheckCircle, XCircle, FileText, User, Monitor } from 'lucide-react';
-import { getDiagnosticos, updateEstadoDiagnostico } from '../../services/diagnosticoService';
-import { createOrden } from '../../services/ordenesService';
+import { getDiagnosticos, updateEstadoDiagnostico } from '../../services/secretaria/diagnosticoService';
+import { createOrden } from '../../services/secretaria/ordenesService';
 
 const NuevaOrden = () => {
   const [diagnosticos, setDiagnosticos] = useState([]);

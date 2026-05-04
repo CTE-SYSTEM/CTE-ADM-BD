@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { createProveedor, deleteProveedor, getProveedores, updateProveedor } from '../../services/proveedoresService';
+import { createProveedor, deleteProveedor, getProveedores, updateProveedor } from '../../services/secretaria/proveedoresService';
 
 const ProveedorForm = ({ onSubmit, onCancel, initialData = null }) => {
   const [formData, setFormData] = useState({
@@ -69,24 +69,48 @@ const Proveedores = () => {
   }, []);
 
   const columnas = [
-    { header: 'ID', accessor: 'id_proveedor' },
-    { header: 'Nombre', accessor: 'nombre' },
-    { header: 'Telefono', accessor: 'telefono' },
-    { header: 'Correo', accessor: 'correo' },
-    { header: 'Web', accessor: 'web' },
-    { header: 'Direccion', accessor: 'direccion' },
-    { header: 'Notas', accessor: 'notas' },
-    {
-      header: 'Acciones',
-      accessor: 'acciones',
-      render: (row) => (
-        <div className="flex gap-2">
-          <button onClick={() => { setEditingProveedor(row); setShowForm(true); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Editar"><Edit className="w-4 h-4" /></button>
-          <button onClick={() => handleDelete(row.id_proveedor)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
-        </div>
-      ),
-    },
-  ];
+  { header: 'ID', accessor: 'id_proveedor' },
+  { header: 'Nombre', accessor: 'nombre' },
+  { header: 'Telefono', accessor: 'telefono' },
+  { header: 'Correo', accessor: 'correo' },
+  { 
+    header: 'Web', 
+    accessor: 'web',
+    render: (row) => (
+      <span className="text-blue-500 hover:underline truncate block max-w-[150px]">
+        {row.web}
+      </span>
+    )
+  },
+  { 
+    header: 'Direccion', 
+    accessor: 'direccion',
+    render: (row) => (
+      <p className="min-w-[200px] whitespace-normal break-words">
+        {row.direccion}
+      </p>
+    )
+  },
+  { 
+    header: 'Notas', 
+    accessor: 'notas',
+    render: (row) => (
+      <p className="italic text-gray-500 min-w-[150px] whitespace-normal">
+        {row.notas}
+      </p>
+    )
+  },
+  {
+    header: 'Acciones',
+    accessor: 'acciones',
+    render: (row) => (
+      <div className="flex gap-2 whitespace-nowrap">
+        <button onClick={() => { setEditingProveedor(row); setShowForm(true); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit className="w-4 h-4" /></button>
+        <button onClick={() => handleDelete(row.id_proveedor)} className="p-1 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+      </div>
+    ),
+  },
+];
 
   const filteredProveedores = proveedores.filter((proveedor) => {
     const term = searchTerm.toLowerCase();

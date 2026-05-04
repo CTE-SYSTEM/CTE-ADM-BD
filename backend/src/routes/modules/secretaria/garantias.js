@@ -1,7 +1,7 @@
-// routes/garantias.js
 import { Router } from 'express';
+import { getGarantias, createGarantia } from '../../../controllers/Secretaria/garantiasController.js';
+
 const router = Router();
-import { getGarantias, createGarantia } from '../controllers/garantiasController.js';
 
 router.get('/', getGarantias);
 router.post('/', createGarantia);

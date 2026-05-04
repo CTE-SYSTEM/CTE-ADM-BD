@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, Users, Laptop, Truck, Package, ReceiptText } from 'lucide-react';
-import { getClientes } from '../../services/clientesService';
-import { getEquipos } from '../../services/equiposService';
-import { getOrdenes } from '../../services/ordenesService';
-import { getProveedores } from '../../services/proveedoresService';
-import { getRepuestos } from '../../services/repuestosService';
-import { getFacturas } from '../../services/facturasService';
+import { getClientes } from '../../services/secretaria/clientesService';
+import { getEquipos } from '../../services/secretaria/equiposService';
+import { getOrdenes } from '../../services/secretaria/ordenesService';
+import { getProveedores } from '../../services/secretaria/proveedoresService';
+import { getRepuestos } from '../../services/secretaria/repuestosService';
+import { getFacturas } from '../../services/secretaria/facturasService';
 
 const SecretariaDashboard = () => {
   const [stats, setStats] = useState({
