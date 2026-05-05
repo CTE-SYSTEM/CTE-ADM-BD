@@ -20,7 +20,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // --- 2. IMPORTACIÓN DE RUTAS ---
+// Rutas de autenticación (login, registro, etc.)
 import authRoutes from './routes/auth/auth.js';
+
+// Rutas de módulos específicos (Secretaria)
 import SecretariaRoutes from './routes/modules/secretaria/Secretaria.js';
 import clientesRoutes from './routes/modules/secretaria/clientes.js';
 import tecnicosRoutes from './routes/modules/Tecnico/tecnicos.js';
@@ -33,8 +36,14 @@ import facturasRoutes from './routes/modules/secretaria/facturas.js';
 import garantiasRoutes from './routes/modules/secretaria/garantias.js';
 import diagnosticoRoutes from './routes/modules/secretaria/Diagnostico.js';
 
+// Rutas de módulos específicos (Jefe Técnico)
+import diagnosticoRoutesJefe from './routes/modules/JefeTecnico/Diagnostico.js';
+
 // --- 3. USO DE RUTAS (API) ---
+// ruta de autenticación
 app.use('/api/auth', authRoutes);
+
+// -- Para secretaria (clientes, técnicos, equipos, órdenes, repuestos, proveedores, compras, facturas, garantías)
 app.use('/api/clientes', clientesRoutes);
 app.use('/api/tecnicos', tecnicosRoutes);
 app.use('/api/equipos', equiposRoutes);
@@ -45,9 +54,13 @@ app.use('/api/compras', comprasRoutes);
 app.use('/api/facturas', facturasRoutes);
 app.use('/api/garantias', garantiasRoutes);
 
+// -- Para jefe técnico (diagnósticos)
+app.use('/api/diagnosticos', diagnosticoRoutes);
+
 // --- 4. USO DE RUTAS DE MÓDULOS ---
 app.use('/api/secretaria', SecretariaRoutes);
 app.use('/api/secretaria/diagnostico', diagnosticoRoutes);
+app.use('/api/jefe-tecnico/diagnostico', diagnosticoRoutesJefe);
 
 // --- 5. MANEJO DE ERRORES GLOBAL (Opcional pero recomendado) ---
 app.use((err, req, res, next) => {

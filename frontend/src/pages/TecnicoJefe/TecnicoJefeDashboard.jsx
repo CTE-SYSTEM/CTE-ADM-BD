@@ -1,356 +1,218 @@
-// frontend/src/pages/TecnicoJefe/TecnicoJefeDashboard.jsx
-import React, { useState, useEffect } from 'react';
-import { Users, Package, AlertTriangle, CheckCircle, X, Clock, Wrench, ArrowRight } from 'lucide-react';
-import Sidebar from '../../components/Sidebar';
-import Navbar from '../../components/Navbar';
-
-// Mock data para técnicos
-const mockTecnicos = [
-  { id: 1, nombre: 'Juan Pérez', especialidad: 'Laptops', activo: true },
-  { id: 2, nombre: 'Carlos Ruiz', especialidad: 'Móviles', activo: true },
-  { id: 3, nombre: 'Pedro Gómez', especialidad: 'Tablets', activo: true },
-  { id: 4, nombre: 'Luis Martínez', especialidad: 'Consolas', activo: false },
-];
-
-// Mock data para equipos pendientes de diagnóstico
-const mockEquiposPendientes = [
-  { id: 'ORD-001', cliente: 'Carlos Mendoza', equipo: 'Laptop Dell Inspiron 15', falla: 'Pantalla sin imagen', prioridad: 'ALTA', fecha: '2026-04-25' },
-  { id: 'ORD-002', cliente: 'María González', equipo: 'Samsung Galaxy S21', falla: 'No enciende', prioridad: 'URGENTE', fecha: '2026-04-26' },
-  { id: 'ORD-003', cliente: 'Roberto López', equipo: 'iMac 27" 2020', falla: 'Disco duro SSD', prioridad: 'MEDIA', fecha: '2026-04-27' },
-  { id: 'ORD-004', cliente: 'Ana Torres', equipo: 'PlayStation 5', falla: 'Lector de discos', prioridad: 'BAJA', fecha: '2026-04-20' },
-  { id: 'ORD-005', cliente: 'Jorge Ramírez', equipo: 'HP Pavilion', falla: 'Sobrecalentamiento', prioridad: 'MEDIA', fecha: '2026-04-28' },
-];
-
-// Mock data para solicitudes de repuestos
-const mockSolicitudesRepuesto = [
-  { id: 'REP-001', ordenId: 'ORD-002', solicitante: 'Juan Pérez', repuesto: 'Pantalla OLED 6.1"', cantidad: 1, prioridad: 'URGENTE', estado: 'Pendiente', fecha: '2026-04-26' },
-  { id: 'REP-002', ordenId: 'ORD-001', solicitante: 'Carlos Ruiz', repuesto: 'Inverter Backlight', cantidad: 1, prioridad: 'ALTA', estado: 'Pendiente', fecha: '2026-04-25' },
-  { id: 'REP-003', ordenId: 'ORD-003', solicitante: 'Juan Pérez', repuesto: 'SSD 512GB', cantidad: 1, prioridad: 'MEDIA', estado: 'Aprobado', fecha: '2026-04-24' },
-  { id: 'REP-004', ordenId: 'ORD-004', solicitante: 'Pedro Gómez', repuesto: 'Lector蓝光', cantidad: 1, prioridad: 'BAJA', estado: 'Desaprobado', fecha: '2026-04-22' },
-  { id: 'REP-005', ordenId: 'ORD-005', solicitante: 'Carlos Ruiz', repuesto: 'Ventilador CPU', cantidad: 2, prioridad: 'MEDIA', estado: 'Pendiente', fecha: '2026-04-28' },
-];
-
-// Mock data para órdenes críticas (más de 3 días sin movimiento)
-const mockOrdenesCriticas = [
-  { id: 'ORD-006', cliente: 'Empresa ABC', equipo: 'Servidor Dell', diasSinMovimiento: 5, ultimoEstado: 'En Diagnóstico' },
-  { id: 'ORD-007', cliente: 'Tienda Central', equipo: 'POS Terminal', diasSinMovimiento: 4, ultimoEstado: 'Esperando Repuesto' },
-  { id: 'ORD-008', cliente: 'Colegio Nacional', equipo: 'Proyector Epson', diasSinMovimiento: 3, ultimoEstado: 'En Diagnóstico' },
-];
-
-// Badge de prioridad
-const PrioridadBadge = ({ prioridad }) => {
-  const styles = {
-    URGENTE: 'bg-red-100 text-red-800',
-    ALTA: 'bg-orange-100 text-orange-800',
-    MEDIA: 'bg-yellow-100 text-yellow-800',
-    BAJA: 'bg-green-100 text-green-800',
-  };
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[prioridad] || 'bg-gray-100 text-gray-800'}`}>
-      {prioridad}
-    </span>
-  );
-};
-
-// Badge de estado
-const EstadoBadge = ({ estado }) => {
-  const styles = {
-    Pendiente: 'bg-yellow-100 text-yellow-800',
-    Aprobado: 'bg-green-100 text-green-800',
-    Desaprobado: 'bg-red-100 text-red-800',
-  };
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[estado] || 'bg-gray-100 text-gray-800'}`}>
-      {estado}
-    </span>
-  );
-};
+import React, { useState, useEffect, useContext } from 'react';
+import { AuthContext } from '../../context/AuthContext';
+import { jefeService } from '../../services/JefeTecnico/jefeService';
+import { 
+  Users, AlertTriangle, X, Eye, 
+  ClipboardList, Wrench, LayoutDashboard,
+  LogOut, ShieldCheck, Save, Search,
+  Package, Calendar, FileText, Settings
+} from 'lucide-react';
+import { PrioridadBadge } from '../Secretaria/Diagnostico';
 
 const JefeDashboard = () => {
-  const [equiposPendientes, setEquiposPendientes] = useState(mockEquiposPendientes);
-  const [solicitudesRepuesto, setSolicitudesRepuesto] = useState(mockSolicitudesRepuesto);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('asignacion');
+  const { user } = useContext(AuthContext);
+  
+  // Estados de datos
+  const [diagnosticosPendientes, setDiagnosticosPendientes] = useState([]);
+  const [ordenesPendientes, setOrdenesPendientes] = useState([]);
+  const [repuestosPendientes, setRepuestosPendientes] = useState([]);
+  const [tecnicos, setTecnicos] = useState([]);
+  
+  // Estados de UI
+  const [activeTab, setActiveTab] = useState('asignar_diagnostico');
+  const [filtroTiempo, setFiltroTiempo] = useState('mes'); // Afecta solo a las métricas
+  const [loading, setLoading] = useState(true);
 
-  // useEffect para cargar datos desde API
   useEffect(() => {
-    // TODO: Implementar llamadas a API
-    // const fetchEquipos = async () => {
-    //   const response = await fetch('/api/equipos/pendientes');
-    //   const data = await response.json();
-    //   setEquiposPendientes(data);
-    // };
-    // const fetchSolicitudes = async () => {
-    //   const response = await fetch('/api/repuestos/solicitudes');
-    //   const data = await response.json();
-    //   setSolicitudesRepuesto(data);
-    // };
+    fetchData();
   }, []);
 
-  // Manejar asignación de técnico
-  const handleAsignarTecnico = (ordenId, tecnicoId) => {
-    setEquiposPendientes((prev) =>
-      prev.map((equipo) =>
-        equipo.id === ordenId ? { ...equipo, tecnicoAsignado: tecnicoId } : equipo
-      )
-    );
-    // TODO: Llamar a API
-    // await fetch('/api/ordenes/asignar', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ ordenId, tecnicoId }),
-    // });
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [diagRes, ordRes, repRes, tecRes] = await Promise.all([
+        jefeService.getDiagnosticosPendientes(),
+        jefeService.getOrdenesPendientes(),
+        jefeService.getRepuestosSolicitados(),
+        jefeService.getTecnicosDisponibles()
+      ]);
+
+      setDiagnosticosPendientes(diagRes.data.data);
+      setOrdenesPendientes(ordRes.data.data);
+      setRepuestosPendientes(repRes.data.data);
+      setTecnicos(tecRes.data.data);
+    } catch (error) {
+      console.error("Error al sincronizar datos:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Manejar aprobación de repuesto
-  const handleAprobarRepuesto = (solicitudId) => {
-    setSolicitudesRepuesto((prev) =>
-      prev.map((sol) =>
-        sol.id === solicitudId ? { ...sol, estado: 'Aprobado' } : sol
-      )
-    );
-    // TODO: Llamar a API
-    // await fetch(`/api/repuestos/${solicitudId}/aprobar`, { method: 'POST' });
-  };
-
-  // Manejar rechazo de repuesto
-  const handleRechazarRepuesto = (solicitudId) => {
-    setSolicitudesRepuesto((prev) =>
-      prev.map((sol) =>
-        sol.id === solicitudId ? { ...sol, estado: 'Desaprobado' } : sol
-      )
-    );
-    // TODO: Llamar a API
-    // await fetch(`/api/repuestos/${solicitudId}/rechazar`, { method: 'POST' });
+  const getFilteredTableData = () => {
+    switch(activeTab) {
+      case 'asignar_diagnostico': return diagnosticosPendientes;
+      case 'asignar_orden': return ordenesPendientes.filter(o => !o.id_tecnico);
+      case 'ver_diagnosticos': return diagnosticosPendientes;
+      case 'ver_ordenes': return ordenesPendientes;
+      case 'repuestos': return repuestosPendientes;
+      case 'alertas': return ordenesPendientes.filter(o => o.prioridad === 'URGENTE');
+      default: return [];
+    }
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar open={sidebarOpen} />
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-slate-900">
       
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+      {/* HEADER */}
+      <header className="bg-[#0f172a] text-white p-6 shadow-lg">
+        <div className="container mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-xl font-black shadow-lg shadow-indigo-500/20">CTE</div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight italic text-indigo-400 uppercase">Control Técnico</h1>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold">Panel Administrativo Jefe</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="text-right border-r border-slate-700 pr-6">
+              <p className="text-sm font-bold text-slate-200">TECNICOJEFE</p>
+              <p className="text-[10px] font-black text-indigo-500 flex items-center justify-end gap-1 uppercase italic tracking-tighter">
+                <ShieldCheck size={12}/> Autorizado
+              </p>
+            </div>
+            <button className="text-slate-400 hover:text-white transition-colors"><LogOut size={24}/></button>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 container mx-auto p-8">
         
-        <main className="flex-1 overflow-auto p-6">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">Panel del Jefe Técnico</h1>
-            <p className="text-gray-600">Gestión de técnicos y aprobación de repuestos</p>
+        {/* FILTRO DE TIEMPO (POSICIONADO ARRIBA DE LOS CUADRADOS) */}
+        <div className="flex justify-end mb-4">
+          <div className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200">
+            {['semana', 'mes', 'año'].map((t) => (
+              <button 
+                key={t} 
+                onClick={() => setFiltroTiempo(t)} 
+                className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${filtroTiempo === t ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {t}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* Tabs de navegación */}
-          <div className="mb-6 border-b border-gray-200">
-            <nav className="flex space-x-8">
-              <button
-                onClick={() => setActiveTab('asignacion')}
-                className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'asignacion'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Users size={18} />
-                Asignar Técnicos
-              </button>
-              <button
-                onClick={() => setActiveTab('repuestos')}
-                className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'repuestos'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Package size={18} />
-                Aprobar Repuestos
-              </button>
-              <button
-                onClick={() => setActiveTab('criticas')}
-                className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'criticas'
-                    ? 'border-red-600 text-red-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <AlertTriangle size={18} />
-                Órdenes Críticas
-              </button>
-            </nav>
-          </div>
+        {/* METRICAS (CUADRADOSpequeños) */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <StatCard icon={<Search size={22}/>} label="Diag. Pendientes" value={diagnosticosPendientes.length} color="blue" sub={filtroTiempo} />
+          <StatCard icon={<Users size={22}/>} label="Órdenes x Asignar" value={ordenesPendientes.length} color="indigo" sub={filtroTiempo} />
+          <StatCard icon={<Package size={22}/>} label="Repuestos x Aprobar" value={repuestosPendientes.length} color="amber" sub={filtroTiempo} />
+          <StatCard icon={<AlertTriangle size={22}/>} label="Alertas Críticas" value={ordenesPendientes.filter(o => o.prioridad === 'URGENTE').length} color="red" sub={filtroTiempo} />
+        </div>
 
-          {/* Contenido según tab */}
-          {activeTab === 'asignacion' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800">Equipos Pendientes de Diagnóstico</h3>
-                <p className="text-sm text-gray-500">Selecciona un técnico para asignar cada equipo</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orden</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Equipo</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Falla</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prioridad</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Asignar a</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {equiposPendientes.map((equipo) => (
-                      <tr key={equipo.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-800">{equipo.id}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{equipo.cliente}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{equipo.equipo}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500">{equipo.falla}</td>
-                        <td className="px-4 py-3">
-                          <PrioridadBadge prioridad={equipo.prioridad} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <select
-                            value={equipo.tecnicoAsignado || ''}
-                            onChange={(e) => handleAsignarTecnico(equipo.id, e.target.value)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="">Seleccionar...</option>
-                            {mockTecnicos.filter(t => t.activo).map((tecnico) => (
-                              <option key={tecnico.id} value={tecnico.id}>
-                                {tecnico.nombre} - {tecnico.especialidad}
-                              </option>
-                            ))}
+        {/* MODULOS OPERATIVOS (6 PESTAÑAS) */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8 bg-white p-2.5 rounded-[2.5rem] shadow-sm border border-gray-100">
+          <TabButton active={activeTab === 'asignar_diagnostico'} onClick={() => setActiveTab('asignar_diagnostico')} icon={<Settings size={16}/>} label="Asignar Diag." />
+          <TabButton active={activeTab === 'asignar_orden'} onClick={() => setActiveTab('asignar_orden')} icon={<Users size={16}/>} label="Asignar Orden" />
+          <TabButton active={activeTab === 'ver_diagnosticos'} onClick={() => setActiveTab('ver_diagnosticos')} icon={<FileText size={16}/>} label="Ver Diagnósticos" />
+          <TabButton active={activeTab === 'ver_ordenes'} onClick={() => setActiveTab('ver_ordenes')} icon={<Eye size={16}/>} label="Ver Órdenes" />
+          <TabButton active={activeTab === 'repuestos'} onClick={() => setActiveTab('repuestos')} icon={<Package size={16}/>} label="Repuestos" />
+          <TabButton active={activeTab === 'alertas'} onClick={() => setActiveTab('alertas')} icon={<AlertTriangle size={16}/>} label="Alertas" />
+        </div>
+
+        {/* TABLA DE RESULTADOS */}
+        <div className="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 border border-gray-100 overflow-hidden">
+          {loading ? (
+            <div className="p-40 text-center flex flex-col items-center gap-4">
+              <div className="w-14 h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+              <span className="font-black text-slate-300 uppercase text-xs tracking-[0.5em]">Sincronizando Base de Datos...</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50/80 text-slate-400 uppercase text-[10px] font-black tracking-widest border-b">
+                  <tr>
+                    <th className="px-10 py-7">Referencia</th>
+                    <th className="px-10 py-7">Equipo / Cliente</th>
+                    <th className="px-10 py-7 text-center">Estado/Prioridad</th>
+                    <th className="px-10 py-7 text-center">Acciones</th>
+                    {(activeTab.includes('asignar')) && <th className="px-10 py-7">Asignar Personal</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {getFilteredTableData().length === 0 ? (
+                    <tr><td colSpan="5" className="p-40 text-center text-slate-300 font-black uppercase text-sm tracking-widest">No se encontraron registros activos</td></tr>
+                  ) : getFilteredTableData().map((item) => (
+                    <tr key={item.id_diagnostico || item.id_orden} className="hover:bg-indigo-50/30 transition-all group">
+                      <td className="px-10 py-8">
+                        <span className="font-black text-indigo-600 block text-base">#{item.id_diagnostico || item.id_orden}</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Registrado hoy</span>
+                      </td>
+                      <td className="px-10 py-8">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-800 uppercase text-xs">
+                            {item.equipo?.marca || 'S/M'} {item.equipo?.modelo || 'S/M'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-black uppercase italic tracking-tighter">{item.equipo?.cliente?.nombre || 'Cliente Particular'}</span>
+                        </div>
+                      </td>
+                      <td className="px-10 py-8 text-center">
+                        <PrioridadBadge prioridad={item.prioridad || 'NORMAL'} />
+                      </td>
+                      <td className="px-10 py-8 text-center">
+                        <button className="p-4 bg-white border-2 border-slate-100 text-slate-500 rounded-2xl hover:text-indigo-600 hover:border-indigo-600 hover:shadow-md transition-all active:scale-90">
+                          <Eye size={20} />
+                        </button>
+                      </td>
+                      {activeTab.includes('asignar') && (
+                        <td className="px-10 py-8">
+                          <select className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest focus:bg-white focus:border-indigo-500 outline-none transition-all cursor-pointer appearance-none shadow-sm">
+                            <option value="">Seleccionar Especialista...</option>
+                            {tecnicos.map(t => <option key={t.id_tecnico} value={t.id_tecnico}>{t.nombre}</option>)}
                           </select>
                         </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Tab de aprobación de repuestos */}
-          {activeTab === 'repuestos' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800">Solicitudes de Repuestos</h3>
-                <p className="text-sm text-gray-500">Revisa y aprueba las solicitudes de tus técnicos</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orden</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Solicitante</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Repuesto</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cantidad</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prioridad</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                      )}
                     </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {solicitudesRepuesto.map((sol) => (
-                      <tr key={sol.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-600">{sol.id}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-800">{sol.ordenId}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{sol.solicitante}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{sol.repuesto}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{sol.cantidad}</td>
-                        <td className="px-4 py-3">
-                          <PrioridadBadge prioridad={sol.prioridad} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <EstadoBadge estado={sol.estado} />
-                        </td>
-                        <td className="px-4 py-3">
-                          {sol.estado === 'Pendiente' && (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleAprobarRepuesto(sol.id)}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm transition-colors"
-                              >
-                                <CheckCircle size={14} />
-                                Aprobar
-                              </button>
-                              <button
-                                onClick={() => handleRechazarRepuesto(sol.id)}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm transition-colors"
-                              >
-                                <X size={14} />
-                                Rechazar
-                              </button>
-                            </div>
-                          )}
-                          {sol.estado !== 'Pendiente' && (
-                            <span className="text-sm text-gray-400">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
+        </div>
+      </main>
 
-          {/* Tab de órdenes críticas */}
-          {activeTab === 'criticas' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-200 bg-red-50">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="text-red-600" size={20} />
-                  <h3 className="text-lg font-semibold text-gray-800">Órdenes Críticas</h3>
-                </div>
-                <p className="text-sm text-red-600 ml-7">Reparaciones con más de 3 días sin movimiento</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orden</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Equipo</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Días Sin Movimiento</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Último Estado</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {mockOrdenesCriticas.map((orden) => (
-                      <tr key={orden.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-800">{orden.id}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{orden.cliente}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{orden.equipo}</td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            <Clock size={12} className="mr-1" />
-                            {orden.diasSinMovimiento} días
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{orden.ultimoEstado}</td>
-                        <td className="px-4 py-3">
-                          <button className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1">
-                            Ver detalles
-                            <ArrowRight size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {mockOrdenesCriticas.length === 0 && (
-                <div className="p-8 text-center text-gray-500">
-                  <CheckCircle size={48} className="mx-auto mb-4 text-green-500" />
-                  <p>No hay órdenes críticas</p>
-                </div>
-              )}
-            </div>
-          )}
-        </main>
-      </div>
+      <footer className="p-10 text-center text-[10px] font-black text-gray-300 uppercase tracking-[0.6em]">
+        CTE - Nicaragua University Project © 2026
+      </footer>
     </div>
   );
 };
+
+// COMPONENTES DE DISEÑO
+const StatCard = ({ icon, label, value, color, sub }) => (
+  <div className="bg-white p-7 rounded-[2.5rem] shadow-sm border border-gray-100 relative group transition-all hover:shadow-xl hover:shadow-slate-200/40">
+    <div className="flex flex-col gap-4">
+      <div className={`w-12 h-12 bg-${color}-50 text-${color}-600 rounded-2xl flex items-center justify-center shadow-inner`}>{icon}</div>
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{label}</p>
+        <div className="flex items-baseline gap-3">
+          <span className="text-4xl font-black text-slate-800 tracking-tighter leading-none">{value}</span>
+          <span className="text-[9px] font-bold text-slate-300 uppercase italic tracking-tighter">Acumulado {sub}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const TabButton = ({ active, onClick, icon, label }) => (
+  <button 
+    onClick={onClick} 
+    className={`flex flex-col items-center justify-center gap-2.5 py-5 px-3 rounded-[2rem] font-black text-[9px] uppercase tracking-tighter transition-all ${active ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);
 
 export default JefeDashboard;

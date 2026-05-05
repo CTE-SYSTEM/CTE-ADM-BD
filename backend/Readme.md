@@ -67,6 +67,9 @@ Nota: Una vez dentro, escribe SELECT * FROM "Usuarios"; (recuerda el punto y com
 # secretariana_ana
 # jefe_tecnico
 # tecnico_juan
+# marcos_fix
+# elena_tech
+# roberto_vga
 
 **contraseña de todos**
 

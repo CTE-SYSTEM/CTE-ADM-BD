@@ -17,6 +17,7 @@ model Usuarios {
   rol                String   // Admin, Jefe Tecnico, Tecnico, Recepcion
   activo             Boolean  @default(true)
   fecha_creacion     DateTime @default(now())
+  tecnico            Tecnicos?
 
   @@map("Usuarios")
 }
@@ -51,11 +52,14 @@ model Equipos {
 // --- FLUJO DE TRABAJO ---
 
 model Tecnicos {
-  id_tecnico   Int           @id @default(autoincrement())
-  nombre       String        
-  especialidad String?       
-  horario      String?       
-  contacto     String?       
+  id_tecnico   Int       @id @default(autoincrement())
+  usuario_id   Int?      @unique
+  usuario      Usuarios? @relation(fields: [usuario_id], references: [id_usuario], onDelete: Cascade)
+  nombre       String    
+  especialidad String?   // Ejemplo: Microelectrónica, Laptops, Celulares
+  horario      String?   // Ejemplo: "Lunes a Viernes 08:00 - 17:00"
+  contacto     String?   // Teléfono o medio de comunicación interno
+
   diagnosticos Diagnosticos[]
   ordenes      Ordenes[]
 

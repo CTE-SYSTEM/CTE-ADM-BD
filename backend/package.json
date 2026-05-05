@@ -14,6 +14,7 @@
     "// CHECKS": "Comandos simplificados para ver tablas rápidamente",
     "db:check:users": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT * FROM \"Usuarios\";'",
     "db:check:clientes": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT * FROM \"Clientes\";'",
+    "db:check:tecnicos": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT * FROM \"Tecnicos\";'",
     "db:hash-fix": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"UPDATE \\\"Usuarios\\\" SET contrasena_hash = '$2b$10$L9vMdfSclS7M3.B5I6S9X.8A2Z6iP5l1n5m6n7o8p9q0r1s2t3u4v';\""
   },
   "dependencies": {

@@ -13,14 +13,14 @@ import Login from './pages/Auth/Login';
 
 // --- SECCIÓN ADMINISTRADOR ---
 import Dashboard from './pages/DashboardAdmin/Dashboard';
-import Clientes from './features/clientes/Clientes';
-import Equipos from './features/equipos/Equipos';
+import Clientes from './features/Secretaria/Clientes';
+import Equipos from './features/Secretaria/Equipos';
 import Tecnicos from './features/tecnicos/Tecnicos';
 import Ordenes from './features/ordenes/Ordenes';
-import Inventario from './features/inventario/Inventario';
-import FacturacionAdmin from './features/facturacion/Facturacion'; 
+import Inventario from './features/admin/Inventario';
+import FacturacionAdmin from './features/Secretaria/Facturacion'; 
 
-// --- SECCIÓN SECRETARIA (Carpeta pages/Secretaria) ---
+// --- SECCIÓN SECRETARIA ---
 import SecretariaDashboard from './pages/Secretaria/SecretariaDashboard';
 import ClientesSecretaria from './pages/Secretaria/Clientes';
 import EquiposSecretaria from './pages/Secretaria/Equipos';
@@ -41,6 +41,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const toggleSidebar = () => setSidebarOpen((s) => !s);
 
+  // Layout estándar con Sidebar y Navbar (Admin, Secretaria, Técnico)
   const MainLayout = () => (
     <div className="flex h-screen bg-gray-50 text-gray-900">
       <Sidebar open={sidebarOpen} />
@@ -63,10 +64,11 @@ function App() {
           </AuthProvider>
         ),
         children: [
+          // 1. RUTAS CON SIDEBAR Y NAVBAR GLOBAL
           {
             element: <MainLayout />,
             children: [
-              // Rutas Admin
+              // Admin
               { index: true, element: <RequireAuth><Dashboard /></RequireAuth> },
               { path: 'admin/clientes', element: <RequireAuth><Clientes /></RequireAuth> },
               { path: 'admin/tecnicos', element: <RequireAuth><Tecnicos /></RequireAuth> },
@@ -75,7 +77,7 @@ function App() {
               { path: 'admin/inventario', element: <RequireAuth><Inventario /></RequireAuth> },
               { path: 'admin/facturacion', element: <RequireAuth><FacturacionAdmin /></RequireAuth> },
 
-              // Rutas Secretaria
+              // Secretaria
               { path: 'secretaria', element: <RequireAuth><SecretariaDashboard /></RequireAuth> },
               { path: 'secretaria/clientes', element: <RequireAuth><ClientesSecretaria /></RequireAuth> },
               { path: 'secretaria/equipos', element: <RequireAuth><EquiposSecretaria /></RequireAuth> },
@@ -83,15 +85,21 @@ function App() {
               { path: 'secretaria/repuestos', element: <RequireAuth><RepuestosSecretaria /></RequireAuth> },
               { path: 'secretaria/compras', element: <RequireAuth><ComprasSecretaria /></RequireAuth> },
               { path: 'secretaria/facturacion', element: <RequireAuth><FacturacionSecretaria /></RequireAuth> },
-              // Ambas rutas ahora apuntan al componente Diagnostico
               { path: 'secretaria/nueva-orden', element: <RequireAuth><NuevaOrden /></RequireAuth> },
               { path: 'secretaria/diagnostico', element: <RequireAuth><Diagnostico /></RequireAuth> },
 
-              // Rutas Técnicos
+              // Tecnico Normal
               { path: 'tecnico', element: <RequireAuth><TecnicoDashboard /></RequireAuth> },
-              { path: 'tecnico-jefe', element: <RequireAuth><JefeDashboard /></RequireAuth> },
             ],
           },
+
+          // 2. RUTAS INDEPENDIENTES (Sin Sidebar Global)
+          // El JefeDashboard ya trae su propio Header integrado
+          { 
+            path: 'tecnico-jefe', 
+            element: <RequireAuth><JefeDashboard /></RequireAuth> 
+          },
+          
           { path: 'login', element: <Login /> },
           { path: '*', element: <Navigate to="/" replace /> },
         ],

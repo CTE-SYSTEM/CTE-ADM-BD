@@ -1,14 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Users, Laptop, Truck, Package, ReceiptText } from 'lucide-react';
+import { 
+  ClipboardList, Users, Laptop, Truck, Package, 
+  ReceiptText, Stethoscope, Calendar, Filter 
+} from 'lucide-react';
 import { getClientes } from '../../services/secretaria/clientesService';
 import { getEquipos } from '../../services/secretaria/equiposService';
 import { getOrdenes } from '../../services/secretaria/ordenesService';
 import { getProveedores } from '../../services/secretaria/proveedoresService';
 import { getRepuestos } from '../../services/secretaria/repuestosService';
 import { getFacturas } from '../../services/secretaria/facturasService';
+import { getDiagnosticos } from '../../services/secretaria/diagnosticoService';
 
 const SecretariaDashboard = () => {
+  // Almacenamos toda la data original para poder filtrar localmente
+  const [rawData, setRawData] = useState({
+    clientes: [],
+    equipos: [],
+    ordenes: [],
+    proveedores: [],
+    repuestos: [],
+    facturas: [],
+    diagnosticos: []
+  });
+
+  // Estado para los valores que se muestran en los iconos
   const [stats, setStats] = useState({
     clientes: 0,
     equipos: 0,
@@ -16,8 +32,11 @@ const SecretariaDashboard = () => {
     proveedores: 0,
     repuestos: 0,
     facturas: 0,
+    diagnosticos: 0
   });
-  const [ordenes, setOrdenes] = useState([]);
+
+  const [filteredOrdenes, setFilteredOrdenes] = useState([]);
+  const [filterType, setFilterType] = useState('all'); // 'week', 'month', 'year', 'all'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -26,25 +45,25 @@ const SecretariaDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const [clientes, equipos, ordenesResponse, proveedores, repuestos, facturas] = await Promise.all([
+        const [resClientes, resEquipos, resOrdenes, resProveedores, resRepuestos, resFacturas, resDiagnosticos] = await Promise.all([
           getClientes(),
           getEquipos(),
           getOrdenes(),
           getProveedores(),
           getRepuestos(),
           getFacturas(),
+          getDiagnosticos()
         ]);
 
-        const ordenesData = ordenesResponse.data.data || [];
-        setStats({
-          clientes: clientes.data.data?.length || 0,
-          equipos: equipos.data.data?.length || 0,
-          ordenes: ordenesData.length,
-          proveedores: proveedores.data.data?.length || 0,
-          repuestos: repuestos.data.data?.length || 0,
-          facturas: facturas.data.data?.length || 0,
+        setRawData({
+          clientes: resClientes.data.data || [],
+          equipos: resEquipos.data.data || [],
+          ordenes: resOrdenes.data.data || [],
+          proveedores: resProveedores.data.data || [],
+          repuestos: resRepuestos.data.data || [],
+          facturas: resFacturas.data.data || [],
+          diagnosticos: resDiagnosticos.data.data || []
         });
-        setOrdenes(ordenesData.slice(-5).reverse());
       } catch {
         setError('No se pudo cargar el dashboard de Secretaria');
       } finally {
@@ -55,53 +74,124 @@ const SecretariaDashboard = () => {
     loadDashboard();
   }, []);
 
+  // Lógica de Filtrado Local (Se ejecuta cada vez que cambia el botón de filtro o llega data nueva)
+  useEffect(() => {
+    const now = new Date();
+    
+    const filterByDate = (items) => {
+      if (filterType === 'all') return items;
+
+      return items.filter(item => {
+        // Buscamos cualquier campo de fecha disponible en el objeto
+        const itemDate = new Date(item.createdAt || item.fecha_creacion || item.fecha_registro);
+        
+        if (filterType === 'week') {
+          // Últimos 7 días
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          return itemDate >= weekAgo;
+        }
+        if (filterType === 'month') {
+          // Mismo mes y mismo año
+          return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+        }
+        if (filterType === 'year') {
+          // Mismo año
+          return itemDate.getFullYear() === now.getFullYear();
+        }
+        return true;
+      });
+    };
+
+    // Actualizamos estadísticas de los iconos
+    setStats({
+      clientes: filterByDate(rawData.clientes).length,
+      equipos: filterByDate(rawData.equipos).length,
+      ordenes: filterByDate(rawData.ordenes).length,
+      proveedores: filterByDate(rawData.proveedores).length,
+      repuestos: filterByDate(rawData.repuestos).length,
+      facturas: filterByDate(rawData.facturas).length,
+      diagnosticos: filterByDate(rawData.diagnosticos).length
+    });
+
+    // Actualizamos la tabla (últimas 5 según el filtro)
+    setFilteredOrdenes(filterByDate(rawData.ordenes).slice(-5).reverse());
+
+  }, [filterType, rawData]);
+
   const quickActions = [
-    { title: 'Nueva Orden', value: stats.ordenes, icon: ClipboardList, url: '/secretaria/nueva-orden', color: 'bg-indigo-600' },
     { title: 'Clientes', value: stats.clientes, icon: Users, url: '/secretaria/clientes', color: 'bg-blue-600' },
-    { title: 'Equipos', value: stats.equipos, icon: Laptop, url: '/secretaria/equipos', color: 'bg-emerald-600' },
-    { title: 'Proveedores', value: stats.proveedores, icon: Truck, url: '/secretaria/proveedores', color: 'bg-slate-700' },
+    { title: 'Equipos', value: stats.equipos, icon: Laptop, url: '/secretaria/equipos', color: 'bg-cyan-600' },
+    { title: 'Diagnóstico', value: stats.diagnosticos, icon: Stethoscope, url: '/secretaria/diagnostico', color: 'bg-purple-600' },
+    { title: 'Nueva Orden', value: stats.ordenes, icon: ClipboardList, url: '/secretaria/nueva-orden', color: 'bg-indigo-600' },
     { title: 'Repuestos', value: stats.repuestos, icon: Package, url: '/secretaria/repuestos', color: 'bg-amber-600' },
+    { title: 'Proveedores', value: stats.proveedores, icon: Truck, url: '/secretaria/proveedores', color: 'bg-slate-700' },
     { title: 'Facturas', value: stats.facturas, icon: ReceiptText, url: '/secretaria/facturacion', color: 'bg-rose-600' },
   ];
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div className="flex items-center gap-3">
           <div className="h-11 w-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
             <ClipboardList className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Secretaria</h1>
-            <p className="text-gray-500">Panel operativo conectado a la base de datos</p>
+            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Secretaria</h1>
+            <p className="text-gray-500">Gestión operativa • {filterType === 'all' ? 'Historial Completo' : `Filtro: ${filterType.toUpperCase()}`}</p>
           </div>
+        </div>
+
+        {/* Botones de Filtro de Tiempo */}
+        <div className="flex items-center bg-white border border-gray-200 p-1 rounded-xl shadow-sm">
+          {[
+            { id: 'all', label: 'Todo' },
+            { id: 'week', label: 'Semana' },
+            { id: 'month', label: 'Mes' },
+            { id: 'year', label: 'Año' },
+          ].map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilterType(f.id)}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
+                filterType === f.id 
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">{error}</div>}
 
-      <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-6 mb-8">
+      {/* Grid de Iconos con valores filtrados */}
+      <section className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-7 mb-8">
         {quickActions.map((action) => {
           const Icon = action.icon;
           return (
-            <Link key={action.title} to={action.url} className="group bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow">
-              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-white ${action.color} mb-4`}>
+            <Link key={action.title} to={action.url} className="group bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all hover:-translate-y-1">
+              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-white ${action.color} mb-3 shadow-sm`}>
                 <Icon className="w-5 h-5" />
               </div>
-              <div className="text-2xl font-semibold text-gray-900">{loading ? '-' : action.value}</div>
-              <div className="text-sm text-gray-500">{action.title}</div>
+              <div className="text-xl font-bold text-gray-900">{loading ? '...' : action.value}</div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{action.title}</div>
             </Link>
           );
         })}
       </section>
 
-      <section className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+      <section className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-semibold text-gray-800">Ultimas ordenes registradas</h2>
-            <p className="text-sm text-gray-500">Datos leidos desde PostgreSQL.</p>
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Filter className="w-4 h-4 text-indigo-500" />
+              Últimas órdenes ({filterType})
+            </h2>
+            <p className="text-sm text-gray-500">Mostrando actividad reciente en PostgreSQL.</p>
           </div>
-          <Link to="/secretaria/nueva-orden" className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+          <Link to="/secretaria/nueva-orden" className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100">
             Nueva orden
           </Link>
         </div>
@@ -109,35 +199,41 @@ const SecretariaDashboard = () => {
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm text-gray-600">
             <thead>
-              <tr>
-                <th className="border-b border-gray-200 px-4 py-3">Orden</th>
-                <th className="border-b border-gray-200 px-4 py-3">Cliente</th>
-                <th className="border-b border-gray-200 px-4 py-3">Equipo</th>
-                <th className="border-b border-gray-200 px-4 py-3">Tecnico</th>
-                <th className="border-b border-gray-200 px-4 py-3">Estado</th>
+              <tr className="bg-gray-50/50 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
+                <th className="px-4 py-3 border-b border-gray-100">Orden</th>
+                <th className="px-4 py-3 border-b border-gray-100">Cliente</th>
+                <th className="px-4 py-3 border-b border-gray-100">Equipo</th>
+                <th className="px-4 py-3 border-b border-gray-100">Técnico</th>
+                <th className="px-4 py-3 border-b border-gray-100 text-center">Estado</th>
               </tr>
             </thead>
             <tbody>
-              {ordenes.length === 0 && (
+              {filteredOrdenes.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-6 text-center text-gray-500">No hay ordenes registradas</td>
+                  <td colSpan="5" className="px-4 py-10 text-center text-gray-400 italic">
+                    No se encontraron órdenes registradas en este periodo
+                  </td>
                 </tr>
+              ) : (
+                filteredOrdenes.map((orden) => (
+                  <tr key={orden.id_orden} className="hover:bg-gray-50 border-b border-gray-50 transition-colors">
+                    <td className="px-4 py-3 font-bold text-indigo-600">#{orden.id_orden}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800">{orden.diagnostico?.equipo?.cliente?.nombre || 'General'}</td>
+                    <td className="px-4 py-3">
+                      {[orden.diagnostico?.equipo?.marca, orden.diagnostico?.equipo?.modelo].filter(Boolean).join(' ')}
+                    </td>
+                    <td className="px-4 py-3">{orden.tecnico?.nombre || 'Sin asignar'}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-bold border ${
+                        orden.estado === 'FINALIZADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                        'bg-gray-100 text-gray-700 border-gray-200'
+                      }`}>
+                        {orden.estado || 'PENDIENTE'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
               )}
-              {ordenes.map((orden) => (
-                <tr key={orden.id_orden} className="hover:bg-gray-50">
-                  <td className="border-b border-gray-100 px-4 py-3 font-medium text-gray-800">#{orden.id_orden}</td>
-                  <td className="border-b border-gray-100 px-4 py-3">{orden.diagnostico?.equipo?.cliente?.nombre || ''}</td>
-                  <td className="border-b border-gray-100 px-4 py-3">
-                    {[orden.diagnostico?.equipo?.tipo, orden.diagnostico?.equipo?.marca, orden.diagnostico?.equipo?.modelo].filter(Boolean).join(' ')}
-                  </td>
-                  <td className="border-b border-gray-100 px-4 py-3">{orden.tecnico?.nombre || ''}</td>
-                  <td className="border-b border-gray-100 px-4 py-3">
-                    <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-                      {orden.estado || 'PENDIENTE'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
             </tbody>
           </table>
         </div>
