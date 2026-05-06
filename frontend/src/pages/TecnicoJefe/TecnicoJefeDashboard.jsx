@@ -164,14 +164,14 @@ const JefeDashboard = () => {
       )
     },
     {
-      header: 'ID Equipo / Cliente',
+      header: 'Equipo / Cliente',
       accessor: 'equipo',
       render: (row) => {
         const equipo = row.equipo || row.diagnostico?.equipo;
         return (
           <div className="flex flex-col">
             <span className="font-bold text-slate-800 uppercase text-xs">
-              #{equipo?.id_equipo || 'S/ID'}
+              {equipo?.marca || 'S/M'} {equipo?.modelo || 'S/M'}
             </span>
             <span className="text-[10px] text-slate-400 font-black uppercase italic tracking-tighter">
               {equipo?.cliente?.nombre || 'Particular'}
