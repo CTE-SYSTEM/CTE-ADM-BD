@@ -73,6 +73,7 @@ model Diagnosticos {
   falla_reportada         String?   
   diagnostico_real        String?  
   fecha_hora              DateTime? @default(now())
+  fecha_asignacion        DateTime?
   
   // Estados
   estado_del_diagnostico  String    @default("PENDIENTE") // PENDIENTE, EN_REVISION, COMPLETADO

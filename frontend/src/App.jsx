@@ -34,6 +34,7 @@ import NuevaOrden from './pages/Secretaria/Nuevaorden';
 // --- SECCIÓN TÉCNICOS ---
 import TecnicoDashboard from './pages/Tecnico/TecnicoDashboard'; 
 import JefeDashboard from './pages/TecnicoJefe/TecnicoJefeDashboard';
+import EditarOrden from './pages/TecnicoJefe/EditarOrden';
 
 import './App.css';
 
@@ -64,12 +65,15 @@ function App() {
           </AuthProvider>
         ),
         children: [
+          { path: 'login', element: <Login /> },
+
           // 1. RUTAS CON SIDEBAR Y NAVBAR GLOBAL
           {
             element: <MainLayout />,
             children: [
               // Admin
               { index: true, element: <RequireAuth><Dashboard /></RequireAuth> },
+              { path: 'admin', element: <RequireAuth><Dashboard /></RequireAuth> },
               { path: 'admin/clientes', element: <RequireAuth><Clientes /></RequireAuth> },
               { path: 'admin/tecnicos', element: <RequireAuth><Tecnicos /></RequireAuth> },
               { path: 'admin/equipos', element: <RequireAuth><Equipos /></RequireAuth> },
@@ -99,13 +103,14 @@ function App() {
             path: 'tecnico-jefe', 
             element: <RequireAuth><JefeDashboard /></RequireAuth> 
           },
-          
-          { path: 'login', element: <Login /> },
-          { path: '*', element: <Navigate to="/" replace /> },
+          {
+            path: 'editar-orden/:id',
+            element: <RequireAuth><EditarOrden /></RequireAuth>
+          },
         ],
+        future: { v7_startTransition: true, v7_relativeSplatPath: true }
       },
-    ],
-    { future: { v7_startTransition: true, v7_relativeSplatPath: true } }
+    ]
   );
 
   return <RouterProvider router={router} />;

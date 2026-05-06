@@ -18,5 +18,17 @@ export const diagnosticoService = {
     api.patch(`/diagnosticos/${id_diagnostico}/estado`, { estado_del_diagnostico }),
 
   // Obtener un diagnóstico detallado por ID
-  getById: (id) => api.get(`/diagnosticos/${id}`)
+  getById: (id) => api.get(`/diagnosticos/${id}`),
+
+  // Métodos para el dashboard
+  getTodos: () => api.get('/diagnosticos/todos'),
+  getOrdenes: () => api.get('/diagnosticos/ordenes'),
+  getOrdenById: (id) => api.get(`/diagnosticos/ordenes/${id}`),
+  updateOrden: (id_orden, ordenData) => api.put(`/diagnosticos/ordenes/${id_orden}`, ordenData),
+  getRepuestos: () => api.get('/diagnosticos/repuestos'),
+  getTecnicos: () => api.get('/diagnosticos/tecnicos'),
+  asignar: (id_diagnostico, id_tecnico) => 
+    api.patch(`/diagnosticos/${id_diagnostico}/asignar`, { id_tecnico }),
+  asignarOrden: (id_orden, id_tecnico) => 
+    api.patch(`/diagnosticos/orden/${id_orden}/asignar`, { id_tecnico })
 };

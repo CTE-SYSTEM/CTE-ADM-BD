@@ -53,14 +53,10 @@ app.use('/api/proveedores', proveedoresRoutes);
 app.use('/api/compras', comprasRoutes);
 app.use('/api/facturas', facturasRoutes);
 app.use('/api/garantias', garantiasRoutes);
+app.use('/api/secretaria/diagnostico', diagnosticoRoutes);
 
 // -- Para jefe técnico (diagnósticos)
-app.use('/api/diagnosticos', diagnosticoRoutes);
-
-// --- 4. USO DE RUTAS DE MÓDULOS ---
-app.use('/api/secretaria', SecretariaRoutes);
-app.use('/api/secretaria/diagnostico', diagnosticoRoutes);
-app.use('/api/jefe-tecnico/diagnostico', diagnosticoRoutesJefe);
+app.use('/api/diagnosticos', diagnosticoRoutesJefe);
 
 // --- 5. MANEJO DE ERRORES GLOBAL (Opcional pero recomendado) ---
 app.use((err, req, res, next) => {

@@ -8,7 +8,6 @@
     "checkJs": false,
     "allowJs": true,
     "noEmit": true,
-    "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
       "@frontend/*": ["./frontend/*"],
