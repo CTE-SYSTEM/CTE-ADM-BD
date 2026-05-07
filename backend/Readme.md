@@ -49,28 +49,53 @@ Al entrar por primera vez, debes registrar el servidor de la base de datos con l
 > [!TIP]
 > **Para ver el modelo de datos visual:** Haz clic derecho sobre la base de datos `Centro_Tecnico_Electronico` en el panel izquierdo y selecciona la opción **ERD Tool**. Esto generará automáticamente el diagrama con todas las relaciones y llaves foráneas.
 
-### 3. creacion de usuarios
+### 3. 👥 Carga de Usuarios y Credenciales
 
-> **los comando para asi dar o meter datos a usuarios desde el script de sql**
-> Get-Content backend/scripts/crear_usuarios.sql -Raw | docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico
+El sistema viene con 4 usuarios por defecto listos para usar. Las credenciales están almacenadas en la base de datos con hashes seguros.
 
-> **Para verificar si los usuarios se crearon correctamente sin entrar a herramientas gráficas:**
->docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c --% "SELECT * FROM \"Usuarios\";"
+**Después de iniciar Docker (`docker compose up -d`), carga los usuarios con:**
 
-> **para hacerlo manualmente**
-> docker exec -it postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico
-Nota: Una vez dentro, escribe SELECT * FROM "Usuarios"; (recuerda el punto y coma ;) y usa \q para salir.
+```bash
+npm run db:seed
+```
 
-**Nombres de perfiles y su contraseña**
+O manualmente:
+```bash
+docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico < scripts/crear_usuarios.sql
+```
 
-# admin_pro
-# secretariana_ana
-# jefe_tecnico
-# tecnico_juan
-# marcos_fix
-# elena_tech
-# roberto_vga
+**Usuarios disponibles:**
 
-**contraseña de todos**
+| Usuario | Rol | Contraseña |
+|---------|-----|-----------|
+| `admin_pro` | Administrador | `admin123` |
+| `secretaria_ana` | Secretaria | `secretaria123` |
+| `jefe_tecnico` | Técnico Jefe | `jefe123` |
+| `tecnico_juan` | Técnico | `tecnico123` |
 
-> 1234
+**Verificar que los usuarios se crearon correctamente:**
+
+```bash
+npm run db:check:users
+```
+
+O manualmente:
+```bash
+docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT id_usuario, nombre_usuario, rol, activo FROM "Usuarios";'
+```
+
+> [!IMPORTANT]
+> **Para producción:** Reemplaza estas contraseñas por contraseñas seguras en `scripts/crear_usuarios.sql` y regenera los hashes con `npm run db:generate-hashes`.
+
+---
+
+**Comandos útiles de base de datos:**
+
+- Ver todos los usuarios: `npm run db:check:users`
+- Ver clientes: `npm run db:check:clientes`
+- Ver técnicos: `npm run db:check:tecnicos`
+- Generar hashes de contraseña: `npm run db:generate-hashes`
+- Cargar usuarios desde script: `npm run db:seed`
+
+> [!NOTE]
+> Para más información sobre credenciales y configuración, ver [CREDENTIALS.md](../CREDENTIALS.md) en la raíz del proyecto.

@@ -9,13 +9,12 @@
     "db:sync": "prisma db push",
     "db:generate": "prisma generate",
     "studio": "prisma studio --port 5555",
-    "// SEED": "Usa el seed nativo de Prisma si es posible, si no, este comando es más limpio:",
     "db:seed": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico < scripts/crear_usuarios.sql",
-    "// CHECKS": "Comandos simplificados para ver tablas rápidamente",
-    "db:check:users": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT * FROM \"Usuarios\";'",
-    "db:check:clientes": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT * FROM \"Clientes\";'",
-    "db:check:tecnicos": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT * FROM \"Tecnicos\";'",
-    "db:hash-fix": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"UPDATE \\\"Usuarios\\\" SET contrasena_hash = '$2b$10$L9vMdfSclS7M3.B5I6S9X.8A2Z6iP5l1n5m6n7o8p9q0r1s2t3u4v';\""
+    "db:seed:local": "psql -U User_admin -d Centro_Tecnico_Electronico -f scripts/crear_usuarios.sql",
+    "db:check:users": "docker exec postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"SELECT id_usuario, nombre_usuario, rol, activo FROM \\\"Usuarios\\\" ORDER BY id_usuario;\"",
+    "db:check:clientes": "docker exec postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"SELECT * FROM \\\"Clientes\\\";\"",
+    "db:check:tecnicos": "docker exec postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"SELECT * FROM \\\"Tecnicos\\\";\"",
+    "db:generate-hashes": "node scripts/generatePasswordHashes.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
