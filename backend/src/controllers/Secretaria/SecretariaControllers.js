@@ -1,6 +1,5 @@
 // backend/src/controllers/Secretaria/SecretariaControllers.js
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import prisma from '../../app/prismaClient.js';
 
 export const getDashboardStats = async (req, res) => {
   try {

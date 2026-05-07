@@ -1,41 +1,23 @@
 // backend/src/controllers/Secretaria/equiposController.js
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../app/prismaClient.js';
 
-const prisma = new PrismaClient();
-
-/**
- * Obtener todos los equipos incluyendo la información del cliente asociado
- */
 export const getEquipos = async (req, res) => {
   try {
     const equipos = await prisma.equipos.findMany({
-      include: {
-        cliente: true // Esto une la tabla clientes para mostrar el nombre en la tabla
-      },
-      orderBy: {
-        id_equipo: 'desc'
-      }
+      include: { cliente: true }
     });
-
-    // Envolvemos en { data: ... } para consistencia con el frontend
     res.json({ data: equipos });
   } catch (error) {
-    console.error('Error al obtener equipos:', error);
-    res.status(500).json({ error: 'Error interno al obtener el listado de equipos' });
+    console.error('❌ Error en getEquipos:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ error: 'Error al obtener equipos', details: error.message });
   }
 };
 
-/**
- * Crear un equipo asociado a un cliente
- */
 export const createEquipo = async (req, res) => {
   try {
     const { cliente_id, tipo, marca, modelo, numero_serie } = req.body;
-
-    // Validación de ID de cliente (Prisma necesita un Int)
-    if (!cliente_id) {
-      return res.status(400).json({ error: 'El ID del cliente es obligatorio' });
-    }
+    if (!cliente_id) return res.status(400).json({ error: 'El ID del cliente es obligatorio' });
 
     const equipo = await prisma.equipos.create({
       data: {
@@ -45,21 +27,16 @@ export const createEquipo = async (req, res) => {
         modelo,
         numero_serie
       },
-      include: {
-        cliente: true // Devolvemos el objeto completo para actualizar la tabla sin recargar todo
-      }
+      include: { cliente: true }
     });
-
     res.status(201).json({ data: equipo });
   } catch (error) {
-    console.error('Error al crear equipo:', error);
-    res.status(500).json({ error: 'Error al registrar el equipo en la base de datos' });
+    console.error('❌ Error en createEquipo:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ error: 'Error al registrar el equipo', details: error.message });
   }
 };
 
-/**
- * Actualizar datos de un equipo
- */
 export const updateEquipo = async (req, res) => {
   try {
     const { id } = req.params;
@@ -68,44 +45,41 @@ export const updateEquipo = async (req, res) => {
     const equipo = await prisma.equipos.update({
       where: { id_equipo: parseInt(id) },
       data: {
-        cliente_id: parseInt(cliente_id),
+        cliente_id: cliente_id ? parseInt(cliente_id) : undefined,
         tipo,
         marca,
         modelo,
         numero_serie
       },
-      include: {
-        cliente: true
-      }
+      include: { cliente: true }
     });
 
     res.json({ data: equipo });
   } catch (error) {
-    console.error('Error al actualizar equipo:', error);
+    console.error('❌ Error en updateEquipo:', error.message);
+    console.error('Stack:', error.stack);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Equipo no encontrado' });
     }
-    res.status(500).json({ error: 'Error interno al actualizar equipo' });
+    res.status(500).json({ error: 'Error al actualizar equipo', details: error.message });
   }
 };
 
-/**
- * Eliminar un equipo
- */
 export const deleteEquipo = async (req, res) => {
   try {
     const { id } = req.params;
-
     await prisma.equipos.delete({
       where: { id_equipo: parseInt(id) }
     });
-
     res.status(204).send();
   } catch (error) {
-    console.error('Error al eliminar equipo:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'El registro ya no existe' });
+    console.error('❌ Error en deleteEquipo:', error.message);
+    if (error.code === 'P2014') {
+      return res.status(409).json({ error: 'No se puede eliminar el equipo (tiene diagnósticos o datos relacionados)' });
     }
-    res.status(500).json({ error: 'No se pudo eliminar el equipo' });
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Equipo no encontrado' });
+    }
+    res.status(500).json({ error: 'No se pudo eliminar el equipo', details: error.message });
   }
 };

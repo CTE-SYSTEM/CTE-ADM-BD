@@ -1,13 +1,16 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Backend del sistema Centro Técnico Electrónico",
+  "description": "Sistema de Gestión para Centro Técnico Electrónico (CTE)",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
     "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "// DATABASE": "Comandos para gestión de base de datos",
     "db:sync": "prisma db push",
     "db:generate": "prisma generate",
+<<<<<<< Updated upstream
     "studio": "prisma studio --port 5555",
     "db:seed": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico < scripts/crear_usuarios.sql",
     "db:seed:local": "psql -U User_admin -d Centro_Tecnico_Electronico -f scripts/crear_usuarios.sql",
@@ -15,6 +18,19 @@
     "db:check:clientes": "docker exec postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"SELECT * FROM \\\"Clientes\\\";\"",
     "db:check:tecnicos": "docker exec postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"SELECT * FROM \\\"Tecnicos\\\";\"",
     "db:generate-hashes": "node scripts/generatePasswordHashes.js"
+=======
+    "db:studio": "prisma studio --port 5555",
+    "// SEED": "Ejecuta el script central que carga todos los procedimientos SQL y datos iniciales",
+    "db:seed": "prisma db seed",
+    "// DOCKER UTILS": "Comandos rápidos para inspeccionar el contenedor",
+    "docker:psql": "docker exec -it postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico",
+    "docker:users": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT * FROM \"Usuarios\";'",
+    "docker:tecnicos": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT * FROM \"Tecnicos\";'",
+    "docker:fix-hash": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"UPDATE \\\"Usuarios\\\" SET contrasena_hash = '$2b$10$L9vMdfSclS7M3.B5I6S9X.8A2Z6iP5l1n5m6n7o8p9q0r1s2t3u4v';\""
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+>>>>>>> Stashed changes
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -23,10 +39,19 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "morgan": "^1.10.1",
-    "prisma": "^5.22.0"
+    "morgan": "^1.10.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
-  }
+    "nodemon": "^3.1.14",
+    "prisma": "^5.22.0"
+  },
+  "keywords": [
+    "express",
+    "prisma",
+    "postgresql",
+    "backend",
+    "electronic-service"
+  ],
+  "author": "CTE Dev Team",
+  "license": "ISC"
 }

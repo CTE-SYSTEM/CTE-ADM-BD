@@ -1,121 +1,90 @@
 // backend/src/controllers/Secretaria/clientesController.js
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../app/prismaClient.js';
 
-const prisma = new PrismaClient();
-
-/**
- * Obtener todos los clientes
- */
+/** Obtener todos los clientes activos */
 export const getClientes = async (req, res) => {
   try {
     const clientes = await prisma.clientes.findMany({
-      orderBy: {
-        id_cliente: 'desc', // Opcional: mostrar los más recientes primero
-      },
+      where: { activo: true },
+      orderBy: { id_cliente: 'desc' }
     });
-    
-    // Devolvemos el array envuelto en data para que coincida con tu frontend
     res.json({ data: clientes });
   } catch (error) {
-    console.error('Error al obtener clientes:', error);
-    res.status(500).json({ 
-      error: 'Error interno del servidor',
-      details: error.message 
-    });
+    console.error('❌ Error en getClientes:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ error: 'Error al obtener clientes', details: error.message });
   }
 };
 
-/**
- * Crear un nuevo cliente
- */
+/** Crear un nuevo cliente */
 export const createCliente = async (req, res) => {
   try {
     const { nombre, telefono, direccion, correo, contacto_secundario } = req.body;
+    if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    if (!telefono) return res.status(400).json({ error: 'El teléfono es obligatorio' });
 
-    // Validación básica
-    if (!nombre) {
-      return res.status(400).json({ error: 'El nombre es obligatorio' });
-    }
-
-    const nuevoCliente = await prisma.clientes.create({
+    const resultado = await prisma.clientes.create({
       data: {
         nombre,
         telefono,
         direccion,
         correo,
         contacto_secundario,
-      },
+        activo: true
+      }
     });
-
-    // IMPORTANTE: Devolvemos el objeto dentro de 'data' para que el frontend 
-    // pueda leer response.data.data.id_cliente al "Guardar y Continuar"
-    res.status(201).json({ data: nuevoCliente });
+    res.status(201).json({ data: resultado });
   } catch (error) {
-    console.error('Error al crear cliente:', error);
-    res.status(500).json({ 
-      error: 'Error al intentar registrar el cliente',
-      details: error.message 
-    });
+    console.error('❌ Error en createCliente:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ error: 'Error al registrar el cliente', details: error.message });
   }
 };
 
-/**
- * Actualizar un cliente existente
- */
+/** Actualizar un cliente existente */
 export const updateCliente = async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, telefono, direccion, correo, contacto_secundario } = req.body;
 
-    const clienteActualizado = await prisma.clientes.update({
-      where: { 
-        id_cliente: parseInt(id) 
-      },
+    const resultado = await prisma.clientes.update({
+      where: { id_cliente: parseInt(id) },
       data: {
         nombre,
         telefono,
         direccion,
         correo,
-        contacto_secundario,
-      },
+        contacto_secundario
+      }
     });
 
-    res.json({ data: clienteActualizado });
+    res.json({ data: resultado });
   } catch (error) {
-    console.error('Error al actualizar cliente:', error);
+    console.error('❌ Error en updateCliente:', error.message);
+    console.error('Stack:', error.stack);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Cliente no encontrado' });
     }
-    res.status(500).json({ error: 'Error al actualizar el cliente' });
+    res.status(500).json({ error: 'Error al actualizar el cliente', details: error.message });
   }
 };
 
-/**
- * Eliminar un cliente
- */
+/** Borrado lógico (Desactivar) */
 export const deleteCliente = async (req, res) => {
   try {
     const { id } = req.params;
-
-    await prisma.clientes.delete({
-      where: { 
-        id_cliente: parseInt(id) 
-      },
+    await prisma.clientes.update({
+      where: { id_cliente: parseInt(id) },
+      data: { activo: false }
     });
-
-    // 204 No Content es el estándar para eliminaciones exitosas
+    
     res.status(204).send();
   } catch (error) {
-    console.error('Error al eliminar cliente:', error);
+    console.error('❌ Error en deleteCliente:', error.message);
+    console.error('Stack:', error.stack);
     if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'El cliente ya no existe' });
+      return res.status(404).json({ error: 'Cliente no encontrado' });
     }
-    // Error de clave foránea (si el cliente tiene equipos asociados)
-    if (error.code === 'P2003') {
-      return res.status(400).json({ 
-        error: 'No se puede eliminar el cliente porque tiene equipos o registros asociados' 
-      });
-    }
-    res.status(500).json({ error: 'Error al eliminar el cliente' });
+    res.status(500).json({ error: 'Error al desactivar el cliente', details: error.message });
   }
 };

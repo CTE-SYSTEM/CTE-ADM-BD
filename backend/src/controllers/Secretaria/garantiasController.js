@@ -1,7 +1,5 @@
 // backend/src/controllers/Secretaria/garantiasController.js
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '../../app/prismaClient.js';
 
 /**
  * Obtener todas las garantías con la información de la factura y el cliente

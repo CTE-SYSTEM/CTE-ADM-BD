@@ -2,8 +2,9 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import app from './app/app.js'; // Asumiendo que aquí inicias express()
 import './config/database.js'; 
+
+const app = express();
 
 // --- 1. CONFIGURACIÓN DE MIDDLEWARES ---
 // Morgan para ver las peticiones en la consola del terminal
@@ -24,7 +25,6 @@ app.use(express.urlencoded({ extended: true }));
 import authRoutes from './routes/auth/auth.js';
 
 // Rutas de módulos específicos (Secretaria)
-import SecretariaRoutes from './routes/modules/secretaria/Secretaria.js';
 import clientesRoutes from './routes/modules/secretaria/clientes.js';
 import tecnicosRoutes from './routes/modules/Tecnico/tecnicos.js';
 import equiposRoutes from './routes/modules/secretaria/equipos.js';
@@ -58,13 +58,13 @@ app.use('/api/secretaria/diagnostico', diagnosticoRoutes);
 // -- Para jefe técnico (diagnósticos)
 app.use('/api/diagnosticos', diagnosticoRoutesJefe);
 
-// --- 5. MANEJO DE ERRORES GLOBAL (Opcional pero recomendado) ---
+// --- 4. MANEJO DE ERRORES GLOBAL ---
 app.use((err, req, res, next) => {
     console.error("❌ Error interno:", err.stack);
-    res.status(500).send({ message: 'Algo salió mal en el servidor' });
+    res.status(500).json({ message: 'Algo salió mal en el servidor', error: err.message });
 });
 
-// --- 6. ARRANQUE DEL SERVIDOR ---
+// --- 5. ARRANQUE DEL SERVIDOR ---
 const PORT = process.env.PORT || 5000;
 
 // IMPORTANTE: Escuchar en '0.0.0.0' para que Docker exponga el servicio correctamente

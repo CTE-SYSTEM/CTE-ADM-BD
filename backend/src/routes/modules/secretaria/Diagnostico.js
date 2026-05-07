@@ -7,8 +7,7 @@ const router = express.Router();
 import { 
     createDiagnostico, 
     getDiagnosticos, 
-    updateDiagnostico,
-    updateEstadoDiagnostico 
+    updateDiagnostico
 } from '../../../controllers/Secretaria/DiagnosticoControllers.js';
 
 // Rutas configuradas para /api/secretaria/diagnostico
@@ -22,8 +21,5 @@ router.get('/', getDiagnosticos);
 
 // PUT /api/secretaria/diagnostico/:id -> Para actualizar el diagnóstico completo
 router.put('/:id', updateDiagnostico);
-
-// PATCH /api/secretaria/diagnostico/:id/estado -> Para aprobar/rechazar
-router.patch('/:id/estado', updateEstadoDiagnostico);
 
 export default router;

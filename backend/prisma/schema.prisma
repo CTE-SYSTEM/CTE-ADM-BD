@@ -31,7 +31,9 @@ model Clientes {
   direccion           String?   
   correo              String?   
   contacto_secundario String?   
+  activo              Boolean   @default(true)
   equipos             Equipos[]
+
 
   @@map("Clientes")
 }
@@ -59,6 +61,7 @@ model Tecnicos {
   especialidad String?   // Ejemplo: Microelectrónica, Laptops, Celulares
   horario      String?   // Ejemplo: "Lunes a Viernes 08:00 - 17:00"
   contacto     String?   // Teléfono o medio de comunicación interno
+  activo       Boolean   @default(true)
 
   diagnosticos Diagnosticos[]
   ordenes      Ordenes[]
@@ -129,7 +132,9 @@ model Repuestos {
   descripcion      String?              
   costo_individual Decimal?             @db.Decimal(18, 2) // Se actualiza con la última compra se necesita un trigger
   porcentaje_de_ganacia     Decimal?             @db.Decimal(18, 2) // Lo que le cobras al cliente o por otra pate lo que se saca de gaancia si un 20 o 30 $
-  
+  activo           Boolean              @default(true)
+  descontinuada    Boolean @default(true)
+
   categoria        Categorias_Repuestos @relation(fields: [tipo_repuesto_id], references: [id_tipo_repuesto])
   compras          Compras[]
   ordenes_detalles Ordenes_Repuestos[]
@@ -137,7 +142,6 @@ model Repuestos {
   @@map("Repuestos")
 }
 
-// Esta tabla reemplaza a Facturas_Detalles
 model Ordenes_Repuestos {
   id_detalle_repuesto Int       @id @default(autoincrement())
   orden_id            Int
@@ -163,6 +167,7 @@ model Proveedores {
   correo       String?
   web          String?   
   notas        String?   // Para anotar horarios o si tienen buenos repuestos o si incluso hubo problemas con las piezas
+  descontinuada    Boolean @default(true)
   compras      Compras[]
 
   @@map("Proveedores")

@@ -1,6 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+// controllers/Secretaria/ProveedoresControllers.js
+import prisma from '../../app/prismaClient.js';
 
 export const getProveedores = async (req, res) => {
   try {
@@ -73,16 +72,15 @@ export const updateProveedor = async (req, res) => {
 
 export const deleteProveedor = async (req, res) => {
   try {
-    await prisma.proveedores.delete({
+    await prisma.proveedores.update({
       where: { id_proveedor: Number(req.params.id) },
+      data: { activo: false } // <-- Borrado lógico
     });
-
     res.status(204).send();
   } catch (error) {
-    console.error('Error al eliminar proveedor:', error);
-    if (error.code === 'P2003') {
-      return res.status(400).json({ error: 'No se puede eliminar porque tiene compras asociadas' });
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Proveedor no encontrado' });
     }
-    res.status(500).json({ error: 'Error al eliminar proveedor', details: error.message });
+    res.status(500).json({ error: 'Error al desactivar proveedor' });
   }
 };

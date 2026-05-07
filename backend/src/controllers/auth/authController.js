@@ -1,9 +1,7 @@
 // backend/src/controllers/auth/authController.js
-import { PrismaClient } from '@prisma/client';
+import prisma from '../../app/prismaClient.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-const prisma = new PrismaClient();
 
 export const login = async (req, res) => {
   try {
