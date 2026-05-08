@@ -11,11 +11,11 @@ BEGIN
         'diagnostico_real', d.diagnostico_real,
         'estado_del_diagnostico', d.estado_del_diagnostico,
         'estado', d.estado_del_diagnostico, -- Mapeo de shapeDiagnostico
-        'Estado_aprobacion', d.Estado_aprobacion,
+        'Estado_aprobacion', d."Estado_aprobacion",
         'deja_cargador', d.deja_cargador,
         'enciende', d.enciende,
         'usa_corriente_ac', d.usa_corriente_ac,
-        'fecha_registro', d.fecha_registro,
+        'fecha_hora', d.fecha_hora,
         'tecnico', to_jsonb(t.*),
         'equipo', to_jsonb(e.*),
         'cliente', to_jsonb(c.*) -- Aplanado de shapeDiagnostico
@@ -39,7 +39,7 @@ DECLARE
 BEGIN
     INSERT INTO "Diagnosticos" (
         equipo_id, tecnico_id, falla_reportada, diagnostico_real, 
-        estado_del_diagnostico, Estado_aprobacion, deja_cargador, enciende, usa_corriente_ac
+        estado_del_diagnostico, "Estado_aprobacion", deja_cargador, enciende, usa_corriente_ac
     ) VALUES (
         p_equipo_id, p_tecnico_id, p_falla, p_diag_real, 
         p_estado_diag, p_estado_aprob, p_cargador, p_enciende, p_ac
@@ -60,7 +60,7 @@ BEGIN
         'diagnostico_real', d.diagnostico_real,
         'estado_del_diagnostico', d.estado_del_diagnostico,
         'estado', d.estado_del_diagnostico,
-        'Estado_aprobacion', d.Estado_aprobacion,
+        'Estado_aprobacion', d."Estado_aprobacion",
         'deja_cargador', d.deja_cargador,
         'enciende', d.enciende,
         'usa_corriente_ac', d.usa_corriente_ac,

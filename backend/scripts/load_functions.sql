@@ -1,0 +1,7 @@
+\i scripts/modules/Secretaria/Clientes.sql
+\i scripts/modules/Secretaria/Equipo.sql
+\i scripts/modules/Secretaria/Diagnostico.sql
+\i scripts/modules/Secretaria/Compras.sql
+\i scripts/modules/Secretaria/Proveedores.sql
+\i scripts/modules/Secretaria/Repuesto.sql
+\i scripts/modules/JefeTecnico/Diagnostico.sql

@@ -20,12 +20,13 @@ services:
   backend:
     build: ./backend
     container_name: backend_cte
-    command: sh -c "npx prisma generate && npx prisma db push && sleep 5 && npm run dev"
+    command: sh -c "npx prisma generate && npx prisma db push && npm run db:functions:container && npm run db:seed:container && sleep 5 && npm run dev"
     depends_on:
       db:
         condition: service_healthy
     environment:
       - DATABASE_URL=postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico?schema=public
+      - SQL_DATABASE_URL=postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico
     ports:
       - "5000:5000"
       - "5555:5555"

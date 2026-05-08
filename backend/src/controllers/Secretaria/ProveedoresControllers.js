@@ -4,6 +4,7 @@ import prisma from '../../app/prismaClient.js';
 export const getProveedores = async (req, res) => {
   try {
     const proveedores = await prisma.proveedores.findMany({
+      where: { descontinuada: false },
       orderBy: { id_proveedor: 'desc' },
     });
 
@@ -74,7 +75,7 @@ export const deleteProveedor = async (req, res) => {
   try {
     await prisma.proveedores.update({
       where: { id_proveedor: Number(req.params.id) },
-      data: { activo: false } // <-- Borrado lógico
+      data: { descontinuada: true }
     });
     res.status(204).send();
   } catch (error) {

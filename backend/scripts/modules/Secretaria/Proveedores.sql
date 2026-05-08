@@ -6,7 +6,7 @@ RETURNS SETOF "Proveedores" AS $$
 BEGIN
     RETURN QUERY 
     SELECT * FROM "Proveedores" 
-    WHERE activo = true 
+    WHERE descontinuada = false 
     ORDER BY id_proveedor DESC;
 END;
 $$ LANGUAGE plpgsql;
@@ -24,7 +24,7 @@ BEGIN
         'correo', p.correo,
         'web', p.web,
         'notas', p.notas,
-        'activo', p.activo,
+        'descontinuada', p.descontinuada,
         'compras', COALESCE(
             (SELECT json_agg(c.*) FROM "Compras" c WHERE c.proveedor_id = p.id_proveedor), 
             '[]'::json
@@ -41,8 +41,8 @@ CREATE OR REPLACE FUNCTION crear_proveedor_proc(
 ) RETURNS SETOF "Proveedores" AS $$
 BEGIN
     RETURN QUERY
-    INSERT INTO "Proveedores" (nombre, telefono, direccion, correo, web, notas, activo)
-    VALUES (p_nombre, p_tel, p_dir, p_correo, p_web, p_notas, true)
+    INSERT INTO "Proveedores" (nombre, telefono, direccion, correo, web, notas, descontinuada)
+    VALUES (p_nombre, p_tel, p_dir, p_correo, p_web, p_notas, false)
     RETURNING *;
 END;
 $$ LANGUAGE plpgsql;

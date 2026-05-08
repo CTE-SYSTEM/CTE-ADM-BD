@@ -61,17 +61,17 @@ npm run db:seed
 
 O manualmente:
 ```bash
-docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico < scripts/crear_usuarios.sql
+docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico < scripts/Seed_data.sql
 ```
 
 **Usuarios disponibles:**
 
 | Usuario | Rol | Contraseña |
 |---------|-----|-----------|
-| `admin_pro` | Administrador | `admin123` |
-| `secretaria_ana` | Secretaria | `secretaria123` |
-| `jefe_tecnico` | Técnico Jefe | `jefe123` |
-| `tecnico_juan` | Técnico | `tecnico123` |
+| `admin_pro` | Administrador | `1234` |
+| `secretaria_ana` | Secretaria | `1234` |
+| `jefe_tecnico` | Técnico Jefe | `1234` |
+| `tecnico_juan` | Técnico | `1234` |
 
 **Verificar que los usuarios se crearon correctamente:**
 

@@ -7,11 +7,21 @@ DECLARE
     v_id INT;
     v_nombre TEXT := COALESCE(p_nombre, 'General');
 BEGIN
-    INSERT INTO "Categorias_Repuestos" (nombre_tipo, electronico)
-    VALUES (v_nombre, p_electronico)
-    ON CONFLICT (nombre_tipo) 
-    DO UPDATE SET electronico = EXCLUDED.electronico
-    RETURNING id_tipo_repuesto INTO v_id;
+    SELECT id_tipo_repuesto
+    INTO v_id
+    FROM "Categorias_Repuestos"
+    WHERE lower(nombre_tipo) = lower(v_nombre)
+    LIMIT 1;
+
+    IF v_id IS NULL THEN
+        INSERT INTO "Categorias_Repuestos" (nombre_tipo, electronico)
+        VALUES (v_nombre, p_electronico)
+        RETURNING id_tipo_repuesto INTO v_id;
+    ELSE
+        UPDATE "Categorias_Repuestos"
+        SET electronico = p_electronico
+        WHERE id_tipo_repuesto = v_id;
+    END IF;
     
     RETURN v_id;
 END;

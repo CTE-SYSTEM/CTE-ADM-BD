@@ -1,6 +1,26 @@
 // backend/src/controllers/Secretaria/RepuestoControllers.js
 import prisma from '../../app/prismaClient.js';
 
+const upsertCategoriaId = async (nombre, electronico) => {
+  const nombreTipo = nombre || 'General';
+  const categoria = await prisma.categorias_Repuestos.findFirst({
+    where: { nombre_tipo: { equals: nombreTipo, mode: 'insensitive' } }
+  });
+
+  if (categoria) {
+    const updated = await prisma.categorias_Repuestos.update({
+      where: { id_tipo_repuesto: categoria.id_tipo_repuesto },
+      data: { electronico }
+    });
+    return updated.id_tipo_repuesto;
+  }
+
+  const created = await prisma.categorias_Repuestos.create({
+    data: { nombre_tipo: nombreTipo, electronico }
+  });
+  return created.id_tipo_repuesto;
+};
+
 export const getRepuestos = async (req, res) => {
   try {
     // Obtener repuestos directamente de la tabla
@@ -24,6 +44,7 @@ export const createRepuesto = async (req, res) => {
       data: {
         nombre,
         descripcion,
+        tipo_repuesto_id: await upsertCategoriaId(categoria_nombre, electronico),
         costo_individual: Number(costo_individual) || 0,
         porcentaje_de_ganacia: Number(porcentaje_de_ganacia) || 0,
         activo: true

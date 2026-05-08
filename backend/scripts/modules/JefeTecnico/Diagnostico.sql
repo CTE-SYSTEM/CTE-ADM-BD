@@ -41,9 +41,9 @@ RETURNS TABLE (data JSONB) AS $$
 BEGIN
     RETURN QUERY
     SELECT jsonb_build_object(
-        'id_orden_repuesto', orp.id_orden_repuesto,
+        'id_detalle_repuesto', orp.id_detalle_repuesto,
         'estado_aprobacion', orp.estado_aprobacion,
-        'cantidad', orp.cantidad,
+        'cantidad_usada', orp.cantidad_usada,
         'repuesto', to_jsonb(r.*),
         'orden', jsonb_build_object(
             'id_orden', o.id_orden,

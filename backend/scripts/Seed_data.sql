@@ -5,7 +5,7 @@
 INSERT INTO "Usuarios" (id_usuario, nombre_usuario, contrasena_hash, correo_electronico, rol, activo, fecha_creacion)
 VALUES 
 (1, 'admin_pro', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'admin@cte.com', 'Administrador', true, '2026-05-01 03:26:37.131'),
-(6, 'secretariana_ana', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'secretaria@cte.com', 'Secretaria', true, '2026-05-01 03:27:51.627'),
+(6, 'secretaria_ana', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'secretaria@cte.com', 'Secretaria', true, '2026-05-01 03:27:51.627'),
 (3, 'jefe_tecnico', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'jefe@cte.com', 'TecnicoJefe', true, '2026-05-01 03:26:37.131'),
 (4, 'tecnico_juan', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'juan.perez@cte.com', 'Tecnico', true, '2026-05-01 03:26:37.131'),
 (13, 'marcos_fix', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'marcos.fix@cte.com', 'Tecnico', true, '2026-05-04 21:55:19.615'),
