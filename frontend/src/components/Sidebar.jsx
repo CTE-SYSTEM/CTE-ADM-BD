@@ -9,6 +9,7 @@ import {
   ClipboardList, 
   Package, 
   Receipt,
+  ShieldCheck,
   Stethoscope, 
   FileCheck, 
   Truck, 
@@ -21,13 +22,15 @@ const Sidebar = ({ open = true }) => {
 
   const allMenuItems = [
     // --- ROL: ADMINISTRADOR ---
-    { name: 'Dashboard', to: '/', roles: ['Administrador'], icon: LayoutDashboard },
-    { name: 'Clientes', to: '/clientes', roles: ['Administrador'], icon: Users },
-    { name: 'Técnicos', to: '/tecnicos', roles: ['Administrador'], icon: Wrench },
-    { name: 'Equipos', to: '/equipos', roles: ['Administrador'], icon: Monitor },
-    { name: 'Órdenes', to: '/ordenes', roles: ['Administrador'], icon: ClipboardList },
-    { name: 'Inventario', to: '/inventario', roles: ['Administrador'], icon: Package },
-    { name: 'Facturación', to: '/facturacion', roles: ['Administrador'], icon: Receipt },
+    { name: 'Dashboard', to: '/admin', roles: ['Administrador', 'admin_pro'], icon: LayoutDashboard },
+    { name: 'Usuarios', to: '/admin/usuarios', roles: ['Administrador', 'admin_pro'], icon: Users },
+    { name: 'Equipos', to: '/admin/equipos', roles: ['Administrador', 'admin_pro'], icon: Wrench },
+    { name: 'Órdenes', to: '/admin/ordenes', roles: ['Administrador', 'admin_pro'], icon: Receipt },
+    { name: 'Inventario', to: '/admin/inventario', roles: ['Administrador', 'admin_pro'], icon: Package },
+    { name: 'Facturación', to: '/admin/facturacion', roles: ['Administrador', 'admin_pro'], icon: Receipt },
+    { name: 'Garantías', to: '/admin/garantias', roles: ['Administrador', 'admin_pro'], icon: ShieldCheck },
+    { name: 'Historial Equipo', to: '/admin/historial-equipo', roles: ['Administrador', 'admin_pro'], icon: Monitor },
+    { name: 'Historial Repuesto', to: '/admin/historial-repuesto', roles: ['Administrador', 'admin_pro'], icon: ClipboardList },
 
     // --- ROL: SECRETARIA (Orden Personalizado) ---
     { name: 'Dashboard', to: '/secretaria', roles: ['Secretaria'], icon: LayoutDashboard },

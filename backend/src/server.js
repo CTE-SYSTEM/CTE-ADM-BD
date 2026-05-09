@@ -39,6 +39,9 @@ import diagnosticoRoutes from './routes/modules/secretaria/Diagnostico.js';
 // Rutas de módulos específicos (Jefe Técnico)
 import diagnosticoRoutesJefe from './routes/modules/JefeTecnico/Diagnostico.js';
 
+// Rutas de módulos específicos (Admin Pro)
+import adminProRoutes from './routes/modules/admin_pro/adminPro.js';
+
 // --- 3. USO DE RUTAS (API) ---
 // ruta de autenticación
 app.use('/api/auth', authRoutes);
@@ -57,6 +60,14 @@ app.use('/api/secretaria/diagnostico', diagnosticoRoutes);
 
 // -- Para jefe técnico (diagnósticos)
 app.use('/api/diagnosticos', diagnosticoRoutesJefe);
+
+// -- Para admin pro (monitoreo y administración)
+app.use('/api/admin_pro', adminProRoutes);
+
+// Ruta raíz de backend: ayuda a quienes abren localhost:5000 directamente
+app.get('/', (req, res) => {
+    res.send('Este es el backend. El frontend corre en http://localhost:5173. Usa /api para las rutas de la API.');
+});
 
 // --- 4. MANEJO DE ERRORES GLOBAL ---
 app.use((err, req, res, next) => {

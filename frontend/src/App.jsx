@@ -12,13 +12,15 @@ import { AuthProvider, AuthContext } from './context/AuthContext';
 import Login from './pages/Auth/Login';
 
 // --- SECCIÓN ADMINISTRADOR ---
-import Dashboard from './pages/DashboardAdmin/Dashboard';
-import Clientes from './features/Secretaria/Clientes';
-import Equipos from './features/Secretaria/Equipos';
-import Tecnicos from './features/tecnicos/Tecnicos';
-import Ordenes from './features/ordenes/Ordenes';
-import Inventario from './features/admin/Inventario';
-import FacturacionAdmin from './features/Secretaria/Facturacion'; 
+import AdminDashboard from './features/admin/AdminDashboard';
+import UsuariosAvanzado from './features/admin/UsuariosAvanzado';
+import EquiposAvanzado from './features/admin/EquiposAvanzado';
+import OrdenesAvanzado from './features/admin/OrdenesAvanzado';
+import InventarioAvanzado from './features/admin/InventarioAvanzado';
+import FacturasAvanzado from './features/admin/FacturasAvanzado';
+import GarantiasAvanzado from './features/admin/GarantiasAvanzado';
+import HistorialEquipo from './features/admin/HistorialEquipo';
+import HistorialRepuesto from './features/admin/HistorialRepuesto';
 
 // --- SECCIÓN SECRETARIA ---
 import SecretariaDashboard from './pages/Secretaria/SecretariaDashboard';
@@ -72,14 +74,16 @@ function App() {
             element: <MainLayout />,
             children: [
               // Admin
-              { index: true, element: <RequireAuth><Dashboard /></RequireAuth> },
-              { path: 'admin', element: <RequireAuth><Dashboard /></RequireAuth> },
-              { path: 'admin/clientes', element: <RequireAuth><Clientes /></RequireAuth> },
-              { path: 'admin/tecnicos', element: <RequireAuth><Tecnicos /></RequireAuth> },
-              { path: 'admin/equipos', element: <RequireAuth><Equipos /></RequireAuth> },
-              { path: 'admin/ordenes', element: <RequireAuth><Ordenes /></RequireAuth> },
-              { path: 'admin/inventario', element: <RequireAuth><Inventario /></RequireAuth> },
-              { path: 'admin/facturacion', element: <RequireAuth><FacturacionAdmin /></RequireAuth> },
+              { index: true, element: <RequireAuth><AdminDashboard /></RequireAuth> },
+              { path: 'admin', element: <RequireAuth><AdminDashboard /></RequireAuth> },
+              { path: 'admin/usuarios', element: <RequireAuth><UsuariosAvanzado /></RequireAuth> },
+              { path: 'admin/equipos', element: <RequireAuth><EquiposAvanzado /></RequireAuth> },
+              { path: 'admin/ordenes', element: <RequireAuth><OrdenesAvanzado /></RequireAuth> },
+              { path: 'admin/inventario', element: <RequireAuth><InventarioAvanzado /></RequireAuth> },
+              { path: 'admin/facturacion', element: <RequireAuth><FacturasAvanzado /></RequireAuth> },
+              { path: 'admin/garantias', element: <RequireAuth><GarantiasAvanzado /></RequireAuth> },
+              { path: 'admin/historial-equipo', element: <RequireAuth><HistorialEquipo /></RequireAuth> },
+              { path: 'admin/historial-repuesto', element: <RequireAuth><HistorialRepuesto /></RequireAuth> },
 
               // Secretaria
               { path: 'secretaria', element: <RequireAuth><SecretariaDashboard /></RequireAuth> },

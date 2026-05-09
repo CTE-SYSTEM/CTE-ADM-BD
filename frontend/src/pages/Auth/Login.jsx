@@ -38,6 +38,7 @@ const Login = () => {
       
       switch (userData.rol) {
         case 'Administrador':
+        case 'admin_pro':
           navigate('/admin');
           break;
         case 'Secretaria':

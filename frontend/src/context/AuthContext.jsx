@@ -13,10 +13,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     const response = await api.post('/auth/login', { username, password });
-    const { token } = response.data;
-    // Decode token to get user info
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const userData = { username, rol: payload.rol };
+    const { token, usuario } = response.data;
+    // Guardar token para futuras peticiones protegidas
+    localStorage.setItem('token', token);
+
+    const userData = {
+      username: usuario?.nombre || username,
+      rol: usuario?.rol,
+    };
     setUser(userData);
     localStorage.setItem('cte_user', JSON.stringify(userData));
     return userData;
@@ -25,6 +29,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('cte_user');
+    localStorage.removeItem('token');
     navigate('/login');
   };
 
