@@ -1,8 +1,9 @@
 // frontend/src/pages/Secretaria/Diagnostico.jsx
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   Loader2, Phone, User, Monitor, AlertCircle, 
-  CheckCircle2, Search, Edit3, XCircle, LayoutList 
+  CheckCircle2, Search, Edit3, XCircle, LayoutList, HelpCircle, X
 } from 'lucide-react';
 import { getClientes } from '../../services/secretaria/clientesService';
 import { getEquipos } from '../../services/secretaria/equiposService';
@@ -44,9 +45,95 @@ export const EstadoBadge = ({ estado }) => {
   );
 };
 
+const tourSteps = [
+  {
+    target: 'header',
+    title: '1. Diagnostico de ingreso',
+    text: 'Esta pantalla registra la revision inicial del equipo que trae el cliente. Si vienes desde Equipos, cliente y equipo ya quedan seleccionados.',
+  },
+  {
+    target: 'owner',
+    title: '2. Cliente y contacto',
+    text: 'Selecciona el cliente y confirma telefono e ID. Esto evita generar un diagnostico para la persona equivocada.',
+  },
+  {
+    target: 'equipment',
+    title: '3. Equipo correcto',
+    text: 'El selector muestra solo los equipos del cliente elegido. Al seleccionar uno, el tipo se muestra automaticamente como verificacion.',
+  },
+  {
+    target: 'priority',
+    title: '4. Prioridad y accesorios',
+    text: 'Marca la prioridad de atencion y los datos de recepcion: cargador, si enciende y si usa corriente AC.',
+  },
+  {
+    target: 'failure',
+    title: '5. Falla reportada',
+    text: 'Este campo es obligatorio. Si intentas guardar sin escribir la falla, el sistema muestra una alerta y bloquea el guardado.',
+  },
+  {
+    target: 'actions',
+    title: '6. Guardar diagnostico',
+    text: 'Generar Diagnostico de Ingreso crea el registro. En modo edicion, el boton guarda cambios y Cancelar descarta la edicion.',
+  },
+  {
+    target: 'table',
+    title: '7. Revisar registros',
+    text: 'La tabla tiene scroll interno y encabezado fijo para trabajar mejor con muchas filas o pantallas pequenas.',
+  },
+  {
+    target: 'table',
+    title: '8. Editar diagnosticos',
+    text: 'Usa el boton de lapiz en una fila para cargar ese diagnostico en el formulario superior. El boton cambia a Guardar Cambios y Cancelar descarta la edicion.',
+  },
+];
+
+const tourHighlightClass = (isActive) =>
+  isActive
+    ? 'relative z-[60] rounded-xl bg-white ring-4 ring-indigo-400 ring-offset-4 ring-offset-white shadow-2xl transition-all'
+    : '';
+
+const sortClientesByName = (clientes = []) =>
+  [...clientes].sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { sensitivity: 'base' }));
+
+const GuidedTour = ({ stepIndex, onBack, onClose, onNext }) => {
+  const step = tourSteps[stepIndex];
+  const isLast = stepIndex === tourSteps.length - 1;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-gray-900/55" />
+      <div className="fixed bottom-6 right-6 z-[70] w-[min(92vw,390px)] rounded-xl bg-white p-5 shadow-2xl">
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Paso {stepIndex + 1} de {tourSteps.length}</p>
+            <h3 className="mt-1 text-lg font-semibold text-gray-900">{step.title}</h3>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700" title="Cerrar tutorial">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <p className="text-sm leading-6 text-gray-600">{step.text}</p>
+        <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-gray-100">
+          <div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${((stepIndex + 1) / tourSteps.length) * 100}%` }} />
+        </div>
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <button type="button" onClick={onBack} disabled={stepIndex === 0} className="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40">
+            Atras
+          </button>
+          <button type="button" onClick={onNext} className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+            {isLast ? 'Finalizar' : 'Siguiente'}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
+
 // --- COMPONENTE PRINCIPAL ---
 
 const Diagnostico = () => {
+  const location = useLocation();
   // Estados de datos
   const [clientes, setClientes] = useState([]);
   const [equipos, setEquipos] = useState([]);
@@ -59,6 +146,8 @@ const Diagnostico = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
 
   const initialFormState = {
     cliente_id: '',
@@ -72,6 +161,8 @@ const Diagnostico = () => {
   };
 
   const [formData, setFormData] = useState(initialFormState);
+  const preselectedClienteId = location.state?.clienteId ? String(location.state.clienteId) : '';
+  const preselectedEquipoId = location.state?.equipoId ? String(location.state.equipoId) : '';
 
   const loadData = async () => {
     setLoading(true);
@@ -82,7 +173,7 @@ const Diagnostico = () => {
         getEquipos(),
         getDiagnosticos()
       ]);
-      setClientes(resC.data.data || []);
+      setClientes(sortClientesByName(resC.data.data || []));
       setEquipos(resE.data.data || []);
       setDiagnosticos(resD.data.data || []);
     } catch (err) {
@@ -93,6 +184,49 @@ const Diagnostico = () => {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  const activeTourTarget = showHelp ? tourSteps[tourStep].target : '';
+
+  useEffect(() => {
+    if (!showHelp || !activeTourTarget) return;
+
+    const scrollTimer = window.setTimeout(() => {
+      document
+        .querySelector(`[data-tour-target="${activeTourTarget}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }, 80);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [activeTourTarget, showHelp]);
+
+  const startTour = () => {
+    setTourStep(0);
+    setShowHelp(true);
+  };
+
+  const closeTour = () => {
+    setShowHelp(false);
+    setTourStep(0);
+  };
+
+  const handleTourNext = () => {
+    if (tourStep === tourSteps.length - 1) {
+      closeTour();
+      return;
+    }
+    setTourStep((step) => step + 1);
+  };
+
+  useEffect(() => {
+    if (!preselectedClienteId && !preselectedEquipoId) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      cliente_id: preselectedClienteId || prev.cliente_id,
+      equipo_id: preselectedEquipoId || prev.equipo_id,
+    }));
+    window.history.replaceState({}, document.title);
+  }, [preselectedClienteId, preselectedEquipoId]);
 
   useEffect(() => {
     if (message) {
@@ -135,6 +269,13 @@ const Diagnostico = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.falla_reportada.trim()) {
+      const msg = 'Debe escribir la falla reportada antes de guardar el diagnostico.';
+      setError(msg);
+      window.alert(msg);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -149,7 +290,7 @@ const Diagnostico = () => {
       cancelEdit();
       loadData();
     } catch (err) {
-      setError('Ocurrió un error al procesar la solicitud');
+      setError(err?.response?.data?.error || 'Ocurrió un error al procesar la solicitud');
     } finally {
       setLoading(false);
     }
@@ -171,13 +312,35 @@ const Diagnostico = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen space-y-8">
+      {showHelp && (
+        <GuidedTour
+          stepIndex={tourStep}
+          onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
+          onClose={closeTour}
+          onNext={handleTourNext}
+        />
+      )}
+
       {/* CABECERA */}
-      <div className="flex justify-between items-end">
+      <div
+        data-tour-target="header"
+        className={`flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between ${tourHighlightClass(activeTourTarget === 'header')}`}
+      >
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Diagnóstico de Ingreso</h2>
           <p className="text-gray-500 font-medium">Gestión de recepción y revisión técnica inicial.</p>
         </div>
-        <LayoutList className="w-8 h-8 text-indigo-200" />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={startTour}
+            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 shadow-sm hover:bg-gray-50"
+            title="Iniciar tutorial guiado"
+          >
+            <HelpCircle className="w-4 h-4" /> Ayuda
+          </button>
+          <LayoutList className="w-8 h-8 text-indigo-200" />
+        </div>
       </div>
 
       {/* ALERTAS */}
@@ -207,7 +370,10 @@ const Diagnostico = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div
+            data-tour-target="owner"
+            className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${tourHighlightClass(activeTourTarget === 'owner')}`}
+          >
             <Select label="Cliente (Dueño)" name="cliente_id" value={formData.cliente_id} onChange={handleChange} required>
               <option value="">Seleccione el cliente</option>
               {clientes.map((c) => <option key={c.id_cliente} value={c.id_cliente}>{c.nombre}</option>)}
@@ -231,7 +397,10 @@ const Diagnostico = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div
+            data-tour-target="equipment"
+            className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${tourHighlightClass(activeTourTarget === 'equipment')}`}
+          >
             <Select label="Equipo Registrado" name="equipo_id" value={formData.equipo_id} onChange={handleChange} required disabled={!formData.cliente_id}>
               <option value="">Seleccione el equipo</option>
               {equiposDelCliente.map((e) => (
@@ -250,7 +419,10 @@ const Diagnostico = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div
+            data-tour-target="priority"
+            className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${tourHighlightClass(activeTourTarget === 'priority')}`}
+          >
             <Select label="Prioridad de Atención" name="prioridad" value={formData.prioridad} onChange={handleChange}>
               <option value="Normal">Normal</option>
               <option value="Alta">Alta</option>
@@ -266,7 +438,10 @@ const Diagnostico = () => {
             </div>
           </div>
 
-          <div>
+          <div
+            data-tour-target="failure"
+            className={tourHighlightClass(activeTourTarget === 'failure')}
+          >
             <label className="block text-sm font-medium text-gray-700 mb-1 italic">Falla reportada por el cliente</label>
             <textarea 
               name="falla_reportada" 
@@ -279,7 +454,10 @@ const Diagnostico = () => {
             />
           </div>
 
-          <div className="flex justify-end pt-4 border-t border-gray-100">
+          <div
+            data-tour-target="actions"
+            className={`flex justify-end pt-4 border-t border-gray-100 ${tourHighlightClass(activeTourTarget === 'actions')}`}
+          >
             <button 
               type="submit" 
               disabled={loading} 
@@ -293,7 +471,10 @@ const Diagnostico = () => {
       </section>
 
       {/* SECCIÓN TABLA DE REVISIÓN */}
-      <section className="space-y-4">
+      <section
+        data-tour-target="table"
+        className={`space-y-4 ${tourHighlightClass(activeTourTarget === 'table')}`}
+      >
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <h3 className="text-lg font-bold text-gray-700">Registros Recientes</h3>
           <div className="relative w-full md:w-80">
@@ -309,9 +490,9 @@ const Diagnostico = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-500">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+          <div className="max-h-[70vh] overflow-auto custom-scrollbar">
+            <table className="min-w-max w-full text-sm text-left text-gray-500">
+              <thead className="sticky top-0 z-10 text-xs text-gray-700 uppercase bg-gray-50 border-b">
                 <tr>
                   <th className="px-4 py-3 font-bold">ID</th>
                   <th className="px-4 py-3 font-bold">Cliente</th>
@@ -336,7 +517,7 @@ const Diagnostico = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3 max-w-xs truncate">{d.falla_reportada}</td>
-                      <td className="px-4 py-3 text-center"><PrioridadBadge prioridad={d.prioridad} /></td>
+                      <td className="px-4 py-3 text-center"><PrioridadBadge prioridad={d.prioridad || 'Normal'} /></td>
                       <td className="px-4 py-3 text-center"><EstadoBadge estado={d.estado_del_diagnostico || d.estado} /></td>
                       <td className="px-4 py-3 text-right">
                         <button 

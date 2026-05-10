@@ -14,7 +14,8 @@ import {
   FileCheck, 
   Truck, 
   ShoppingCart,
-  HardDrive
+  HardDrive,
+  Tags
 } from 'lucide-react';
 
 const Sidebar = ({ open = true }) => {
@@ -39,6 +40,7 @@ const Sidebar = ({ open = true }) => {
     { name: 'Diagnóstico', to: '/secretaria/diagnostico', roles: ['Secretaria'], icon: Stethoscope }, 
     { name: 'Nueva Orden', to: '/secretaria/nueva-orden', roles: ['Secretaria'], icon: FileCheck },
     { name: 'Repuestos', to: '/secretaria/repuestos', roles: ['Secretaria'], icon: HardDrive },
+    { name: 'Tipos Repuesto', to: '/secretaria/tipos-repuesto', roles: ['Secretaria'], icon: Tags },
     { name: 'Compras', to: '/secretaria/compras', roles: ['Secretaria'], icon: ShoppingCart },
     { name: 'Proveedores', to: '/secretaria/proveedores', roles: ['Secretaria'], icon: Truck },
     { name: 'Facturación', to: '/secretaria/facturacion', roles: ['Secretaria'], icon: Receipt },

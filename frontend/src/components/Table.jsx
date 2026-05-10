@@ -1,15 +1,17 @@
 import React from 'react';
 
+const defaultContentClassName = 'max-w-[280px] whitespace-normal break-words leading-relaxed';
+
 const Table = ({ columns, data }) => {
   return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-100 overflow-x-auto custom-scrollbar">
-      <table className="w-full table-auto border-collapse">
-        <thead>
+    <div className="bg-white shadow-sm rounded-xl border border-gray-100 overflow-auto custom-scrollbar max-h-[70vh]">
+      <table className="min-w-max w-full table-auto border-collapse">
+        <thead className="sticky top-0 z-10 bg-white">
           <tr className="border-b border-gray-100 bg-gray-50/50">
             {columns.map((c) => (
               <th 
                 key={c.accessor} 
-                className="text-left px-6 py-4 text-[13px] font-semibold text-gray-400 uppercase tracking-tight whitespace-nowrap"
+                className="text-left px-3 py-3 text-[13px] font-semibold text-gray-400 uppercase tracking-tight whitespace-nowrap sm:px-6 sm:py-4"
               >
                 {c.header}
               </th>
@@ -33,7 +35,7 @@ const Table = ({ columns, data }) => {
                        "align-top" hace que si una celda crece, 
                        el resto del contenido de la fila se quede arriba. 
                     */
-                    className="px-6 py-4 text-sm text-gray-600 align-top"
+                    className={`px-3 py-3 text-sm text-gray-600 align-top sm:px-6 sm:py-4 ${c.cellClassName || ''}`}
                   >
                     {/* 
                         Este div controla el comportamiento global:
@@ -41,7 +43,7 @@ const Table = ({ columns, data }) => {
                         - "whitespace-normal": Permite saltos de línea automáticos.
                         - "break-words": Rompe palabras largas (links o correos).
                     */}
-                    <div className="max-w-[280px] whitespace-normal break-words leading-relaxed">
+                    <div className={c.contentClassName || defaultContentClassName}>
                       {c.render ? c.render(row) : (row[c.accessor] || '-')}
                     </div>
                   </td>

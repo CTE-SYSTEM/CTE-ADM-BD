@@ -7,6 +7,7 @@ import {
 import { 
   createRepuesto, deleteRepuesto, getRepuestos, updateRepuesto 
 } from '../../services/secretaria/repuestosService';
+import { getTiposRepuesto } from '../../services/secretaria/tiposRepuestoService';
 
 const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [] }) => {
   const [formData, setFormData] = useState({
@@ -173,18 +174,12 @@ const Repuestos = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const response = await getRepuestos();
+      const [response, tiposResponse] = await Promise.all([getRepuestos(), getTiposRepuesto()]);
       const data = response.data.data || [];
       setRepuestos(data);
+      setCategorias(tiposResponse.data.data || []);
       
       // Extraer categorías únicas para los selectores
-      const catsUnicas = data.reduce((acc, current) => {
-        if (current.categoria && !acc.find(c => c.nombre_tipo === current.categoria.nombre_tipo)) {
-          acc.push(current.categoria);
-        }
-        return acc;
-      }, []);
-      setCategorias(catsUnicas);
     } catch (err) { 
       setError('Error al cargar datos'); 
     } finally { 

@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ClipboardList, Users, Laptop, Truck, Package, 
-  ReceiptText, Stethoscope, Calendar, Filter 
+  ReceiptText, Stethoscope, Calendar, Filter, Tags
 } from 'lucide-react';
 import { getClientes } from '../../services/secretaria/clientesService';
 import { getEquipos } from '../../services/secretaria/equiposService';
 import { getOrdenes } from '../../services/secretaria/ordenesService';
 import { getProveedores } from '../../services/secretaria/proveedoresService';
 import { getRepuestos } from '../../services/secretaria/repuestosService';
+import { getTiposRepuesto } from '../../services/secretaria/tiposRepuestoService';
 import { getFacturas } from '../../services/secretaria/facturasService';
 import { getDiagnosticos } from '../../services/secretaria/diagnosticoService';
 
@@ -20,6 +21,7 @@ const SecretariaDashboard = () => {
     ordenes: [],
     proveedores: [],
     repuestos: [],
+    tiposRepuesto: [],
     facturas: [],
     diagnosticos: []
   });
@@ -31,6 +33,7 @@ const SecretariaDashboard = () => {
     ordenes: 0,
     proveedores: 0,
     repuestos: 0,
+    tiposRepuesto: 0,
     facturas: 0,
     diagnosticos: 0
   });
@@ -45,12 +48,13 @@ const SecretariaDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const [resClientes, resEquipos, resOrdenes, resProveedores, resRepuestos, resFacturas, resDiagnosticos] = await Promise.all([
+        const [resClientes, resEquipos, resOrdenes, resProveedores, resRepuestos, resTiposRepuesto, resFacturas, resDiagnosticos] = await Promise.all([
           getClientes(),
           getEquipos(),
           getOrdenes(),
           getProveedores(),
           getRepuestos(),
+          getTiposRepuesto(),
           getFacturas(),
           getDiagnosticos()
         ]);
@@ -61,6 +65,7 @@ const SecretariaDashboard = () => {
           ordenes: resOrdenes.data.data || [],
           proveedores: resProveedores.data.data || [],
           repuestos: resRepuestos.data.data || [],
+          tiposRepuesto: resTiposRepuesto.data.data || [],
           facturas: resFacturas.data.data || [],
           diagnosticos: resDiagnosticos.data.data || []
         });
@@ -109,6 +114,7 @@ const SecretariaDashboard = () => {
       ordenes: filterByDate(rawData.ordenes).length,
       proveedores: filterByDate(rawData.proveedores).length,
       repuestos: filterByDate(rawData.repuestos).length,
+      tiposRepuesto: rawData.tiposRepuesto.length,
       facturas: filterByDate(rawData.facturas).length,
       diagnosticos: filterByDate(rawData.diagnosticos).length
     });
@@ -124,6 +130,7 @@ const SecretariaDashboard = () => {
     { title: 'Diagnóstico', value: stats.diagnosticos, icon: Stethoscope, url: '/secretaria/diagnostico', color: 'bg-purple-600' },
     { title: 'Nueva Orden', value: stats.ordenes, icon: ClipboardList, url: '/secretaria/nueva-orden', color: 'bg-indigo-600' },
     { title: 'Repuestos', value: stats.repuestos, icon: Package, url: '/secretaria/repuestos', color: 'bg-amber-600' },
+    { title: 'Tipos Repuesto', value: stats.tiposRepuesto, icon: Tags, url: '/secretaria/tipos-repuesto', color: 'bg-violet-600' },
     { title: 'Proveedores', value: stats.proveedores, icon: Truck, url: '/secretaria/proveedores', color: 'bg-slate-700' },
     { title: 'Facturas', value: stats.facturas, icon: ReceiptText, url: '/secretaria/facturacion', color: 'bg-rose-600' },
   ];
@@ -167,7 +174,7 @@ const SecretariaDashboard = () => {
       {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">{error}</div>}
 
       {/* Grid de Iconos con valores filtrados */}
-      <section className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-7 mb-8">
+      <section className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-8 mb-8">
         {quickActions.map((action) => {
           const Icon = action.icon;
           return (

@@ -28,6 +28,7 @@ import ClientesSecretaria from './pages/Secretaria/Clientes';
 import EquiposSecretaria from './pages/Secretaria/Equipos';
 import ProveedoresSecretaria from './pages/Secretaria/Proveedores';
 import RepuestosSecretaria from './pages/Secretaria/Repuestos';
+import TiposRepuestoSecretaria from './pages/Secretaria/TiposRepuesto';
 import ComprasSecretaria from './pages/Secretaria/Compras';
 import FacturacionSecretaria from './pages/Secretaria/Facturacion';
 import Diagnostico from './pages/Secretaria/Diagnostico';
@@ -91,6 +92,7 @@ function App() {
               { path: 'secretaria/equipos', element: <RequireAuth><EquiposSecretaria /></RequireAuth> },
               { path: 'secretaria/proveedores', element: <RequireAuth><ProveedoresSecretaria /></RequireAuth> },
               { path: 'secretaria/repuestos', element: <RequireAuth><RepuestosSecretaria /></RequireAuth> },
+              { path: 'secretaria/tipos-repuesto', element: <RequireAuth><TiposRepuestoSecretaria /></RequireAuth> },
               { path: 'secretaria/compras', element: <RequireAuth><ComprasSecretaria /></RequireAuth> },
               { path: 'secretaria/facturacion', element: <RequireAuth><FacturacionSecretaria /></RequireAuth> },
               { path: 'secretaria/nueva-orden', element: <RequireAuth><NuevaOrden /></RequireAuth> },

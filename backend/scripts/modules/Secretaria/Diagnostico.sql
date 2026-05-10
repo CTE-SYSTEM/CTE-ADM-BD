@@ -9,6 +9,7 @@ BEGIN
         'id_diagnostico', d.id_diagnostico,
         'falla_reportada', d.falla_reportada,
         'diagnostico_real', d.diagnostico_real,
+        'prioridad', d.prioridad,
         'estado_del_diagnostico', d.estado_del_diagnostico,
         'estado', d.estado_del_diagnostico, -- Mapeo de shapeDiagnostico
         'Estado_aprobacion', d."Estado_aprobacion",
@@ -31,7 +32,7 @@ $$ LANGUAGE plpgsql;
 -- 2. Función para crear diagnóstico y devolverlo formateado
 CREATE OR REPLACE FUNCTION crear_diagnostico_proc(
     p_equipo_id INT, p_tecnico_id INT, p_falla TEXT, p_diag_real TEXT,
-    p_estado_diag TEXT, p_estado_aprob TEXT, p_cargador BOOLEAN, 
+    p_prioridad TEXT, p_estado_diag TEXT, p_estado_aprob TEXT, p_cargador BOOLEAN, 
     p_enciende BOOLEAN, p_ac BOOLEAN
 ) RETURNS TABLE (data JSONB) AS $$
 DECLARE
@@ -39,10 +40,10 @@ DECLARE
 BEGIN
     INSERT INTO "Diagnosticos" (
         equipo_id, tecnico_id, falla_reportada, diagnostico_real, 
-        estado_del_diagnostico, "Estado_aprobacion", deja_cargador, enciende, usa_corriente_ac
+        prioridad, estado_del_diagnostico, "Estado_aprobacion", deja_cargador, enciende, usa_corriente_ac
     ) VALUES (
         p_equipo_id, p_tecnico_id, p_falla, p_diag_real, 
-        p_estado_diag, p_estado_aprob, p_cargador, p_enciende, p_ac
+        COALESCE(p_prioridad, 'Normal'), p_estado_diag, p_estado_aprob, p_cargador, p_enciende, p_ac
     ) RETURNING id_diagnostico INTO v_id;
 
     RETURN QUERY SELECT * FROM get_diagnosticos_por_id(v_id);
@@ -58,6 +59,7 @@ BEGIN
         'id_diagnostico', d.id_diagnostico,
         'falla_reportada', d.falla_reportada,
         'diagnostico_real', d.diagnostico_real,
+        'prioridad', d.prioridad,
         'estado_del_diagnostico', d.estado_del_diagnostico,
         'estado', d.estado_del_diagnostico,
         'Estado_aprobacion', d."Estado_aprobacion",

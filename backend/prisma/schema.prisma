@@ -76,6 +76,7 @@ model Diagnosticos {
   falla_reportada         String?   
   diagnostico_real        String?  
   presupuesto_estimado    Decimal?  @db.Decimal(18, 2)
+  prioridad               String?   @default("Normal") // Urgente - Alta - Normal
   fecha_hora              DateTime? @default(now())
   fecha_asignacion        DateTime?
   
