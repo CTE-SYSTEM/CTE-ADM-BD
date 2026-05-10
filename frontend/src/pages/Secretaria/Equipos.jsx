@@ -6,7 +6,25 @@ import { Plus, Search, Edit, Trash2, Phone, User } from 'lucide-react';
 import { getClientes } from '../../services/secretaria/clientesService';
 import { createEquipo, deleteEquipo, getEquipos, updateEquipo } from '../../services/secretaria/equiposService';
 
-const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], preSelectedClient = null }) => {
+const BASE_TIPOS_EQUIPO = ['Laptop', 'Celular', 'Impresora', 'Monitor', 'Tablet', 'Pc Escritorio', 'Consola'];
+
+const toPascalCase = (value) => (
+  value
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+);
+
+const getTiposSugeridos = (equipos) => {
+  const tipos = [...BASE_TIPOS_EQUIPO, ...equipos.map((equipo) => equipo.tipo).filter(Boolean)]
+    .map(toPascalCase);
+
+  return [...new Set(tipos)].sort((a, b) => a.localeCompare(b));
+};
+
+const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], preSelectedClient = null, tiposSugeridos = [] }) => {
   const [formData, setFormData] = useState({
     cliente_id: initialData?.cliente_id || preSelectedClient?.id || '',
     tipo: initialData?.tipo || '',
@@ -17,9 +35,16 @@ const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], pre
 
   const clienteInfo = clientes.find(c => String(c.id_cliente) === String(formData.cliente_id));
   const handleChange = (e) => setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit({
+      ...formData,
+      tipo: toPascalCase(formData.tipo),
+    });
+  };
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit(formData); }} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
         {/* Selector de Cliente */}
         <div className={clienteInfo ? "md:col-span-1" : "md:col-span-2"}>
@@ -54,7 +79,7 @@ const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], pre
           </div>
         )}
 
-        <Field label="Tipo" name="tipo" value={formData.tipo} onChange={handleChange} placeholder="Ej: Laptop" required />
+        <TipoField value={formData.tipo} onChange={handleChange} tiposSugeridos={tiposSugeridos} />
         <Field label="Marca" name="marca" value={formData.marca} onChange={handleChange} placeholder="Ej: HP" required />
         <Field label="Modelo" name="modelo" value={formData.modelo} onChange={handleChange} placeholder="Ej: Victus 15" required />
         <Field label="Número de Serie" name="numero_serie" value={formData.numero_serie} onChange={handleChange} placeholder="S/N" />
@@ -79,6 +104,38 @@ const Field = ({ label, className = '', ...props }) => (
   </div>
 );
 
+const TipoField = ({ value, onChange, tiposSugeridos }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+    <input
+      name="tipo"
+      value={value}
+      onChange={onChange}
+      list="tipos-equipo"
+      placeholder="Ej: Laptop"
+      required
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+    />
+    <datalist id="tipos-equipo">
+      {tiposSugeridos.map((tipo) => (
+        <option key={tipo} value={tipo} />
+      ))}
+    </datalist>
+    <div className="mt-2 flex flex-wrap gap-2">
+      {tiposSugeridos.slice(0, 8).map((tipo) => (
+        <button
+          key={tipo}
+          type="button"
+          onClick={() => onChange({ target: { name: 'tipo', value: tipo } })}
+          className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md hover:bg-indigo-100 transition-colors"
+        >
+          {tipo}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 const Equipos = () => {
   const location = useLocation();
   const [clientes, setClientes] = useState([]);
@@ -87,6 +144,7 @@ const Equipos = () => {
   const [editingEquipo, setEditingEquipo] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
+  const tiposSugeridos = getTiposSugeridos(equipos);
 
   const preSelectedClient = location.state?.clienteId ? {
     id: location.state.clienteId,
@@ -184,6 +242,7 @@ const Equipos = () => {
             initialData={editingEquipo} 
             clientes={clientes}
             preSelectedClient={preSelectedClient}
+            tiposSugeridos={tiposSugeridos}
           />
         </div>
       )}

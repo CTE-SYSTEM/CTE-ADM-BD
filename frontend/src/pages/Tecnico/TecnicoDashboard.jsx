@@ -1,6 +1,8 @@
 // frontend/src/pages/Tecnico/TecnicoDashboard.jsx
-import React, { useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Package, CheckCircle, Clock, Wrench, X, FileText, ClipboardList } from 'lucide-react';
+import { AuthContext } from '../../context/AuthContext';
+import api from '../../services/api';
 
 // --- COMPONENTES DE APOYO ---
 
@@ -147,19 +149,47 @@ const RegistrarDiagnosticoModal = ({ orden, onClose, onSubmit }) => {
 // --- MAIN DASHBOARD ---
 
 const TecnicoDashboard = () => {
-  const [ordenes, setOrdenes] = useState([
-    { id: 'ORD-001', cliente: 'Carlos Mendoza', equipo: 'Laptop Dell Inspiron 15', falla: 'Pantalla sin imagen', prioridad: 'ALTA', estado: 'En Diagnóstico', diagnostico: '', solucion: '' },
-    { id: 'ORD-002', cliente: 'María González', equipo: 'Samsung Galaxy S21', falla: 'No enciende', prioridad: 'URGENTE', estado: 'Esperando Repuesto', diagnostico: 'Sulfatación en conector.', solucion: 'Limpieza y cambio flex.' },
-  ]);
+  const { user } = useContext(AuthContext);
+  const [ordenes, setOrdenes] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const [repuestos, setRepuestos] = useState([
-    { id: 'REP-001', ordenId: 'ORD-002', repuesto: 'Flex de Carga', cantidad: 1, estado: 'Pendiente', fechaSolicitud: '2026-05-05' }
-  ]);
+  const [repuestos, setRepuestos] = useState([]);
 
   // Seccion de estado inicial cambiada a 'diagnosticos'
   const [activeTab, setActiveTab] = useState('diagnosticos');
   const [modalRepuesto, setModalRepuesto] = useState(null);
   const [modalDiagnostico, setModalDiagnostico] = useState(null);
+
+  const mapDiagnostico = (diagnostico) => ({
+    id: diagnostico.id_diagnostico,
+    cliente: diagnostico.equipo?.cliente?.nombre || 'Sin cliente',
+    equipo: `${diagnostico.equipo?.tipo || 'Equipo'} ${diagnostico.equipo?.marca || ''} ${diagnostico.equipo?.modelo || ''}`.trim(),
+    falla: diagnostico.falla_reportada || 'Sin falla reportada',
+    prioridad: 'MEDIA',
+    estado: diagnostico.estado_del_diagnostico === 'PENDIENTE' ? 'Pendiente' : 'En Diagnóstico',
+    diagnostico: diagnostico.diagnostico_real || '',
+    solucion: '',
+    presupuesto: diagnostico.presupuesto_estimado,
+  });
+
+  const loadMisDiagnosticos = async () => {
+    if (!user?.username) return;
+
+    setLoading(true);
+    try {
+      const response = await api.get(`/tecnicos/mis-diagnosticos/${encodeURIComponent(user.username)}`);
+      setOrdenes((response.data.data || []).map(mapDiagnostico));
+    } catch (error) {
+      console.error('Error al cargar diagnósticos asignados:', error);
+      setOrdenes([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMisDiagnosticos();
+  }, [user?.username]);
 
   const handleEstadoChange = (ordenId, nuevoEstado) => {
     setOrdenes(prev => prev.map(o => o.id === ordenId ? { ...o, estado: nuevoEstado } : o));
@@ -202,6 +232,7 @@ const TecnicoDashboard = () => {
                         <tr className="text-[10px] font-black text-gray-400 uppercase text-left">
                             <th className="px-6 py-4">Orden</th>
                             <th className="px-6 py-4">Equipo</th>
+                            <th className="px-6 py-4">Presupuesto</th>
                             <th className="px-6 py-4">Diagnóstico Actual</th>
                             <th className="px-6 py-4 text-right">Acción</th>
                         </tr>
@@ -211,6 +242,9 @@ const TecnicoDashboard = () => {
                             <tr key={o.id} className="text-sm">
                                 <td className="px-6 py-4 font-black text-purple-600">#{o.id}</td>
                                 <td className="px-6 py-4 font-bold text-gray-800">{o.equipo}</td>
+                                <td className="px-6 py-4 font-bold text-emerald-700">
+                                    {o.presupuesto ? `C$ ${Number(o.presupuesto).toFixed(2)}` : 'Sin presupuesto'}
+                                </td>
                                 <td className="px-6 py-4 text-gray-500 italic">
                                     {o.diagnostico || 'Sin diagnóstico registrado...'}
                                 </td>
@@ -224,6 +258,20 @@ const TecnicoDashboard = () => {
                                 </td>
                             </tr>
                         ))}
+                        {!loading && ordenes.length === 0 && (
+                            <tr>
+                                <td colSpan="5" className="px-6 py-12 text-center text-gray-400 italic">
+                                    No tienes diagnósticos asignados todavía.
+                                </td>
+                            </tr>
+                        )}
+                        {loading && (
+                            <tr>
+                                <td colSpan="5" className="px-6 py-12 text-center text-purple-500 font-bold">
+                                    Cargando diagnósticos asignados...
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

@@ -66,15 +66,12 @@ const Diagnostico = () => {
     falla_reportada: '',
     prioridad: 'Normal',
     estado: 'INGRESADO',
-    tipo_equipo: '',
     deja_cargador: false,
     enciende: false,
     usa_corriente_ac: false,
   };
 
   const [formData, setFormData] = useState(initialFormState);
-
-  const sugerenciasTipo = ["Laptop", "Celular", "Impresora", "Monitor", "Tablet", "PC Escritorio", "Consola"];
 
   const loadData = async () => {
     setLoading(true);
@@ -118,12 +115,11 @@ const Diagnostico = () => {
     setIsEditing(true);
     setCurrentId(diag.id_diagnostico);
     setFormData({
-      cliente_id: String(diag.cliente_id || ''),
+      cliente_id: String(diag.equipo?.cliente_id || ''),
       equipo_id: String(diag.equipo_id || ''),
       falla_reportada: diag.falla_reportada || '',
       prioridad: diag.prioridad || 'Normal',
-      estado: diag.estado || 'INGRESADO',
-      tipo_equipo: diag.tipo_equipo || '',
+      estado: diag.estado_del_diagnostico || diag.estado || 'INGRESADO',
       deja_cargador: Boolean(diag.deja_cargador),
       enciende: Boolean(diag.enciende),
       usa_corriente_ac: Boolean(diag.usa_corriente_ac),
@@ -161,8 +157,9 @@ const Diagnostico = () => {
 
   // Filtrado de tabla
   const filteredDiagnosticos = diagnosticos.filter(d => 
-    d.cliente?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.equipo?.cliente?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.equipo?.modelo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.equipo?.tipo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     String(d.id_diagnostico).includes(searchTerm)
   );
 
@@ -170,6 +167,7 @@ const Diagnostico = () => {
   const equiposDelCliente = formData.cliente_id
     ? equipos.filter((e) => Number(e.cliente_id) === Number(formData.cliente_id))
     : [];
+  const equipoSeleccionado = equipos.find((e) => String(e.id_equipo) === String(formData.equipo_id));
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen space-y-8">
@@ -245,24 +243,10 @@ const Diagnostico = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Electrónico</label>
-              <div className="flex gap-2">
-                <select 
-                  className="w-1/3 px-2 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm focus:ring-2 focus:ring-indigo-400"
-                  onChange={(e) => setFormData(prev => ({ ...prev, tipo_equipo: e.target.value }))}
-                  value=""
-                >
-                  <option value="">Sugerencias</option>
-                  {sugerenciasTipo.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <input 
-                  name="tipo_equipo"
-                  value={formData.tipo_equipo}
-                  onChange={handleChange}
-                  placeholder="Escriba el tipo..."
-                  className="w-2/3 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  required
-                />
+              <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 font-semibold min-h-[42px]">
+                {equipoSeleccionado?.tipo || 'Seleccione un equipo para ver el tipo'}
               </div>
+              <p className="mt-1 text-xs text-gray-400">Este valor viene del equipo registrado.</p>
             </div>
           </div>
 
@@ -343,16 +327,17 @@ const Diagnostico = () => {
                   filteredDiagnosticos.map((d) => (
                     <tr key={d.id_diagnostico} className="hover:bg-indigo-50/30 transition-colors">
                       <td className="px-4 py-3 font-mono font-bold text-indigo-600">#{d.id_diagnostico}</td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{d.cliente?.nombre}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{d.equipo?.cliente?.nombre || 'N/A'}</td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col">
                           <span className="font-bold text-gray-700">{d.equipo?.modelo}</span>
                           <span className="text-[10px] uppercase text-gray-400">{d.equipo?.marca}</span>
+                          <span className="text-xs font-bold text-indigo-600">{d.equipo?.tipo || 'Sin tipo'}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 max-w-xs truncate">{d.falla_reportada}</td>
                       <td className="px-4 py-3 text-center"><PrioridadBadge prioridad={d.prioridad} /></td>
-                      <td className="px-4 py-3 text-center"><EstadoBadge estado={d.estado} /></td>
+                      <td className="px-4 py-3 text-center"><EstadoBadge estado={d.estado_del_diagnostico || d.estado} /></td>
                       <td className="px-4 py-3 text-right">
                         <button 
                           onClick={() => handleEdit(d)} 

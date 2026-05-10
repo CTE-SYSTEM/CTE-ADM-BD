@@ -75,6 +75,7 @@ model Diagnosticos {
   tecnico_id              Int?      // Permite que sea nulo hasta asignar técnico
   falla_reportada         String?   
   diagnostico_real        String?  
+  presupuesto_estimado    Decimal?  @db.Decimal(18, 2)
   fecha_hora              DateTime? @default(now())
   fecha_asignacion        DateTime?
   
@@ -102,7 +103,6 @@ model Ordenes {
   prioridad               String?   // Urgente - Alta - Normal
   estado                  String?   @default("PENDIENTE") // INGRESADO, REPARACION, FINALIZADO
   fecha_ingreso           DateTime? @default(now())
-  tipo_equipo             String?   
   
   // Relaciones
   diagnostico             Diagnosticos @relation(fields: [diagnostico_id], references: [id_diagnostico])

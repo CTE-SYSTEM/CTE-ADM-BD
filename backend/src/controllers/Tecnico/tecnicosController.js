@@ -21,3 +21,33 @@ export const createTecnico = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
+export const getMisDiagnosticos = async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    const tecnico = await prisma.tecnicos.findFirst({
+      where: {
+        usuario: { nombre_usuario: username },
+        activo: true,
+      },
+      include: {
+        diagnosticos: {
+          include: {
+            equipo: { include: { cliente: true } },
+          },
+          orderBy: { fecha_asignacion: 'desc' },
+        },
+      },
+    });
+
+    if (!tecnico) {
+      return res.json({ data: [], tecnico: null });
+    }
+
+    res.json({ data: tecnico.diagnosticos, tecnico });
+  } catch (error) {
+    console.error('Error al obtener diagnósticos del técnico:', error);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+  }
+};

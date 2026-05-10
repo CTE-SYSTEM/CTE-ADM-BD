@@ -21,6 +21,7 @@ export const diagnosticoService = {
   getById: (id) => api.get(`/diagnosticos/${id}`),
 
   // Métodos para el dashboard
+  getPendientes: () => api.get('/diagnosticos/pendientes-asignar'),
   getTodos: () => api.get('/diagnosticos/todos'),
   getOrdenes: () => api.get('/diagnosticos/ordenes'),
   getOrdenById: (id) => api.get(`/diagnosticos/ordenes/${id}`),

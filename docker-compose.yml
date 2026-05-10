@@ -21,6 +21,7 @@ services:
     build: ./backend
     container_name: backend_cte
     command: sh -c "npx prisma generate && npx prisma db push && npm run db:functions:container && npm run db:seed:container && sleep 5 && npm run dev"
+    # command: sh -c "npx prisma generate && npm run dev"
     depends_on:
       db:
         condition: service_healthy

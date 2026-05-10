@@ -12,6 +12,7 @@
     "db:generate": "prisma generate",
     "studio": "prisma studio --port 5555",
     "db:seed": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico < scripts/Seed_data.sql",
+    "db:seed:demo": "docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico < scripts/demo_data.sql",
     "db:functions": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/load_functions.ps1",
     "db:seed:container": "psql \"$SQL_DATABASE_URL\" -f scripts/Seed_data.sql",
     "db:functions:container": "psql \"$SQL_DATABASE_URL\" -f scripts/load_functions.sql",

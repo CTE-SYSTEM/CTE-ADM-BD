@@ -1,6 +1,17 @@
 // backend/src/controllers/Secretaria/equiposController.js
 import prisma from '../../app/prismaClient.js';
 
+const toPascalCase = (value) => {
+  if (!value || typeof value !== 'string') return value;
+
+  return value
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
 export const getEquipos = async (req, res) => {
   try {
     const equipos = await prisma.equipos.findMany({
@@ -22,7 +33,7 @@ export const createEquipo = async (req, res) => {
     const equipo = await prisma.equipos.create({
       data: {
         cliente_id: parseInt(cliente_id),
-        tipo,
+        tipo: toPascalCase(tipo),
         marca,
         modelo,
         numero_serie
@@ -46,7 +57,7 @@ export const updateEquipo = async (req, res) => {
       where: { id_equipo: parseInt(id) },
       data: {
         cliente_id: cliente_id ? parseInt(cliente_id) : undefined,
-        tipo,
+        tipo: toPascalCase(tipo),
         marca,
         modelo,
         numero_serie

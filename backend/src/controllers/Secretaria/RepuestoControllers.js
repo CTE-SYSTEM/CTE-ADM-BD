@@ -23,9 +23,9 @@ const upsertCategoriaId = async (nombre, electronico) => {
 
 export const getRepuestos = async (req, res) => {
   try {
-    // Obtener repuestos directamente de la tabla
     const repuestos = await prisma.repuestos.findMany({
-      where: { activo: true },
+      where: { activo: true, descontinuada: false },
+      include: { categoria: true },
       orderBy: { id_repuesto: 'desc' }
     });
     res.json({ success: true, data: repuestos });
@@ -47,8 +47,10 @@ export const createRepuesto = async (req, res) => {
         tipo_repuesto_id: await upsertCategoriaId(categoria_nombre, electronico),
         costo_individual: Number(costo_individual) || 0,
         porcentaje_de_ganacia: Number(porcentaje_de_ganacia) || 0,
-        activo: true
-      }
+        activo: true,
+        descontinuada: false
+      },
+      include: { categoria: true }
     });
 
     res.status(201).json({ success: true, data: repuesto });
@@ -69,9 +71,11 @@ export const updateRepuesto = async (req, res) => {
       data: {
         nombre,
         descripcion,
+        tipo_repuesto_id: categoria_nombre ? await upsertCategoriaId(categoria_nombre, electronico) : undefined,
         costo_individual: Number(costo_individual) || 0,
         porcentaje_de_ganacia: Number(porcentaje_de_ganacia) || 0
-      }
+      },
+      include: { categoria: true }
     });
 
     res.json({ success: true, data: repuesto });
@@ -90,7 +94,7 @@ export const deleteRepuesto = async (req, res) => {
     const { id } = req.params;
     await prisma.repuestos.update({
       where: { id_repuesto: parseInt(id) },
-      data: { activo: false }
+      data: { activo: false, descontinuada: true }
     });
     res.json({ success: true, message: "Repuesto marcado como inactivo" });
   } catch (error) {

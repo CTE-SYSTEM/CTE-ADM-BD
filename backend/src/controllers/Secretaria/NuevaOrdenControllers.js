@@ -27,7 +27,7 @@ export const getOrdenes = async (req, res) => {
 
 export const createOrden = async (req, res) => {
   try {
-    const { diagnostico_id, tecnico_id, prioridad, estado, tipo_equipo } = req.body;
+    const { diagnostico_id, tecnico_id, prioridad, estado } = req.body;
 
     if (!diagnostico_id) {
       return res.status(400).json({ error: 'El diagnostico es obligatorio' });
@@ -39,7 +39,6 @@ export const createOrden = async (req, res) => {
         tecnico_id: tecnico_id ? Number(tecnico_id) : null,
         prioridad: prioridad || 'Normal',
         estado: estado || 'PENDIENTE',
-        tipo_equipo: tipo_equipo || null,
       },
       include: ordenInclude,
     });
@@ -53,7 +52,7 @@ export const createOrden = async (req, res) => {
 
 export const updateOrden = async (req, res) => {
   try {
-    const { tecnico_id, prioridad, estado, tipo_equipo } = req.body;
+    const { tecnico_id, prioridad, estado } = req.body;
 
     const orden = await prisma.ordenes.update({
       where: { id_orden: Number(req.params.id) },
@@ -61,7 +60,6 @@ export const updateOrden = async (req, res) => {
         tecnico_id: tecnico_id ? Number(tecnico_id) : null,
         prioridad,
         estado,
-        tipo_equipo,
       },
       include: ordenInclude,
     });

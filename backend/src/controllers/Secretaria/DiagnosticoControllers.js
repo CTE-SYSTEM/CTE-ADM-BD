@@ -22,7 +22,7 @@ export const createDiagnostico = async (req, res) => {
   try {
     const {
       equipo_id, tecnico_id, falla_reportada, diagnostico_real,
-      estado_del_diagnostico, Estado_aprobacion, deja_cargador, enciende, usa_corriente_ac
+      presupuesto_estimado, estado_del_diagnostico, Estado_aprobacion, deja_cargador, enciende, usa_corriente_ac
     } = req.body;
 
     const diagnostico = await prisma.diagnosticos.create({
@@ -31,6 +31,7 @@ export const createDiagnostico = async (req, res) => {
         tecnico_id: tecnico_id ? Number(tecnico_id) : null,
         falla_reportada,
         diagnostico_real,
+        presupuesto_estimado: presupuesto_estimado ? Number(presupuesto_estimado) : null,
         estado_del_diagnostico: estado_del_diagnostico || 'PENDIENTE',
         Estado_aprobacion: Estado_aprobacion || 'Pendiente',
         deja_cargador: deja_cargador === true || deja_cargador === 'true',
@@ -69,6 +70,30 @@ export const updateDiagnostico = async (req, res) => {
   } catch (error) {
     console.error('❌ Error en updateDiagnostico:', error.message);
     console.error('Stack:', error.stack);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Diagnóstico no encontrado' });
+    }
+    res.status(500).json({ error: 'Error al cambiar estado', details: error.message });
+  }
+};
+
+export const updateEstadoDiagnostico = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado, estado_del_diagnostico } = req.body;
+
+    const diagnostico = await prisma.diagnosticos.update({
+      where: { id_diagnostico: Number(id) },
+      data: { estado_del_diagnostico: estado_del_diagnostico || estado },
+      include: {
+        equipo: { include: { cliente: true } },
+        tecnico: true
+      }
+    });
+
+    res.json({ data: diagnostico });
+  } catch (error) {
+    console.error('❌ Error en updateEstadoDiagnostico:', error.message);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Diagnóstico no encontrado' });
     }

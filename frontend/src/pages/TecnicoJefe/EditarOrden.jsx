@@ -24,7 +24,6 @@ const EditarOrden = () => {
       setFormData({
         prioridad: ordenData?.prioridad || 'NORMAL',
         estado: ordenData?.estado || 'PENDIENTE',
-        tipo_equipo: ordenData?.tipo_equipo || '',
         tecnico_id: ordenData?.tecnico_id || '',
       });
     } catch (error) {
