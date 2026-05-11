@@ -6,7 +6,8 @@ export const getDiagnosticos = async (req, res) => {
     const diagnosticos = await prisma.diagnosticos.findMany({
       include: {
         equipo: { include: { cliente: true } },
-        tecnico: true
+        tecnico: true,
+        ordenes: true,
       },
       orderBy: { id_diagnostico: 'desc' }
     });

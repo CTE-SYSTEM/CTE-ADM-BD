@@ -44,6 +44,8 @@ BEGIN
         'id_detalle_repuesto', orp.id_detalle_repuesto,
         'estado_aprobacion', orp.estado_aprobacion,
         'cantidad_usada', orp.cantidad_usada,
+        'repuesto_id', orp.repuesto_id,
+        'pieza_solicitada', orp.pieza_solicitada,
         'repuesto', to_jsonb(r.*),
         'orden', jsonb_build_object(
             'id_orden', o.id_orden,
@@ -54,7 +56,7 @@ BEGIN
         )
     )
     FROM "Ordenes_Repuestos" orp
-    JOIN "Repuestos" r ON orp.repuesto_id = r.id_repuesto
+    LEFT JOIN "Repuestos" r ON orp.repuesto_id = r.id_repuesto
     JOIN "Ordenes" o ON orp.orden_id = o.id_orden
     JOIN "Diagnosticos" d ON o.diagnostico_id = d.id_diagnostico
     JOIN "Equipos" eq ON d.equipo_id = eq.id_equipo

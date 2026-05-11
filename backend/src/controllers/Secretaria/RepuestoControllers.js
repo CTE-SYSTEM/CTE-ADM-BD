@@ -1,61 +1,83 @@
 // backend/src/controllers/Secretaria/RepuestoControllers.js
 import prisma from '../../app/prismaClient.js';
 
-const upsertCategoriaId = async (nombre, electronico) => {
-  const nombreTipo = nombre || 'General';
-  const categoria = await prisma.categorias_Repuestos.findFirst({
-    where: { nombre_tipo: { equals: nombreTipo, mode: 'insensitive' } }
+const normalizeNumber = (value) => Number(value) || 0;
+const normalizeText = (value = '') => String(value).trim().replace(/\s+/g, ' ');
+
+const getCategoriaId = async ({ tipo_repuesto_id, categoria_nombre, electronico }) => {
+  const id = Number(tipo_repuesto_id);
+  if (id) return id;
+
+  const nombre_tipo = normalizeText(categoria_nombre);
+  const electronicoNormalizado = normalizeText(electronico);
+
+  if (!nombre_tipo) return null;
+
+  const existente = await prisma.categorias_Repuestos.findFirst({
+    where: {
+      nombre_tipo: { equals: nombre_tipo, mode: 'insensitive' },
+      electronico: electronicoNormalizado ? { equals: electronicoNormalizado, mode: 'insensitive' } : null,
+    },
   });
 
-  if (categoria) {
-    const updated = await prisma.categorias_Repuestos.update({
-      where: { id_tipo_repuesto: categoria.id_tipo_repuesto },
-      data: { electronico }
-    });
-    return updated.id_tipo_repuesto;
-  }
+  if (existente) return existente.id_tipo_repuesto;
 
-  const created = await prisma.categorias_Repuestos.create({
-    data: { nombre_tipo: nombreTipo, electronico }
+  const categoria = await prisma.categorias_Repuestos.create({
+    data: {
+      nombre_tipo,
+      electronico: electronicoNormalizado || null,
+    },
   });
-  return created.id_tipo_repuesto;
+
+  return categoria.id_tipo_repuesto;
+};
+
+const normalizeRepuestoInput = async (body) => {
+  const tipo_repuesto_id = await getCategoriaId(body);
+
+  return {
+    nombre: normalizeText(body.nombre),
+    descripcion: normalizeText(body.descripcion),
+    tipo_repuesto_id,
+    costo_individual: normalizeNumber(body.costo_individual),
+    ganancia_cordobas: normalizeNumber(body.ganancia_cordobas),
+  };
 };
 
 export const getRepuestos = async (req, res) => {
   try {
     const repuestos = await prisma.repuestos.findMany({
-      where: { activo: true, descontinuada: false },
+      where: { descontinuada: false },
       include: { categoria: true },
-      orderBy: { id_repuesto: 'desc' }
+      orderBy: { id_repuesto: 'desc' },
     });
     res.json({ success: true, data: repuestos });
   } catch (error) {
-    console.error('❌ Error en getRepuestos:', error.message);
+    console.error('Error en getRepuestos:', error.message);
     console.error('Stack:', error.stack);
-    res.status(500).json({ success: false, message: "Error al obtener repuestos", details: error.message });
+    res.status(500).json({ success: false, message: 'Error al obtener repuestos', details: error.message });
   }
 };
 
 export const createRepuesto = async (req, res) => {
   try {
-    const { nombre, descripcion, categoria_nombre, electronico, costo_individual, porcentaje_de_ganacia } = req.body;
+    const data = await normalizeRepuestoInput(req.body);
+
+    if (!data.tipo_repuesto_id) {
+      return res.status(400).json({ success: false, error: 'La categoria del repuesto es obligatoria' });
+    }
 
     const repuesto = await prisma.repuestos.create({
       data: {
-        nombre,
-        descripcion,
-        tipo_repuesto_id: await upsertCategoriaId(categoria_nombre, electronico),
-        costo_individual: Number(costo_individual) || 0,
-        porcentaje_de_ganacia: Number(porcentaje_de_ganacia) || 0,
-        activo: true,
-        descontinuada: false
+        ...data,
+        descontinuada: false,
       },
-      include: { categoria: true }
+      include: { categoria: true },
     });
 
     res.status(201).json({ success: true, data: repuesto });
   } catch (error) {
-    console.error('❌ Error en createRepuesto:', error.message);
+    console.error('Error en createRepuesto:', error.message);
     console.error('Stack:', error.stack);
     res.status(500).json({ success: false, error: error.message });
   }
@@ -64,26 +86,24 @@ export const createRepuesto = async (req, res) => {
 export const updateRepuesto = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, descripcion, categoria_nombre, electronico, costo_individual, porcentaje_de_ganacia } = req.body;
+    const data = await normalizeRepuestoInput(req.body);
+
+    if (!data.tipo_repuesto_id) {
+      return res.status(400).json({ success: false, error: 'La categoria del repuesto es obligatoria' });
+    }
 
     const repuesto = await prisma.repuestos.update({
-      where: { id_repuesto: parseInt(id) },
-      data: {
-        nombre,
-        descripcion,
-        tipo_repuesto_id: categoria_nombre ? await upsertCategoriaId(categoria_nombre, electronico) : undefined,
-        costo_individual: Number(costo_individual) || 0,
-        porcentaje_de_ganacia: Number(porcentaje_de_ganacia) || 0
-      },
-      include: { categoria: true }
+      where: { id_repuesto: Number(id) },
+      data,
+      include: { categoria: true },
     });
 
     res.json({ success: true, data: repuesto });
   } catch (error) {
-    console.error('❌ Error en updateRepuesto:', error.message);
+    console.error('Error en updateRepuesto:', error.message);
     console.error('Stack:', error.stack);
     if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, error: "Repuesto no encontrado" });
+      return res.status(404).json({ success: false, error: 'Repuesto no encontrado' });
     }
     res.status(500).json({ success: false, error: error.message });
   }
@@ -93,16 +113,16 @@ export const deleteRepuesto = async (req, res) => {
   try {
     const { id } = req.params;
     await prisma.repuestos.update({
-      where: { id_repuesto: parseInt(id) },
-      data: { activo: false, descontinuada: true }
+      where: { id_repuesto: Number(id) },
+      data: { descontinuada: true },
     });
-    res.json({ success: true, message: "Repuesto marcado como inactivo" });
+    res.json({ success: true, message: 'Repuesto marcado como descontinuado' });
   } catch (error) {
-    console.error('❌ Error en deleteRepuesto:', error.message);
+    console.error('Error en deleteRepuesto:', error.message);
     console.error('Stack:', error.stack);
     if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, error: "Repuesto no encontrado" });
+      return res.status(404).json({ success: false, error: 'Repuesto no encontrado' });
     }
-    res.status(500).json({ success: false, error: "Error al procesar la solicitud", details: error.message });
+    res.status(500).json({ success: false, error: 'Error al procesar la solicitud', details: error.message });
   }
 };

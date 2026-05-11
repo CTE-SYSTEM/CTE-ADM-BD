@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  ClipboardList, Users, Laptop, Truck, Package, 
-  ReceiptText, Stethoscope, Calendar, Filter, Tags
+import {
+  ClipboardList, Users, Laptop, Truck, Package,
+  ReceiptText, Stethoscope, Filter, Tags
 } from 'lucide-react';
 import { getClientes } from '../../services/secretaria/clientesService';
 import { getEquipos } from '../../services/secretaria/equiposService';
@@ -13,8 +13,62 @@ import { getTiposRepuesto } from '../../services/secretaria/tiposRepuestoService
 import { getFacturas } from '../../services/secretaria/facturasService';
 import { getDiagnosticos } from '../../services/secretaria/diagnosticoService';
 
+const dateFields = {
+  clientes: [],
+  equipos: [],
+  ordenes: ['fecha_ingreso'],
+  proveedores: [],
+  repuestos: [],
+  tiposRepuesto: [],
+  facturas: ['fecha_emision'],
+  diagnosticos: ['fecha_hora', 'fecha_asignacion'],
+};
+
+const getItemDate = (item, fields) => {
+  const rawDate = fields.map((field) => item?.[field]).find(Boolean);
+  if (!rawDate) return null;
+
+  const date = new Date(rawDate);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const filterItemsByDate = (items, fields, filterType) => {
+  if (filterType === 'all') return items;
+  if (!fields.length) return items;
+
+  const now = new Date();
+
+  return items.filter((item) => {
+    const itemDate = getItemDate(item, fields);
+    if (!itemDate) return false;
+
+    if (filterType === 'week') {
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return itemDate >= weekAgo;
+    }
+
+    if (filterType === 'month') {
+      return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+    }
+
+    if (filterType === 'year') {
+      return itemDate.getFullYear() === now.getFullYear();
+    }
+
+    return true;
+  });
+};
+
+const sortOrdenesRecientes = (ordenes) => (
+  [...ordenes].sort((a, b) => {
+    const dateA = getItemDate(a, dateFields.ordenes)?.getTime() || 0;
+    const dateB = getItemDate(b, dateFields.ordenes)?.getTime() || 0;
+    if (dateB !== dateA) return dateB - dateA;
+    return Number(b.id_orden || 0) - Number(a.id_orden || 0);
+  })
+);
+
 const SecretariaDashboard = () => {
-  // Almacenamos toda la data original para poder filtrar localmente
   const [rawData, setRawData] = useState({
     clientes: [],
     equipos: [],
@@ -23,10 +77,9 @@ const SecretariaDashboard = () => {
     repuestos: [],
     tiposRepuesto: [],
     facturas: [],
-    diagnosticos: []
+    diagnosticos: [],
   });
 
-  // Estado para los valores que se muestran en los iconos
   const [stats, setStats] = useState({
     clientes: 0,
     equipos: 0,
@@ -35,11 +88,11 @@ const SecretariaDashboard = () => {
     repuestos: 0,
     tiposRepuesto: 0,
     facturas: 0,
-    diagnosticos: 0
+    diagnosticos: 0,
   });
 
   const [filteredOrdenes, setFilteredOrdenes] = useState([]);
-  const [filterType, setFilterType] = useState('all'); // 'week', 'month', 'year', 'all'
+  const [filterType, setFilterType] = useState('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -56,7 +109,7 @@ const SecretariaDashboard = () => {
           getRepuestos(),
           getTiposRepuesto(),
           getFacturas(),
-          getDiagnosticos()
+          getDiagnosticos(),
         ]);
 
         setRawData({
@@ -67,7 +120,7 @@ const SecretariaDashboard = () => {
           repuestos: resRepuestos.data.data || [],
           tiposRepuesto: resTiposRepuesto.data.data || [],
           facturas: resFacturas.data.data || [],
-          diagnosticos: resDiagnosticos.data.data || []
+          diagnosticos: resDiagnosticos.data.data || [],
         });
       } catch {
         setError('No se pudo cargar el dashboard de Secretaria');
@@ -79,56 +132,37 @@ const SecretariaDashboard = () => {
     loadDashboard();
   }, []);
 
-  // Lógica de Filtrado Local (Se ejecuta cada vez que cambia el botón de filtro o llega data nueva)
   useEffect(() => {
-    const now = new Date();
-    
-    const filterByDate = (items) => {
-      if (filterType === 'all') return items;
-
-      return items.filter(item => {
-        // Buscamos cualquier campo de fecha disponible en el objeto
-        const itemDate = new Date(item.createdAt || item.fecha_creacion || item.fecha_registro);
-        
-        if (filterType === 'week') {
-          // Últimos 7 días
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          return itemDate >= weekAgo;
-        }
-        if (filterType === 'month') {
-          // Mismo mes y mismo año
-          return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
-        }
-        if (filterType === 'year') {
-          // Mismo año
-          return itemDate.getFullYear() === now.getFullYear();
-        }
-        return true;
-      });
+    const filtered = {
+      clientes: filterItemsByDate(rawData.clientes, dateFields.clientes, filterType),
+      equipos: filterItemsByDate(rawData.equipos, dateFields.equipos, filterType),
+      ordenes: filterItemsByDate(rawData.ordenes, dateFields.ordenes, filterType),
+      proveedores: filterItemsByDate(rawData.proveedores, dateFields.proveedores, filterType),
+      repuestos: filterItemsByDate(rawData.repuestos, dateFields.repuestos, filterType),
+      tiposRepuesto: filterItemsByDate(rawData.tiposRepuesto, dateFields.tiposRepuesto, filterType),
+      facturas: filterItemsByDate(rawData.facturas, dateFields.facturas, filterType),
+      diagnosticos: filterItemsByDate(rawData.diagnosticos, dateFields.diagnosticos, filterType),
     };
 
-    // Actualizamos estadísticas de los iconos
     setStats({
-      clientes: filterByDate(rawData.clientes).length,
-      equipos: filterByDate(rawData.equipos).length,
-      ordenes: filterByDate(rawData.ordenes).length,
-      proveedores: filterByDate(rawData.proveedores).length,
-      repuestos: filterByDate(rawData.repuestos).length,
-      tiposRepuesto: rawData.tiposRepuesto.length,
-      facturas: filterByDate(rawData.facturas).length,
-      diagnosticos: filterByDate(rawData.diagnosticos).length
+      clientes: filtered.clientes.length,
+      equipos: filtered.equipos.length,
+      ordenes: filtered.ordenes.length,
+      proveedores: filtered.proveedores.length,
+      repuestos: filtered.repuestos.length,
+      tiposRepuesto: filtered.tiposRepuesto.length,
+      facturas: filtered.facturas.length,
+      diagnosticos: filtered.diagnosticos.length,
     });
 
-    // Actualizamos la tabla (últimas 5 según el filtro)
-    setFilteredOrdenes(filterByDate(rawData.ordenes).slice(-5).reverse());
-
+    setFilteredOrdenes(sortOrdenesRecientes(filtered.ordenes).slice(0, 5));
   }, [filterType, rawData]);
 
   const quickActions = [
     { title: 'Clientes', value: stats.clientes, icon: Users, url: '/secretaria/clientes', color: 'bg-blue-600' },
     { title: 'Equipos', value: stats.equipos, icon: Laptop, url: '/secretaria/equipos', color: 'bg-cyan-600' },
-    { title: 'Diagnóstico', value: stats.diagnosticos, icon: Stethoscope, url: '/secretaria/diagnostico', color: 'bg-purple-600' },
-    { title: 'Nueva Orden', value: stats.ordenes, icon: ClipboardList, url: '/secretaria/nueva-orden', color: 'bg-indigo-600' },
+    { title: 'Diagnostico', value: stats.diagnosticos, icon: Stethoscope, url: '/secretaria/diagnostico', color: 'bg-purple-600' },
+    { title: 'Ordenes', value: stats.ordenes, icon: ClipboardList, url: '/secretaria/nueva-orden', color: 'bg-indigo-600' },
     { title: 'Repuestos', value: stats.repuestos, icon: Package, url: '/secretaria/repuestos', color: 'bg-amber-600' },
     { title: 'Tipos Repuesto', value: stats.tiposRepuesto, icon: Tags, url: '/secretaria/tipos-repuesto', color: 'bg-violet-600' },
     { title: 'Proveedores', value: stats.proveedores, icon: Truck, url: '/secretaria/proveedores', color: 'bg-slate-700' },
@@ -144,28 +178,27 @@ const SecretariaDashboard = () => {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Secretaria</h1>
-            <p className="text-gray-500">Gestión operativa • {filterType === 'all' ? 'Historial Completo' : `Filtro: ${filterType.toUpperCase()}`}</p>
+            <p className="text-gray-500">Gestion operativa - {filterType === 'all' ? 'Historial completo' : `Filtro: ${filterType.toUpperCase()}`}</p>
           </div>
         </div>
 
-        {/* Botones de Filtro de Tiempo */}
         <div className="flex items-center bg-white border border-gray-200 p-1 rounded-xl shadow-sm">
           {[
             { id: 'all', label: 'Todo' },
             { id: 'week', label: 'Semana' },
             { id: 'month', label: 'Mes' },
-            { id: 'year', label: 'Año' },
-          ].map((f) => (
+            { id: 'year', label: 'Anio' },
+          ].map((filter) => (
             <button
-              key={f.id}
-              onClick={() => setFilterType(f.id)}
+              key={filter.id}
+              onClick={() => setFilterType(filter.id)}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                filterType === f.id 
-                  ? 'bg-indigo-600 text-white shadow-md' 
+                filterType === filter.id
+                  ? 'bg-indigo-600 text-white shadow-md'
                   : 'text-gray-500 hover:bg-gray-50'
               }`}
             >
-              {f.label}
+              {filter.label}
             </button>
           ))}
         </div>
@@ -173,7 +206,6 @@ const SecretariaDashboard = () => {
 
       {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">{error}</div>}
 
-      {/* Grid de Iconos con valores filtrados */}
       <section className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-8 mb-8">
         {quickActions.map((action) => {
           const Icon = action.icon;
@@ -194,9 +226,9 @@ const SecretariaDashboard = () => {
           <div>
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
               <Filter className="w-4 h-4 text-indigo-500" />
-              Últimas órdenes ({filterType})
+              Ultimas ordenes ({filterType})
             </h2>
-            <p className="text-sm text-gray-500">Mostrando actividad reciente en PostgreSQL.</p>
+            <p className="text-sm text-gray-500">Ordenes generadas, ordenadas por fecha de ingreso.</p>
           </div>
           <Link to="/secretaria/nueva-orden" className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100">
             Nueva orden
@@ -208,32 +240,35 @@ const SecretariaDashboard = () => {
             <thead>
               <tr className="bg-gray-50/50 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
                 <th className="px-4 py-3 border-b border-gray-100">Orden</th>
+                <th className="px-4 py-3 border-b border-gray-100">Fecha</th>
                 <th className="px-4 py-3 border-b border-gray-100">Cliente</th>
                 <th className="px-4 py-3 border-b border-gray-100">Equipo</th>
-                <th className="px-4 py-3 border-b border-gray-100">Técnico</th>
+                <th className="px-4 py-3 border-b border-gray-100">Tecnico</th>
                 <th className="px-4 py-3 border-b border-gray-100 text-center">Estado</th>
               </tr>
             </thead>
             <tbody>
               {filteredOrdenes.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-4 py-10 text-center text-gray-400 italic">
-                    No se encontraron órdenes registradas en este periodo
+                  <td colSpan="6" className="px-4 py-10 text-center text-gray-400 italic">
+                    No se encontraron ordenes registradas en este periodo
                   </td>
                 </tr>
               ) : (
                 filteredOrdenes.map((orden) => (
                   <tr key={orden.id_orden} className="hover:bg-gray-50 border-b border-gray-50 transition-colors">
                     <td className="px-4 py-3 font-bold text-indigo-600">#{orden.id_orden}</td>
+                    <td className="px-4 py-3">{orden.fecha_ingreso ? new Date(orden.fecha_ingreso).toLocaleDateString() : '-'}</td>
                     <td className="px-4 py-3 font-medium text-gray-800">{orden.diagnostico?.equipo?.cliente?.nombre || 'General'}</td>
                     <td className="px-4 py-3">
-                      {[orden.diagnostico?.equipo?.marca, orden.diagnostico?.equipo?.modelo].filter(Boolean).join(' ')}
+                      {[orden.diagnostico?.equipo?.marca, orden.diagnostico?.equipo?.modelo].filter(Boolean).join(' ') || '-'}
                     </td>
                     <td className="px-4 py-3">{orden.tecnico?.nombre || 'Sin asignar'}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-bold border ${
-                        orden.estado === 'FINALIZADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
-                        'bg-gray-100 text-gray-700 border-gray-200'
+                        orden.estado === 'FINALIZADO'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                          : 'bg-gray-100 text-gray-700 border-gray-200'
                       }`}>
                         {orden.estado || 'PENDIENTE'}
                       </span>

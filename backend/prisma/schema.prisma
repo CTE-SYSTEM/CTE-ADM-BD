@@ -127,14 +127,15 @@ model Categorias_Repuestos {
 }
 
 model Repuestos {
-  id_repuesto      Int                  @id @default(autoincrement())
-  tipo_repuesto_id Int
-  nombre           String?              
-  descripcion      String?              
+  id_repuesto       Int                  @id @default(autoincrement())
+  tipo_repuesto_id  Int
+  nombre            String?
+  descripcion       String?
   costo_individual Decimal?             @db.Decimal(18, 2) // Se actualiza con la última compra se necesita un trigger
-  porcentaje_de_ganacia     Decimal?             @db.Decimal(18, 2) // Lo que le cobras al cliente o por otra pate lo que se saca de gaancia si un 20 o 30 $
-  activo           Boolean              @default(true)
-  descontinuada    Boolean @default(true)
+  porcentaje_de_ganacia     Decimal?             @db.Decimal(18, 2) // Campo legado: conservar para no perder datos existentes
+  ganancia_cordobas Decimal?             @db.Decimal(18, 2)
+  activo           Boolean              @default(true) // Campo legado: conservar para compatibilidad con datos/scripts existentes
+  descontinuada     Boolean              @default(false)
 
   categoria        Categorias_Repuestos @relation(fields: [tipo_repuesto_id], references: [id_tipo_repuesto])
   compras          Compras[]
@@ -146,14 +147,15 @@ model Repuestos {
 model Ordenes_Repuestos {
   id_detalle_repuesto Int       @id @default(autoincrement())
   orden_id            Int
-  repuesto_id         Int
+  repuesto_id         Int?
+  pieza_solicitada    String?
   cantidad_usada      Int?      @default(1)
   
   // El Check de aprobación del Jefe Técnico 
   estado_aprobacion   String    @default("PENDIENTE") // PENDIENTE, APROBADO, DENEGADO
   
   orden               Ordenes   @relation(fields: [orden_id], references: [id_orden])
-  repuesto            Repuestos @relation(fields: [repuesto_id], references: [id_repuesto])
+  repuesto            Repuestos? @relation(fields: [repuesto_id], references: [id_repuesto])
 
   @@map("Ordenes_Repuestos")
 }

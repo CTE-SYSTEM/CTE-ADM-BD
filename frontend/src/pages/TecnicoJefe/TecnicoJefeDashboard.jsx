@@ -332,10 +332,10 @@ const JefeDashboard = () => {
       render: (row) => (
         <div className="flex flex-col">
           <span className="font-bold text-slate-800 uppercase text-xs">
-            {row.repuesto?.nombre || 'Repuesto sin nombre'}
+            {row.repuesto?.nombre || row.pieza_solicitada || 'Pieza pendiente de registrar'}
           </span>
           <span className="text-[10px] text-slate-400 font-black uppercase italic tracking-tighter">
-            {row.repuesto?.descripcion || 'Sin descripcion'}
+            {row.repuesto?.descripcion || (row.repuesto_id ? 'Sin descripcion' : 'No registrada en inventario')}
           </span>
         </div>
       ),
@@ -449,7 +449,7 @@ const JefeDashboard = () => {
       <main className="flex-1 container mx-auto p-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
           <StatCard icon={<Search size={22} />} label="Diag. sin asignar" value={diagnosticosPendientes.filter((d) => !getTecnicoId(d)).length} color="blue" />
-          <StatCard icon={<Package size={22} />} label="Ordenes aprobadas" value={ordenesAprobadas.filter((o) => !getTecnicoId(o)).length} color="amber" />
+          <StatCard icon={<Package size={22} />} label="Ordenes por aprobar" value={ordenesAprobadas.filter((o) => !getTecnicoId(o)).length} color="amber" />
           <StatCard icon={<ShieldCheck size={22} />} label="Repuestos por aprobar" value={repuestosPendientes.length} color="emerald" />
           <StatCard icon={<AlertTriangle size={22} />} label="Alertas +72h" value={alertasRetraso.length} color="red" />
         </div>
@@ -472,7 +472,7 @@ const JefeDashboard = () => {
 
         <div className="flex flex-wrap gap-3 mb-8">
           <TabButton active={activeTab === TAB_DIAGNOSTICOS} onClick={() => setActiveTab(TAB_DIAGNOSTICOS)} icon={<Search size={16} />} label="Asignar Diagnosticos" />
-          <TabButton active={activeTab === TAB_ORDENES} onClick={() => setActiveTab(TAB_ORDENES)} icon={<Package size={16} />} label="Asignar Ordenes" />
+          <TabButton active={activeTab === TAB_ORDENES} onClick={() => setActiveTab(TAB_ORDENES)} icon={<Package size={16} />} label="Ordenes por aprobar" />
           <TabButton active={activeTab === TAB_REPUESTOS} onClick={() => setActiveTab(TAB_REPUESTOS)} icon={<ShieldCheck size={16} />} label="Aprobacion de Repuestos" />
           <TabButton active={activeTab === TAB_ALERTAS} onClick={() => setActiveTab(TAB_ALERTAS)} icon={<Bell size={16} />} label={`Alertas (${alertasRetraso.length})`} />
         </div>

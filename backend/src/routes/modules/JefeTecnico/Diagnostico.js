@@ -14,6 +14,7 @@ import {
   aprobarSolicitudRepuesto,
   rechazarSolicitudRepuesto
 } from '../../../controllers/JefeTecnico/DiagnosticoController.js';
+import { updateOrden } from '../../../controllers/Secretaria/NuevaOrdenControllers.js';
 
 const router = Router();
 
@@ -22,6 +23,7 @@ router.get('/pendientes-asignar', getDiagnosticosPendientes);
 router.get('/ordenes/aprobadas', getOrdenesAprobadas);
 router.get('/ordenes', getOrdenesPendientes);
 router.patch('/orden/:id/asignar', asignarTecnicoAOrden);
+router.put('/ordenes/:id', updateOrden);
 router.patch('/:id/asignar', asignarTecnicoADiagnostico);
 router.get('/ordenes/:id', getOrdenById);
 router.get('/repuestos/pendientes-aprobacion', getRepuestosPendientesAprobacion);

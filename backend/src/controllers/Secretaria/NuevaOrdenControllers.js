@@ -28,14 +28,47 @@ export const getOrdenes = async (req, res) => {
 export const createOrden = async (req, res) => {
   try {
     const { diagnostico_id, tecnico_id, prioridad, estado } = req.body;
+    const diagnosticoId = Number(diagnostico_id);
 
-    if (!diagnostico_id) {
+    if (!diagnosticoId) {
       return res.status(400).json({ error: 'El diagnostico es obligatorio' });
+    }
+
+    const diagnostico = await prisma.diagnosticos.findUnique({
+      where: { id_diagnostico: diagnosticoId },
+      include: { equipo: { include: { cliente: true } } },
+    });
+
+    if (!diagnostico) {
+      return res.status(404).json({ error: 'Diagnostico no encontrado' });
+    }
+
+    const estadoDiagnostico = (diagnostico.estado_del_diagnostico || '').toUpperCase();
+    const estadosListos = ['COMPLETADO'];
+
+    if (!estadosListos.includes(estadoDiagnostico)) {
+      return res.status(409).json({ error: 'Solo se pueden crear ordenes desde diagnosticos completados' });
+    }
+
+    if (!diagnostico.equipo?.cliente?.id_cliente || !diagnostico.equipo?.id_equipo) {
+      return res.status(400).json({ error: 'El diagnostico no tiene cliente o equipo valido' });
+    }
+
+    if (!diagnostico.diagnostico_real || !Number(diagnostico.presupuesto_estimado || 0)) {
+      return res.status(400).json({ error: 'Complete informe tecnico y presupuesto antes de crear la orden' });
+    }
+
+    const existente = await prisma.ordenes.findFirst({
+      where: { diagnostico_id: diagnosticoId },
+    });
+
+    if (existente) {
+      return res.status(409).json({ error: 'Ya existe una orden para este diagnostico' });
     }
 
     const orden = await prisma.ordenes.create({
       data: {
-        diagnostico_id: Number(diagnostico_id),
+        diagnostico_id: diagnosticoId,
         tecnico_id: tecnico_id ? Number(tecnico_id) : null,
         prioridad: prioridad || 'Normal',
         estado: estado || 'PENDIENTE',

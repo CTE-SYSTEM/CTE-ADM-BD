@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
-import { Edit, Plus, Search, Trash2 } from 'lucide-react';
+import { Edit, HelpCircle, Plus, Search, Trash2, X } from 'lucide-react';
 import {
   createTipoRepuesto,
   deleteTipoRepuesto,
@@ -15,7 +15,54 @@ const emptyTipo = {
 
 const normalizeText = (value = '') => String(value).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
 
-const TipoRepuestoForm = ({ initialData = null, onCancel, onSubmit }) => {
+const tourSteps = [
+  { target: 'create', title: '1. Crear tipo', text: 'Nuevo Tipo abre el formulario para registrar una categoria de repuesto.' },
+  { target: 'form', title: '2. Tipo y electronico', text: 'Escribe el tipo de pieza y el equipo relacionado para que Repuestos muestre sugerencias claras.' },
+  { target: 'search', title: '3. Buscar', text: 'Filtra por tipo o electronico para evitar crear categorias repetidas.' },
+  { target: 'table', title: '4. Revisar usos', text: 'La tabla muestra cuantos repuestos estan unidos a cada tipo.' },
+  { target: 'actions', title: '5. Editar o eliminar', text: 'Edita nombres mal escritos. Solo se puede eliminar si no hay repuestos unidos.' },
+];
+
+const tourHighlightClass = (isActive) =>
+  isActive
+    ? 'relative z-[60] rounded-xl bg-white ring-4 ring-indigo-400 ring-offset-4 ring-offset-white shadow-2xl transition-all'
+    : '';
+
+const GuidedTour = ({ stepIndex, onBack, onClose, onNext }) => {
+  const step = tourSteps[stepIndex];
+  const isLast = stepIndex === tourSteps.length - 1;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-gray-900/55" />
+      <div className="fixed bottom-6 right-6 z-[70] w-[min(92vw,390px)] rounded-xl bg-white p-5 shadow-2xl">
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Paso {stepIndex + 1} de {tourSteps.length}</p>
+            <h3 className="mt-1 text-lg font-semibold text-gray-900">{step.title}</h3>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700" title="Cerrar tutorial">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <p className="text-sm leading-6 text-gray-600">{step.text}</p>
+        <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-gray-100">
+          <div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${((stepIndex + 1) / tourSteps.length) * 100}%` }} />
+        </div>
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <button type="button" onClick={onBack} disabled={stepIndex === 0} className="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40">
+            Atras
+          </button>
+          <button type="button" onClick={onNext} className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+            {isLast ? 'Finalizar' : 'Siguiente'}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
+
+const TipoRepuestoForm = ({ initialData = null, onCancel, onSubmit, activeTourTarget = '' }) => {
   const [formData, setFormData] = useState({
     nombre_tipo: initialData?.nombre_tipo || '',
     electronico: initialData?.electronico || '',
@@ -36,7 +83,7 @@ const TipoRepuestoForm = ({ initialData = null, onCancel, onSubmit }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div data-tour-target="form" className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${tourHighlightClass(activeTourTarget === 'form')}`}>
         <Field label="Tipo de repuesto" name="nombre_tipo" value={formData.nombre_tipo} onChange={handleChange} placeholder="Ej: Pantalla, Bateria, Flex" required />
         <Field label="Electronico relacionado" name="electronico" value={formData.electronico} onChange={handleChange} placeholder="Ej: Celular, Laptop, Impresora" />
       </div>
@@ -66,6 +113,8 @@ const TiposRepuesto = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
 
   const loadTipos = async () => {
     setLoading(true);
@@ -83,6 +132,45 @@ const TiposRepuesto = () => {
   useEffect(() => {
     loadTipos();
   }, []);
+
+  const activeTourTarget = showHelp ? tourSteps[tourStep].target : '';
+
+  useEffect(() => {
+    if (!showHelp || !activeTourTarget) return;
+    const scrollTimer = window.setTimeout(() => {
+      document
+        .querySelector(`[data-tour-target="${activeTourTarget}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }, 80);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [activeTourTarget, showHelp]);
+
+  const startTour = () => {
+    setEditingTipo(null);
+    setShowForm(true);
+    setTourStep(0);
+    setShowHelp(true);
+  };
+
+  const closeTour = () => {
+    setShowHelp(false);
+    setTourStep(0);
+    setShowForm(false);
+    setEditingTipo(null);
+  };
+
+  const handleTourNext = () => {
+    if (tourStep === tourSteps.length - 1) {
+      closeTour();
+      return;
+    }
+    if (tourSteps[tourStep + 1]?.target === 'search') {
+      setShowForm(false);
+      setEditingTipo(null);
+    }
+    setTourStep((step) => step + 1);
+  };
 
   const handleSubmit = async (data) => {
     setLoading(true);
@@ -139,12 +227,14 @@ const TiposRepuesto = () => {
       contentClassName: 'whitespace-nowrap leading-relaxed',
       render: (row) => (
         <div className="flex gap-2">
-          <button onClick={() => { setEditingTipo(row); setShowForm(true); }} className="rounded p-1 text-blue-600 hover:bg-blue-50" title="Editar">
-            <Edit className="h-4 w-4" />
-          </button>
-          <button onClick={() => handleDelete(row.id_tipo_repuesto)} className="rounded p-1 text-red-600 hover:bg-red-50" title="Eliminar">
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <div data-tour-target="actions" className={`flex gap-2 ${tourHighlightClass(activeTourTarget === 'actions')}`}>
+            <button onClick={() => { setEditingTipo(row); setShowForm(true); }} className="rounded p-1 text-blue-600 hover:bg-blue-50" title="Editar">
+              <Edit className="h-4 w-4" />
+            </button>
+            <button onClick={() => handleDelete(row.id_tipo_repuesto)} className="rounded p-1 text-red-600 hover:bg-red-50" title="Eliminar">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       ),
     },
@@ -152,14 +242,28 @@ const TiposRepuesto = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      {showHelp && (
+        <GuidedTour
+          stepIndex={tourStep}
+          onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
+          onClose={closeTour}
+          onNext={handleTourNext}
+        />
+      )}
+
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="mb-1 text-2xl font-bold">Tipos de Repuesto</h2>
           <p className="text-gray-500">Clasifica repuestos y relaciona cada tipo con el electronico correspondiente.</p>
         </div>
-        <button onClick={() => { setEditingTipo(null); setShowForm(true); }} className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
-          <Plus className="h-4 w-4" /> Nuevo Tipo
-        </button>
+        <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
+          <button type="button" onClick={startTour} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50" title="Iniciar tutorial guiado">
+            <HelpCircle className="h-4 w-4" /> Ayuda
+          </button>
+          <button onClick={() => { setEditingTipo(null); setShowForm(true); }} className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+            <Plus className="h-4 w-4" /> Nuevo Tipo
+          </button>
+        </div>
       </div>
 
       {error && <div className="mb-4 rounded-lg bg-red-100 p-3 text-red-700">{error}</div>}
@@ -171,11 +275,12 @@ const TiposRepuesto = () => {
             initialData={editingTipo}
             onCancel={() => { setShowForm(false); setEditingTipo(null); }}
             onSubmit={handleSubmit}
+            activeTourTarget={activeTourTarget}
           />
         </div>
       )}
 
-      <div className="mb-6">
+      <div data-tour-target="search" className={`mb-6 ${tourHighlightClass(activeTourTarget === 'search')}`}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
@@ -188,7 +293,7 @@ const TiposRepuesto = () => {
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-100 bg-white shadow-sm">
+      <div data-tour-target="table" className={`rounded-xl border border-gray-100 bg-white shadow-sm ${tourHighlightClass(activeTourTarget === 'table')}`}>
         {loading ? (
           <div className="p-8 text-center text-gray-500">Cargando...</div>
         ) : (

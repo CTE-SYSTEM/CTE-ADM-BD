@@ -5,3 +5,4 @@
 \i scripts/modules/Secretaria/Proveedores.sql
 \i scripts/modules/Secretaria/Repuesto.sql
 \i scripts/modules/JefeTecnico/Diagnostico.sql
+\i scripts/modules/Tecnico/Tecnico.sql

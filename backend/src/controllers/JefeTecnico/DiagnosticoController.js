@@ -60,7 +60,8 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
       where: { id_diagnostico: parseInt(id) },
       data: { 
         tecnico_id: parseInt(id_tecnico),
-        fecha_asignacion: new Date()
+        fecha_asignacion: new Date(),
+        estado_del_diagnostico: 'EN_REVISION'
       },
       include: {
         equipo: { include: { cliente: true } },
@@ -108,7 +109,7 @@ export const getTecnicos = async (req, res) => {
 export const getRepuestos = async (req, res) => {
   try {
     const repuestos = await prisma.repuestos.findMany({
-      where: { activo: true },
+      where: { descontinuada: false },
       orderBy: { nombre: 'asc' }
     });
     res.json({ data: repuestos });

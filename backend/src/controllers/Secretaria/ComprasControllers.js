@@ -1,5 +1,7 @@
 import prisma from '../../app/prismaClient.js';
 
+const normalizeText = (value = '') => String(value).trim().replace(/\s+/g, ' ');
+
 export const getCompras = async (req, res) => {
   try {
     const compras = await prisma.compras.findMany({
@@ -33,20 +35,60 @@ export const createCompra = async (req, res) => {
       return res.status(400).json({ error: 'Proveedor y repuesto son obligatorios' });
     }
 
-    const compra = await prisma.compras.create({
-      data: {
-        repuesto_id: Number(repuesto_id),
-        proveedor_id: Number(proveedor_id),
-        documento: documento || null,
-        fecha_obtencion: fecha_obtencion ? new Date(fecha_obtencion) : undefined,
-        cantidad: cantidad ? Number(cantidad) : null,
-        costo_unitario: costo_unitario ? Number(costo_unitario) : null,
-        metodo_pago: metodo_pago || null,
-      },
-      include: {
-        proveedor: true,
-        repuesto: true,
-      },
+    const repuestoId = Number(repuesto_id);
+    const proveedorId = Number(proveedor_id);
+    const cantidadNumber = Number(cantidad);
+    const costoNumber = Number(costo_unitario);
+    const fecha = fecha_obtencion ? new Date(fecha_obtencion) : undefined;
+
+    if (!Number.isInteger(cantidadNumber) || cantidadNumber <= 0) {
+      return res.status(400).json({ error: 'La cantidad debe ser un numero entero mayor que cero' });
+    }
+
+    if (!costoNumber || costoNumber <= 0) {
+      return res.status(400).json({ error: 'El costo unitario debe ser mayor que cero' });
+    }
+
+    if (fecha && Number.isNaN(fecha.getTime())) {
+      return res.status(400).json({ error: 'La fecha de obtencion no es valida' });
+    }
+
+    const [proveedor, repuesto] = await Promise.all([
+      prisma.proveedores.findFirst({ where: { id_proveedor: proveedorId, descontinuada: false } }),
+      prisma.repuestos.findFirst({ where: { id_repuesto: repuestoId, descontinuada: false } }),
+    ]);
+
+    if (!proveedor) {
+      return res.status(400).json({ error: 'El proveedor seleccionado no existe o esta descontinuado' });
+    }
+
+    if (!repuesto) {
+      return res.status(400).json({ error: 'El repuesto seleccionado no existe o esta descontinuado' });
+    }
+
+    const compra = await prisma.$transaction(async (tx) => {
+      const created = await tx.compras.create({
+        data: {
+          repuesto_id: repuestoId,
+          proveedor_id: proveedorId,
+          documento: normalizeText(documento) || null,
+          fecha_obtencion: fecha,
+          cantidad: cantidadNumber,
+          costo_unitario: costoNumber,
+          metodo_pago: normalizeText(metodo_pago) || null,
+        },
+        include: {
+          proveedor: true,
+          repuesto: true,
+        },
+      });
+
+      await tx.repuestos.update({
+        where: { id_repuesto: repuestoId },
+        data: { costo_individual: costoNumber },
+      });
+
+      return created;
     });
 
     res.status(201).json({ data: compra });

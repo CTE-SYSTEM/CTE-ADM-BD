@@ -7,7 +7,8 @@ $files = @(
   "scripts/modules/Secretaria/Compras.sql",
   "scripts/modules/Secretaria/Proveedores.sql",
   "scripts/modules/Secretaria/Repuesto.sql",
-  "scripts/modules/JefeTecnico/Diagnostico.sql"
+  "scripts/modules/JefeTecnico/Diagnostico.sql",
+  "scripts/modules/Tecnico/Tecnico.sql"
 )
 
 $sql = ($files | ForEach-Object { Get-Content $_ -Raw }) -join "`n"
