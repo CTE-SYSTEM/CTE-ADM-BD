@@ -2,17 +2,31 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import './config/database.js'; 
 
 const app = express();
+const allowedOrigins = (
+    process.env.CORS_ORIGIN ||
+    process.env.FRONTEND_URL ||
+    'http://localhost:5173'
+)
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
 // --- 1. CONFIGURACIÓN DE MIDDLEWARES ---
 // Morgan para ver las peticiones en la consola del terminal
 app.use(morgan('dev'));
 
-// CORS: Permite que tu frontend (Vite) se comunique con el backend
+// CORS: configurable for local Docker and Railway deployments.
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true
 }));
 
@@ -68,7 +82,7 @@ app.use('/api/admin_pro', adminProRoutes);
 
 // Ruta raíz de backend: ayuda a quienes abren localhost:5000 directamente
 app.get('/', (req, res) => {
-    res.send('Este es el backend. El frontend corre en http://localhost:5173. Usa /api para las rutas de la API.');
+    res.send(`Este es el backend. Frontend permitido: ${allowedOrigins.join(', ')}. Usa /api para las rutas de la API.`);
 });
 
 // --- 4. MANEJO DE ERRORES GLOBAL ---

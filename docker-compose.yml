@@ -28,6 +28,10 @@ services:
     environment:
       - DATABASE_URL=postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico?schema=public
       - SQL_DATABASE_URL=postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico
+      - FRONTEND_URL=http://localhost:5173
+      - CORS_ORIGIN=http://localhost:5173
+      - JWT_SECRET=tu_secreto_super_seguro
+      - NODE_ENV=development
     ports:
       - "5000:5000"
       - "5555:5555"
@@ -43,6 +47,8 @@ services:
     command: sh -c "sleep 5 && npm run dev -- --host 0.0.0.0"
     depends_on:
       - backend
+    environment:
+      - VITE_PROXY_TARGET=http://backend:5000
     ports:
       - "5173:5173"
     volumes:

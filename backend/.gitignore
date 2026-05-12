@@ -6,7 +6,6 @@ yarn-error.log*
 
 #entorno de postgres
 .env
-.env.example
 
 # Runtime data
 pids
