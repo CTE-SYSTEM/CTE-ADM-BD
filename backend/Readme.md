@@ -99,3 +99,25 @@ docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 
 
 > [!NOTE]
 > Para más información sobre credenciales y configuración, ver [CREDENTIALS.md](../CREDENTIALS.md) en la raíz del proyecto.
+
+### 4. Nuevo agregado para usar el neon 
+
+# crear y localizacion 
+
+luego de crear la cuenta de la localizacion enq ue servidor entonces usar el string de conneccion que ya esta en el
+>.env
+
+y como ya esta el esquema entonces al hacer el db prisma push entoncess en el neon se crea la basede datos que haya en
+**El comando**
+```bash
+npx prisma db push
+```
+>schema.prisma
+
+# Cargar las funciones 
+>como el sistema usa las funciones y el prisma paar obtner las cosas se deben de ejecuta para que el escript funcione
+
+**El comando**
+```bash
+Get-Content scripts/load_functions.sql | ForEach-Object { if ($_ -match '\\i\s+(.*)') { Get-Content $matches[1] } } | docker exec -i postgres_cte psql "TU_URL_DE_NEON"sh
+```
