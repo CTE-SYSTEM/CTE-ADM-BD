@@ -1,4 +1,5 @@
 import prisma from '../../app/prismaClient.js';
+import { METODOS_PAGO, assertInList } from '../../utils/domainValidation.js';
 
 const normalizeText = (value = '') => String(value).trim().replace(/\s+/g, ' ');
 
@@ -75,7 +76,7 @@ export const createCompra = async (req, res) => {
           fecha_obtencion: fecha,
           cantidad: cantidadNumber,
           costo_unitario: costoNumber,
-          metodo_pago: normalizeText(metodo_pago) || null,
+          metodo_pago: assertInList(normalizeText(metodo_pago), METODOS_PAGO, 'Metodo de pago'),
         },
         include: {
           proveedor: true,
@@ -94,6 +95,9 @@ export const createCompra = async (req, res) => {
     res.status(201).json({ data: compra });
   } catch (error) {
     console.error('Error al crear compra:', error);
+    if (error.message?.includes('no es valido')) {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({ error: 'Error al crear compra', details: error.message });
   }
 };

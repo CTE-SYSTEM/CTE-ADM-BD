@@ -1,3 +1,4 @@
+\i scripts/modules/Seguridad.sql
 \i scripts/modules/Secretaria/Clientes.sql
 \i scripts/modules/Secretaria/Equipo.sql
 \i scripts/modules/Secretaria/Diagnostico.sql

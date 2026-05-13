@@ -1,9 +1,7 @@
 // backend/src/controllers/Secretaria/garantiasController.js
 import prisma from '../../app/prismaClient.js';
+import { normalizeOptionalText, parsePositiveId } from '../../utils/domainValidation.js';
 
-/**
- * Obtener todas las garantías con la información de la factura y el cliente
- */
 export const getGarantias = async (req, res) => {
   try {
     const garantias = await prisma.garantias.findMany({
@@ -15,80 +13,99 @@ export const getGarantias = async (req, res) => {
                 diagnostico: {
                   include: {
                     equipo: {
-                      include: { cliente: true }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      include: { cliente: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       orderBy: {
-        fecha_vencimiento: 'asc'
-      }
+        fecha_vencimiento: 'asc',
+      },
     });
     res.json({ data: garantias });
   } catch (error) {
     console.error('Error al obtener garantias:', error);
-    res.status(500).json({ error: 'Error al obtener el historial de garantías' });
+    res.status(500).json({ error: 'Error al obtener el historial de garantias' });
   }
 };
 
-/**
- * Crear una garantía vinculada a una factura
- */
 export const createGarantia = async (req, res) => {
   try {
     const { factura_id, condiciones, duracion_meses } = req.body;
+    const facturaId = parsePositiveId(factura_id);
+    const duracionMeses = Number(duracion_meses);
 
-    // Calculamos las fechas automáticamente
+    if (!facturaId) {
+      return res.status(400).json({ error: 'La factura es obligatoria' });
+    }
+
+    if (!Number.isInteger(duracionMeses) || duracionMeses < 1 || duracionMeses > 36) {
+      return res.status(400).json({ error: 'La duracion debe estar entre 1 y 36 meses' });
+    }
+
+    const factura = await prisma.facturas.findUnique({
+      where: { id_factura: facturaId },
+      include: { garantias: true },
+    });
+
+    if (!factura) {
+      return res.status(404).json({ error: 'Factura no encontrada' });
+    }
+
+    if (factura.garantias.length > 0) {
+      return res.status(409).json({ error: 'Esta factura ya tiene una garantia registrada' });
+    }
+
     const fecha_inicio = new Date();
     const fecha_vencimiento = new Date();
-    fecha_vencimiento.setMonth(fecha_vencimiento.getMonth() + parseInt(duracion_meses));
+    fecha_vencimiento.setMonth(fecha_vencimiento.getMonth() + duracionMeses);
 
     const nuevaGarantia = await prisma.garantias.create({
       data: {
-        factura_id: parseInt(factura_id),
-        condiciones,
-        duracion_meses: parseInt(duracion_meses),
+        factura_id: facturaId,
+        condiciones: normalizeOptionalText(condiciones),
+        duracion_meses: duracionMeses,
         fecha_inicio,
-        fecha_vencimiento
+        fecha_vencimiento,
       },
       include: {
-        factura: true
-      }
+        factura: true,
+      },
     });
 
-    res.status(201).json({ 
-      message: 'Garantía generada exitosamente',
-      data: nuevaGarantia 
+    res.status(201).json({
+      message: 'Garantia generada exitosamente',
+      data: nuevaGarantia,
     });
   } catch (error) {
     console.error('Error al crear garantia:', error);
     if (error.code === 'P2003') {
       return res.status(400).json({ error: 'La factura especificada no existe' });
     }
-    res.status(500).json({ error: 'No se pudo registrar la garantía' });
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'Esta factura ya tiene una garantia registrada' });
+    }
+    res.status(500).json({ error: 'No se pudo registrar la garantia' });
   }
 };
 
-/**
- * Obtener garantía por ID de factura (útil para la impresión del ticket final)
- */
 export const getGarantiaByFactura = async (req, res) => {
   try {
     const { facturaId } = req.params;
     const garantia = await prisma.garantias.findFirst({
-      where: { factura_id: parseInt(facturaId) }
+      where: { factura_id: parseInt(facturaId) },
     });
 
     if (!garantia) {
-      return res.status(404).json({ error: 'No hay garantía registrada para esta factura' });
+      return res.status(404).json({ error: 'No hay garantia registrada para esta factura' });
     }
 
     res.json({ data: garantia });
   } catch (error) {
-    res.status(500).json({ error: 'Error al buscar la garantía' });
+    res.status(500).json({ error: 'Error al buscar la garantia' });
   }
 };

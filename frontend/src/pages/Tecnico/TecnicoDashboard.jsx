@@ -31,6 +31,8 @@ const EstadoBadge = ({ estado }) => {
     ESPERANDO_REPUESTO: 'bg-amber-50 text-amber-700 border-amber-100',
     ESPERANDO_PIEZA: 'bg-amber-50 text-amber-700 border-amber-100',
     FINALIZADO: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+    ENTREGADO: 'bg-slate-50 text-slate-700 border-slate-200',
+    IRREPARABLE: 'bg-red-50 text-red-700 border-red-100',
     COMPLETADO: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     DIAGNOSTICADO: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     APROBADO: 'bg-green-50 text-green-700 border-green-100',
@@ -198,6 +200,95 @@ const DiagnosticoModal = ({ orden, readOnly = false, onClose, onSubmit }) => {
   );
 };
 
+const CierreOrdenModal = ({ orden, estado, onClose, onSubmit }) => {
+  const esIrreparable = estado === 'IRREPARABLE';
+  const [form, setForm] = useState({
+    resultado_final: esIrreparable ? 'IRREPARABLE' : 'REPARADO',
+    enciende_salida: !esIrreparable,
+    usa_corriente_ac_salida: !esIrreparable,
+    observacion_final: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (event) => {
+    const { name, type, checked, value } = event.target;
+    setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await onSubmit(orden.id, {
+        estado,
+        ...form,
+      });
+      onClose();
+    } catch (err) {
+      setError(err?.response?.data?.error || 'No se pudo cerrar la orden.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h3 className="text-lg font-bold text-gray-800 uppercase tracking-tight">
+              {esIrreparable ? 'Marcar Irreparable' : 'Finalizar Orden'}
+            </h3>
+            <p className="text-xs font-semibold text-gray-500">Orden #{orden.id} - {orden.equipo}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+            Este cierre no cambia los datos de recepcion. Guarda el estado real del equipo al salir del taller.
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700">
+              <input type="checkbox" name="enciende_salida" checked={form.enciende_salida} onChange={handleChange} />
+              Enciende al finalizar
+            </label>
+            <label className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700">
+              <input type="checkbox" name="usa_corriente_ac_salida" checked={form.usa_corriente_ac_salida} onChange={handleChange} />
+              Probado con corriente AC
+            </label>
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Observacion final</label>
+            <textarea
+              required
+              rows="4"
+              className="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              name="observacion_final"
+              value={form.observacion_final}
+              onChange={handleChange}
+              placeholder={esIrreparable ? 'Explique por que no se puede reparar y que se reviso.' : 'Explique pruebas realizadas y condicion de entrega.'}
+            />
+          </div>
+          {esIrreparable && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+              En facturacion se podra cobrar solo revision/mano de obra. No se sumaran repuestos a esta orden.
+            </div>
+          )}
+          {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</div>}
+          <div className="flex justify-end gap-2 pt-4">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold uppercase text-gray-500">Cancelar</button>
+            <button type="submit" disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase">
+              {loading ? 'Guardando...' : esIrreparable ? 'Guardar Irreparable' : 'Guardar Finalizacion'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const TecnicoDashboard = () => {
   const { user } = useContext(AuthContext);
   const [diagnosticos, setDiagnosticos] = useState([]);
@@ -208,6 +299,7 @@ const TecnicoDashboard = () => {
   const [activeTab, setActiveTab] = useState('diagnosticos');
   const [modalRepuesto, setModalRepuesto] = useState(null);
   const [modalDiagnostico, setModalDiagnostico] = useState(null);
+  const [modalCierre, setModalCierre] = useState(null);
 
   const mapEquipo = (equipo) =>
     `${equipo?.tipo || 'Equipo'} ${equipo?.marca || ''} ${equipo?.modelo || ''}`.trim();
@@ -237,8 +329,14 @@ const TecnicoDashboard = () => {
       presupuesto: diagnostico.presupuesto_estimado || '',
       repuestos_usados: orden.repuestos_usados || [],
       puedeEditarCompletada: orden.puede_editar_completada !== false,
+      resultado_final: orden.resultado_final || '',
+      enciende_salida: orden.enciende_salida,
+      usa_corriente_ac_salida: orden.usa_corriente_ac_salida,
+      observacion_final: orden.observacion_final || '',
     };
   };
+
+  const estadosOrdenCerrada = ['FINALIZADO', 'IRREPARABLE', 'ENTREGADO'];
 
   const diagnosticosEnRevision = useMemo(
     () => diagnosticos.filter((diag) => !estadosDiagnosticoCompletado.includes(String(diag.estado || '').toUpperCase())),
@@ -263,12 +361,12 @@ const TecnicoDashboard = () => {
   );
 
   const ordenesActivas = useMemo(
-    () => ordenes.filter((orden) => String(orden.estado || '').toUpperCase() !== 'FINALIZADO'),
+    () => ordenes.filter((orden) => !estadosOrdenCerrada.includes(String(orden.estado || '').toUpperCase())),
     [ordenes],
   );
 
   const ordenesCompletadas = useMemo(
-    () => ordenes.filter((orden) => String(orden.estado || '').toUpperCase() === 'FINALIZADO'),
+    () => ordenes.filter((orden) => estadosOrdenCerrada.includes(String(orden.estado || '').toUpperCase())),
     [ordenes],
   );
 
@@ -303,6 +401,12 @@ const TecnicoDashboard = () => {
   }, [user?.username]);
 
   const handleEstadoChange = async (ordenId, nuevoEstado) => {
+    const orden = ordenes.find((item) => item.id === ordenId);
+    if (['FINALIZADO', 'IRREPARABLE'].includes(nuevoEstado)) {
+      setModalCierre({ orden, estado: nuevoEstado });
+      return;
+    }
+
     setOrdenes((prev) => prev.map((o) => (o.id === ordenId ? { ...o, estado: nuevoEstado } : o)));
     try {
       await api.patch(`/tecnicos/ordenes/${ordenId}/estado`, { estado: nuevoEstado });
@@ -311,6 +415,17 @@ const TecnicoDashboard = () => {
       console.error('Error al cambiar estado de orden:', err);
       setError(err?.response?.data?.error || 'No se pudo actualizar el estado de la orden.');
       await loadTecnicoData();
+    }
+  };
+
+  const handleCerrarOrden = async (ordenId, data) => {
+    setOrdenes((prev) => prev.map((o) => (o.id === ordenId ? { ...o, estado: data.estado } : o)));
+    try {
+      await api.patch(`/tecnicos/ordenes/${ordenId}/estado`, data);
+      await loadTecnicoData();
+    } catch (err) {
+      await loadTecnicoData();
+      throw err;
     }
   };
 
@@ -421,6 +536,7 @@ const TecnicoDashboard = () => {
                 <option value="EN_REPARACION">EN REPARACION</option>
                 <option value="ESPERANDO_PIEZA">ESPERANDO PIEZA</option>
                 <option value="FINALIZADO" disabled={tienePiezasPendientes}>FINALIZADO</option>
+                <option value="IRREPARABLE">IRREPARABLE</option>
               </select>
               <button
                 onClick={() => setModalRepuesto(orden)}
@@ -541,6 +657,15 @@ const TecnicoDashboard = () => {
           readOnly={modalDiagnostico.readOnly}
           onClose={() => setModalDiagnostico(null)}
           onSubmit={handleGuardarDiagnostico}
+        />
+      )}
+
+      {modalCierre && (
+        <CierreOrdenModal
+          orden={modalCierre.orden}
+          estado={modalCierre.estado}
+          onClose={() => setModalCierre(null)}
+          onSubmit={handleCerrarOrden}
         />
       )}
     </div>

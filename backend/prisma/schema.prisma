@@ -104,6 +104,11 @@ model Ordenes {
   prioridad               String?   // Urgente - Alta - Normal
   estado                  String?   @default("PENDIENTE") // INGRESADO, REPARACION, FINALIZADO
   fecha_ingreso           DateTime? @default(now())
+  resultado_final         String?
+  enciende_salida         Boolean?
+  usa_corriente_ac_salida Boolean?
+  observacion_final       String?
+  fecha_cierre            DateTime?
   
   // Relaciones
   diagnostico             Diagnosticos @relation(fields: [diagnostico_id], references: [id_diagnostico])
@@ -196,7 +201,7 @@ model Compras {
 
 model Facturas {
   id_factura    Int       @id @default(autoincrement())
-  orden_id      Int
+  orden_id      Int       @unique
   fecha_emision DateTime? @default(now())
   monto_repuestos Decimal? @db.Decimal(18, 2) // La suma de lo que se uso
   mano_obra       Decimal? @db.Decimal(18, 2) // El costo del servicio técnico
@@ -214,7 +219,7 @@ model Facturas {
 
 model Garantias {
   id_garantia       Int       @id @default(autoincrement())
-  factura_id        Int
+  factura_id        Int       @unique
   condiciones       String?   
   duracion_meses    Int?
   fecha_inicio      DateTime? 

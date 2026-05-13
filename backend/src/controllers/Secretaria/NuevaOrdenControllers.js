@@ -1,4 +1,5 @@
 import prisma from '../../app/prismaClient.js';
+import { ORDEN_ESTADOS, PRIORIDADES, assertInList, parsePositiveId } from '../../utils/domainValidation.js';
 
 const ordenInclude = {
   diagnostico: {
@@ -28,7 +29,7 @@ export const getOrdenes = async (req, res) => {
 export const createOrden = async (req, res) => {
   try {
     const { diagnostico_id, tecnico_id, prioridad, estado } = req.body;
-    const diagnosticoId = Number(diagnostico_id);
+    const diagnosticoId = parsePositiveId(diagnostico_id);
 
     if (!diagnosticoId) {
       return res.status(400).json({ error: 'El diagnostico es obligatorio' });
@@ -69,9 +70,9 @@ export const createOrden = async (req, res) => {
     const orden = await prisma.ordenes.create({
       data: {
         diagnostico_id: diagnosticoId,
-        tecnico_id: tecnico_id ? Number(tecnico_id) : null,
-        prioridad: prioridad || 'Normal',
-        estado: estado || 'PENDIENTE',
+        tecnico_id: tecnico_id ? parsePositiveId(tecnico_id) : null,
+        prioridad: assertInList(prioridad || 'Normal', PRIORIDADES, 'Prioridad'),
+        estado: assertInList(estado || 'PENDIENTE', ORDEN_ESTADOS, 'Estado de la orden'),
       },
       include: ordenInclude,
     });
@@ -79,6 +80,9 @@ export const createOrden = async (req, res) => {
     res.status(201).json({ data: orden });
   } catch (error) {
     console.error('Error al crear orden:', error);
+    if (error.message?.includes('no es valido')) {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({ error: 'Error al crear orden', details: error.message });
   }
 };
@@ -90,9 +94,9 @@ export const updateOrden = async (req, res) => {
     const orden = await prisma.ordenes.update({
       where: { id_orden: Number(req.params.id) },
       data: {
-        tecnico_id: tecnico_id ? Number(tecnico_id) : null,
-        prioridad,
-        estado,
+        tecnico_id: tecnico_id ? parsePositiveId(tecnico_id) : null,
+        prioridad: prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : undefined,
+        estado: estado ? assertInList(estado, ORDEN_ESTADOS, 'Estado de la orden') : undefined,
       },
       include: ordenInclude,
     });
@@ -102,6 +106,9 @@ export const updateOrden = async (req, res) => {
     console.error('Error al actualizar orden:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Orden no encontrada' });
+    }
+    if (error.message?.includes('no es valido')) {
+      return res.status(400).json({ error: error.message });
     }
     res.status(500).json({ error: 'Error al actualizar orden', details: error.message });
   }

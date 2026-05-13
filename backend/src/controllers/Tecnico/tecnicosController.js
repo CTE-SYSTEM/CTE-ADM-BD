@@ -1,4 +1,5 @@
 import prisma from '../../app/prismaClient.js';
+import { ORDEN_ESTADOS, RESULTADOS_ORDEN, assertInList } from '../../utils/domainValidation.js';
 
 const ordenInclude = {
   tecnico: true,
@@ -73,21 +74,47 @@ export const getMisOrdenes = async (req, res) => {
   try {
     const { username } = req.params;
 
-    const [tecnico, rows] = await Promise.all([
-      prisma.tecnicos.findFirst({
-        where: {
-          usuario: { nombre_usuario: username },
-          activo: true,
-        },
-      }),
-      prisma.$queryRaw`SELECT data FROM get_mis_ordenes_tecnico(${username})`,
-    ]);
+    const tecnico = await prisma.tecnicos.findFirst({
+      where: {
+        usuario: { nombre_usuario: username },
+        activo: true,
+      },
+    });
 
     if (!tecnico) {
       return res.json({ data: [], tecnico: null });
     }
 
-    res.json({ data: getRowsData(rows), tecnico });
+    const ordenes = await prisma.ordenes.findMany({
+      where: {
+        OR: [
+          { tecnico_id: tecnico.id_tecnico },
+          { diagnostico: { tecnico_id: tecnico.id_tecnico } },
+        ],
+      },
+      include: ordenInclude,
+      orderBy: [
+        { fecha_ingreso: 'desc' },
+        { id_orden: 'desc' },
+      ],
+    });
+
+    const ordenesFinalizadas = ordenes.filter((orden) => (orden.estado || '').toUpperCase() === 'FINALIZADO');
+    const rankFinalizadas = new Map(ordenesFinalizadas.map((orden, index) => [orden.id_orden, index + 1]));
+    const ayer = Date.now() - 24 * 60 * 60 * 1000;
+
+    const data = ordenes.map((orden) => {
+      const estado = (orden.estado || '').toUpperCase();
+      const fechaIngreso = orden.fecha_ingreso ? new Date(orden.fecha_ingreso).getTime() : 0;
+      return {
+        ...orden,
+        puede_editar_completada:
+          !['FINALIZADO', 'IRREPARABLE', 'ENTREGADO'].includes(estado)
+          || ((rankFinalizadas.get(orden.id_orden) || 999) <= 5 && fechaIngreso >= ayer),
+      };
+    });
+
+    res.json({ data, tecnico });
   } catch (error) {
     console.error('Error al obtener ordenes del tecnico:', error);
     res.status(500).json({ error: 'Error interno del servidor', details: error.message });
@@ -126,16 +153,57 @@ export const actualizarDiagnosticoAsignado = async (req, res) => {
 
 export const actualizarEstadoOrden = async (req, res) => {
   try {
-    const { estado } = req.body;
+    const { estado, resultado_final, enciende_salida, usa_corriente_ac_salida, observacion_final } = req.body;
 
     if (!estado) {
       return res.status(400).json({ error: 'El estado es obligatorio' });
     }
 
-    const rows = await prisma.$queryRaw`
-      SELECT data FROM actualizar_estado_orden_tecnico_proc(${Number(req.params.id)}, ${estado})
-    `;
-    const orden = rows[0]?.data;
+    const estadoNuevo = assertInList(String(estado).toUpperCase(), ORDEN_ESTADOS, 'Estado de la orden');
+    const estadoCierre = ['FINALIZADO', 'IRREPARABLE'].includes(estadoNuevo);
+
+    const ordenActual = await prisma.ordenes.findUnique({
+      where: { id_orden: Number(req.params.id) },
+      include: { repuestos_usados: true },
+    });
+
+    if (!ordenActual) {
+      return res.status(404).json({ error: 'Orden no encontrada' });
+    }
+
+    if (['FINALIZADO', 'ENTREGADO', 'IRREPARABLE'].includes((ordenActual.estado || '').toUpperCase())) {
+      return res.status(409).json({ error: 'Esta orden ya esta cerrada' });
+    }
+
+    if (estadoNuevo === 'FINALIZADO') {
+      const pendientes = ordenActual.repuestos_usados.some((item) => item.estado_aprobacion === 'PENDIENTE');
+      if (pendientes) {
+        return res.status(409).json({ error: 'No se puede finalizar: hay piezas pendientes de aprobacion' });
+      }
+    }
+
+    const data = { estado: estadoNuevo };
+
+    if (estadoCierre) {
+      const resultado = assertInList(resultado_final || (estadoNuevo === 'IRREPARABLE' ? 'IRREPARABLE' : 'REPARADO'), RESULTADOS_ORDEN, 'Resultado final');
+      const observacion = String(observacion_final || '').trim();
+
+      if (!observacion) {
+        return res.status(400).json({ error: 'La observacion final es obligatoria para cerrar la orden' });
+      }
+
+      data.resultado_final = resultado;
+      data.enciende_salida = enciende_salida === true || enciende_salida === 'true';
+      data.usa_corriente_ac_salida = usa_corriente_ac_salida === true || usa_corriente_ac_salida === 'true';
+      data.observacion_final = observacion;
+      data.fecha_cierre = new Date();
+    }
+
+    const orden = await prisma.ordenes.update({
+      where: { id_orden: Number(req.params.id) },
+      data,
+      include: ordenInclude,
+    });
 
     res.json({ data: orden });
   } catch (error) {
@@ -143,8 +211,8 @@ export const actualizarEstadoOrden = async (req, res) => {
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Orden no encontrada' });
     }
-    if (error.code === 'P2010') {
-      return res.status(409).json({ error: getDatabaseMessage(error) });
+    if (error.message?.includes('no es valido')) {
+      return res.status(400).json({ error: error.message });
     }
     res.status(500).json({ error: 'Error interno del servidor', details: error.message });
   }
