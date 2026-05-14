@@ -14,16 +14,17 @@ import {
   aprobarSolicitudRepuesto,
   rechazarSolicitudRepuesto
 } from '../../../controllers/JefeTecnico/DiagnosticoController.js';
-import { updateOrden } from '../../../controllers/Secretaria/NuevaOrdenControllers.js';
+import authMiddleware, { requireRole } from '../../../middlewares/authMiddleware.js';
 
 const router = Router();
+
+router.use(authMiddleware, requireRole('TecnicoJefe', 'Administrador', 'admin_pro'));
 
 router.get('/todos', getTodosDiagnosticos);
 router.get('/pendientes-asignar', getDiagnosticosPendientes);
 router.get('/ordenes/aprobadas', getOrdenesAprobadas);
 router.get('/ordenes', getOrdenesPendientes);
 router.patch('/orden/:id/asignar', asignarTecnicoAOrden);
-router.put('/ordenes/:id', updateOrden);
 router.patch('/:id/asignar', asignarTecnicoADiagnostico);
 router.get('/ordenes/:id', getOrdenById);
 router.get('/repuestos/pendientes-aprobacion', getRepuestosPendientesAprobacion);

@@ -3,6 +3,13 @@ import prisma from '../app/prismaClient.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tu_secreto_super_seguro';
 
+const normalizeRole = (role) =>
+  String(role || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_-]/g, '')
+    .toLowerCase();
+
 const authMiddleware = async (req, res, next) => {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) {
@@ -19,6 +26,21 @@ const authMiddleware = async (req, res, next) => {
     console.error(error);
     return res.status(401).json({ error: 'Token inválido' });
   }
+};
+
+export const requireRole = (...roles) => {
+  const allowed = roles.map(normalizeRole);
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    if (!allowed.includes(normalizeRole(req.user.rol))) {
+      return res.status(403).json({ error: 'No autorizado para esta accion' });
+    }
+
+    return next();
+  };
 };
 
 export default authMiddleware;

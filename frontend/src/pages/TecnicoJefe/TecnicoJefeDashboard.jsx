@@ -22,6 +22,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { diagnosticoService } from '../../services/JefeTecnico/DiagnosticoService';
 import { ordenesService } from '../../services/secretaria/ordenesService';
 import { repuestoService } from '../../services/secretaria/repuestosService';
+import { createNotificationsSocket } from '../../services/notificationsSocket';
 import Table from '../../components/Table';
 import { PrioridadBadge } from '../Secretaria/Diagnostico';
 
@@ -47,6 +48,9 @@ const JefeDashboard = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [detalles, setDetalles] = useState(null);
   const [loadingDetalles, setLoadingDetalles] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
   const rolNormalizado = String(user?.rol || '').toLowerCase();
   const esJefeTecnico = rolNormalizado.includes('jefe');
@@ -60,6 +64,24 @@ const JefeDashboard = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!esJefeTecnico) return undefined;
+
+    const socket = createNotificationsSocket();
+    if (!socket) return undefined;
+
+    socket.on('connect', () => setSocketConnected(true));
+    socket.on('disconnect', () => setSocketConnected(false));
+    socket.on('notificacion', (notification) => {
+      setNotifications((prev) => [notification, ...prev].slice(0, 25));
+      fetchData();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [esJefeTecnico]);
 
   useEffect(() => {
     if (!selectedItem || selectedItem.id_detalle_repuesto) return;
@@ -417,6 +439,21 @@ const JefeDashboard = () => {
           </div>
 
           <div className="flex items-center gap-6">
+            <button
+              type="button"
+              onClick={() => setShowNotifications((value) => !value)}
+              className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/50 text-slate-200 hover:border-indigo-400 hover:text-white"
+              title={socketConnected ? 'Notificaciones conectadas' : 'Notificaciones desconectadas'}
+            >
+              <Bell size={20} />
+              {notifications.length > 0 && (
+                <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  {notifications.length}
+                </span>
+              )}
+              <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ${socketConnected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+            </button>
+
             <div className="text-right hidden md:block">
               <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] leading-none mb-1">
                 Usuario Conectado
@@ -445,6 +482,14 @@ const JefeDashboard = () => {
           </div>
         </div>
       </header>
+
+      {showNotifications && (
+        <NotificationTray
+          notifications={notifications}
+          connected={socketConnected}
+          onClear={() => setNotifications([])}
+        />
+      )}
 
       <main className="flex-1 container mx-auto p-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
@@ -530,6 +575,52 @@ const JefeDashboard = () => {
     </div>
   );
 };
+
+const notificationColors = {
+  success: 'border-emerald-100 bg-emerald-50 text-emerald-800',
+  warning: 'border-amber-100 bg-amber-50 text-amber-800',
+  info: 'border-indigo-100 bg-indigo-50 text-indigo-800',
+};
+
+const NotificationTray = ({ notifications, connected, onClear }) => (
+  <aside className="fixed right-6 top-24 z-40 w-[min(380px,calc(100vw-48px))] rounded-2xl border border-slate-200 bg-white shadow-2xl">
+    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+      <div>
+        <h2 className="text-xs font-black uppercase tracking-widest text-slate-800">Notificaciones</h2>
+        <p className="text-[10px] font-bold uppercase text-slate-400">
+          {connected ? 'En vivo' : 'Sin conexion en vivo'}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onClear}
+        className="rounded-lg px-3 py-1 text-[10px] font-black uppercase text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+      >
+        Limpiar
+      </button>
+    </div>
+    <div className="max-h-[420px] space-y-2 overflow-y-auto p-3">
+      {notifications.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs font-bold text-slate-400">
+          Sin eventos recientes.
+        </div>
+      ) : (
+        notifications.map((item) => (
+          <div
+            key={item.id}
+            className={`rounded-xl border p-3 ${notificationColors[item.severity] || notificationColors.info}`}
+          >
+            <div className="text-xs font-black uppercase">{item.title || 'Actividad'}</div>
+            <div className="mt-1 text-xs font-semibold leading-relaxed">{item.message}</div>
+            <div className="mt-2 text-[10px] font-bold uppercase opacity-60">
+              {item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </aside>
+);
 
 const DetailBox = ({ label, value, isFull, highlight }) => (
   <div className={`${isFull ? 'col-span-2' : ''} p-5 rounded-3xl border ${highlight ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-50 border-slate-100'}`}>

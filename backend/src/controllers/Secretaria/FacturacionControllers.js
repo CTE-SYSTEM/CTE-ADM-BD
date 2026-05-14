@@ -7,6 +7,7 @@ import {
 } from '../../utils/domainValidation.js';
 
 const facturaInclude = {
+  garantias: true,
   orden: {
     include: {
       diagnostico: {

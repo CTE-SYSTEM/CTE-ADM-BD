@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import http from 'http';
+import { initializeNotifications } from './services/notifications.js';
 
 const app = express();
 const allowedOrigins = (
@@ -93,9 +95,11 @@ app.use((err, req, res, next) => {
 
 // --- 5. ARRANQUE DEL SERVIDOR ---
 const PORT = process.env.PORT || 5000;
+const server = http.createServer(app);
+initializeNotifications(server, allowedOrigins);
 
 // IMPORTANTE: Escuchar en '0.0.0.0' para que Docker exponga el servicio correctamente
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n ==========================================`);
     console.log(`   SERVIDOR CORRIENDO EN: http://localhost:${PORT}`);
     console.log(`   MODO: ${process.env.NODE_ENV || 'development'}`);

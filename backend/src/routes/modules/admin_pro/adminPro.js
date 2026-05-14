@@ -15,7 +15,8 @@ import {
   deleteUsuario,
   getMonitoreoGeneral,
   getHistorialEquipo,
-  getHistorialRepuesto
+  getHistorialRepuesto,
+  getReporteAdminPro
 } from '../../../controllers/admin_pro/adminProController.js';
 
 const router = Router();
@@ -39,5 +40,6 @@ router.put('/usuarios/:id', updateUsuario);
 router.delete('/usuarios/:id', deleteUsuario);
 
 router.get('/monitoreo', getMonitoreoGeneral);
+router.get('/reportes/:tipo', getReporteAdminPro);
 
 export default router;

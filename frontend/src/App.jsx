@@ -37,7 +37,6 @@ import NuevaOrden from './pages/Secretaria/Nuevaorden';
 // --- SECCIÓN TÉCNICOS ---
 import TecnicoDashboard from './pages/Tecnico/TecnicoDashboard'; 
 import JefeDashboard from './pages/TecnicoJefe/TecnicoJefeDashboard';
-import EditarOrden from './pages/TecnicoJefe/EditarOrden';
 
 import './App.css';
 
@@ -108,10 +107,6 @@ function App() {
           { 
             path: 'tecnico-jefe', 
             element: <RequireAuth><JefeDashboard /></RequireAuth> 
-          },
-          {
-            path: 'editar-orden/:id',
-            element: <RequireAuth><EditarOrden /></RequireAuth>
           },
         ],
         future: { v7_startTransition: true, v7_relativeSplatPath: true }

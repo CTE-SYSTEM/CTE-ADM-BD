@@ -1,6 +1,6 @@
 // frontend/src/pages/Secretaria/Facturacion.jsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { Printer, Search } from 'lucide-react';
+import { ArrowLeft, Eye, Printer, Save, Search } from 'lucide-react';
 import Table from '../../components/Table';
 import { createFactura, getFacturas, getOrdenesParaFacturar } from '../../services/secretaria/facturasService';
 import { getGarantias } from '../../services/secretaria/garantiasService';
@@ -11,6 +11,96 @@ const IVA_RATE = 0.15;
 const getClienteFactura = (factura) => factura.orden?.diagnostico?.equipo?.cliente?.nombre || '';
 const getClienteGarantia = (garantia) => garantia.factura?.orden?.diagnostico?.equipo?.cliente?.nombre || '';
 const formatBool = (value) => (value ? 'Si' : 'No');
+const getGarantiaFactura = (factura) => factura?.garantias?.[0] || null;
+
+const getEquipoFactura = (factura) => [
+  factura?.orden?.diagnostico?.equipo?.tipo,
+  factura?.orden?.diagnostico?.equipo?.marca,
+  factura?.orden?.diagnostico?.equipo?.modelo,
+].filter(Boolean).join(' ') || 'Servicio tecnico';
+
+const buildTicketHtml = (factura, { autoPrint = false } = {}) => {
+  const cliente = getClienteFactura(factura) || 'Consumidor final';
+  const equipo = getEquipoFactura(factura);
+  const garantia = getGarantiaFactura(factura);
+  const fecha = factura.fecha_emision ? new Date(factura.fecha_emision).toLocaleString() : new Date().toLocaleString();
+  const fechaInicioGarantia = garantia?.fecha_inicio ? new Date(garantia.fecha_inicio).toLocaleDateString() : '-';
+  const fechaVencimientoGarantia = garantia?.fecha_vencimiento ? new Date(garantia.fecha_vencimiento).toLocaleDateString() : '-';
+  const lines = [
+    ['Repuestos', factura.monto_repuestos],
+    ['Mano de obra', factura.mano_obra],
+    ['Subtotal', factura.subtotal],
+    ['IVA', factura.impuestos],
+    ['TOTAL', factura.total],
+  ];
+
+  return `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Ticket CTE #${factura.id_factura}</title>
+        <style>
+          body { font-family: Consolas, monospace; margin: 0; padding: 12px; color: #111; }
+          .ticket { width: 280px; margin: 0 auto; }
+          .center { text-align: center; }
+          .line { border-top: 1px dashed #111; margin: 10px 0; }
+          .row { display: flex; justify-content: space-between; gap: 12px; margin: 4px 0; }
+          .total { font-size: 18px; font-weight: 700; }
+          .small { font-size: 11px; }
+          @media print { body { padding: 0; } .ticket { width: 72mm; } }
+        </style>
+      </head>
+      <body>
+        <div class="ticket">
+          <div class="center">
+            <strong>CENTRO TECNICO ELECTRONICO</strong><br />
+            <span class="small">Servicio tecnico y repuestos</span><br />
+            <span class="small">Managua, Nicaragua</span>
+          </div>
+          <div class="line"></div>
+          <div class="small">
+            Ticket: #${factura.id_factura}<br />
+            Orden: #${factura.orden_id}<br />
+            Fecha: ${fecha}<br />
+            Cliente: ${cliente}<br />
+            Equipo: ${equipo}<br />
+            Pago: ${factura.metodo_pago || '-'}
+          </div>
+          <div class="line"></div>
+          ${lines.map(([label, value], index) => `
+            <div class="row ${index === lines.length - 1 ? 'total' : ''}">
+              <span>${label}</span>
+              <span>${money(value)}</span>
+            </div>
+          `).join('')}
+          <div class="line"></div>
+          <div class="center small">
+            Gracias por su visita<br />
+            Conserve este ticket para garantia.
+          </div>
+          <div class="line"></div>
+          <div class="center">
+            <strong>VOUCHER DE GARANTIA</strong><br />
+            <span class="small">Garantia No. ${garantia?.id_garantia ? `#${garantia.id_garantia}` : 'pendiente'}</span>
+          </div>
+          <div class="small">
+            Factura: #${factura.id_factura}<br />
+            Duracion: ${garantia?.duracion_meses || 3} meses<br />
+            Inicio: ${fechaInicioGarantia}<br />
+            Vence: ${fechaVencimientoGarantia}<br />
+            Cubre: reparacion realizada y repuestos instalados por CTE.
+          </div>
+          <div class="line"></div>
+          <div class="small">
+            ${garantia?.condiciones || 'Garantia de 3 meses sujeta a la reparacion realizada. No cubre golpes, humedad, mala manipulacion ni intervenciones de terceros.'}
+          </div>
+        </div>
+        ${autoPrint ? '<script>window.print();</script>' : ''}
+      </body>
+    </html>
+  `;
+};
 
 const FacturacionPage = () => {
   const [facturas, setFacturas] = useState([]);
@@ -42,10 +132,8 @@ const FacturacionPage = () => {
   ), [ordenes, form.orden_id]);
 
   const ticketFactura = useMemo(() => {
-    if (selectedTicketId) {
-      return facturas.find((factura) => String(factura.id_factura) === String(selectedTicketId));
-    }
-    return facturas[0] || null;
+    if (!selectedTicketId) return null;
+    return facturas.find((factura) => String(factura.id_factura) === String(selectedTicketId)) || null;
   }, [facturas, selectedTicketId]);
 
   useEffect(() => {
@@ -128,74 +216,47 @@ const FacturacionPage = () => {
 
   const printTicket = (factura) => {
     if (!factura) return;
-
-    const cliente = getClienteFactura(factura) || 'Consumidor final';
-    const equipo = [
-      factura.orden?.diagnostico?.equipo?.tipo,
-      factura.orden?.diagnostico?.equipo?.marca,
-      factura.orden?.diagnostico?.equipo?.modelo,
-    ].filter(Boolean).join(' ') || 'Servicio tecnico';
-    const fecha = factura.fecha_emision ? new Date(factura.fecha_emision).toLocaleString() : new Date().toLocaleString();
-    const lines = [
-      ['Repuestos', factura.monto_repuestos],
-      ['Mano de obra', factura.mano_obra],
-      ['Subtotal', factura.subtotal],
-      ['IVA', factura.impuestos],
-      ['TOTAL', factura.total],
-    ];
-
     const popup = window.open('', 'ticket_cte', 'width=380,height=640');
     if (!popup) return;
-
-    popup.document.write(`
-      <html>
-        <head>
-          <title>Ticket CTE #${factura.id_factura}</title>
-          <style>
-            body { font-family: Consolas, monospace; margin: 0; padding: 12px; color: #111; }
-            .ticket { width: 280px; margin: 0 auto; }
-            .center { text-align: center; }
-            .line { border-top: 1px dashed #111; margin: 10px 0; }
-            .row { display: flex; justify-content: space-between; gap: 12px; margin: 4px 0; }
-            .total { font-size: 18px; font-weight: 700; }
-            .small { font-size: 11px; }
-            @media print { body { padding: 0; } .ticket { width: 72mm; } }
-          </style>
-        </head>
-        <body>
-          <div class="ticket">
-            <div class="center">
-              <strong>CENTRO TECNICO ELECTRONICO</strong><br />
-              <span class="small">Servicio tecnico y repuestos</span><br />
-              <span class="small">Managua, Nicaragua</span>
-            </div>
-            <div class="line"></div>
-            <div class="small">
-              Ticket: #${factura.id_factura}<br />
-              Orden: #${factura.orden_id}<br />
-              Fecha: ${fecha}<br />
-              Cliente: ${cliente}<br />
-              Equipo: ${equipo}<br />
-              Pago: ${factura.metodo_pago || '-'}
-            </div>
-            <div class="line"></div>
-            ${lines.map(([label, value], index) => `
-              <div class="row ${index === lines.length - 1 ? 'total' : ''}">
-                <span>${label}</span>
-                <span>${money(value)}</span>
-              </div>
-            `).join('')}
-            <div class="line"></div>
-            <div class="center small">
-              Gracias por su visita<br />
-              Conserve este ticket para garantia.
-            </div>
-          </div>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
+    popup.document.write(buildTicketHtml(factura, { autoPrint: true }));
     popup.document.close();
+  };
+
+  const saveTicket = async (factura) => {
+    if (!factura) return;
+    try {
+      const fileName = `ticket-cte-${factura.id_factura}.html`;
+      const html = buildTicketHtml(factura);
+
+      if ('showSaveFilePicker' in window) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: fileName,
+          types: [{ description: 'Ticket HTML', accept: { 'text/html': ['.html'] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([html], { type: 'text/html;charset=utf-8' }));
+        await writable.close();
+        return;
+      }
+
+      const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      if (err?.name !== 'AbortError') {
+        setError('No se pudo guardar el ticket');
+      }
+    }
+  };
+
+  const viewTicket = (factura) => {
+    setSelectedTicketId(String(factura.id_factura));
+    setTablaActiva('ticket');
   };
 
   const columnasFacturas = [
@@ -208,6 +269,19 @@ const FacturacionPage = () => {
     { header: 'Impuestos', accessor: 'impuestos', render: (row) => row.impuestos ? money(row.impuestos) : '' },
     { header: 'Total', accessor: 'total', render: (row) => row.total ? money(row.total) : '' },
     { header: 'Pago', accessor: 'metodo_pago' },
+    {
+      header: 'Acciones',
+      accessor: 'acciones',
+      render: (row) => (
+        <button
+          type="button"
+          onClick={() => viewTicket(row)}
+          className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+        >
+          <Eye className="h-4 w-4" /> Ver
+        </button>
+      ),
+    },
   ];
 
   const columnasGarantias = [
@@ -343,13 +417,6 @@ const FacturacionPage = () => {
             >
               Garantias
             </button>
-            <button
-              type="button"
-              onClick={() => setTablaActiva('ticket')}
-              className={`px-4 py-2 text-sm font-medium rounded-md ${tablaActiva === 'ticket' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-            >
-              Ticket
-            </button>
           </div>
         </div>
         {tablaActiva !== 'ticket' && (
@@ -370,11 +437,13 @@ const FacturacionPage = () => {
           <div className="p-8 text-center text-gray-500">Cargando...</div>
         ) : tablaActiva === 'ticket' ? (
           <TicketTerminal
-            facturas={facturas}
-            selectedTicketId={selectedTicketId}
-            setSelectedTicketId={setSelectedTicketId}
             ticketFactura={ticketFactura}
             onPrint={printTicket}
+            onSave={saveTicket}
+            onBack={() => {
+              setSelectedTicketId('');
+              setTablaActiva('facturas');
+            }}
           />
         ) : (
           <Table columns={columnasActivas} data={datosActivos} />
@@ -384,13 +453,12 @@ const FacturacionPage = () => {
   );
 };
 
-const TicketTerminal = ({ facturas, selectedTicketId, setSelectedTicketId, ticketFactura, onPrint }) => {
-  const equipo = [
-    ticketFactura?.orden?.diagnostico?.equipo?.tipo,
-    ticketFactura?.orden?.diagnostico?.equipo?.marca,
-    ticketFactura?.orden?.diagnostico?.equipo?.modelo,
-  ].filter(Boolean).join(' ') || 'Servicio tecnico';
+const TicketTerminal = ({ ticketFactura, onPrint, onSave, onBack }) => {
+  const equipo = getEquipoFactura(ticketFactura);
+  const garantia = getGarantiaFactura(ticketFactura);
   const fecha = ticketFactura?.fecha_emision ? new Date(ticketFactura.fecha_emision).toLocaleString() : '';
+  const fechaInicioGarantia = garantia?.fecha_inicio ? new Date(garantia.fecha_inicio).toLocaleDateString() : '-';
+  const fechaVencimientoGarantia = garantia?.fecha_vencimiento ? new Date(garantia.fecha_vencimiento).toLocaleDateString() : '-';
   const rows = [
     ['Repuestos', ticketFactura?.monto_repuestos],
     ['Mano de obra', ticketFactura?.mano_obra],
@@ -401,34 +469,36 @@ const TicketTerminal = ({ facturas, selectedTicketId, setSelectedTicketId, ticke
   return (
     <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_360px]">
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Factura para ticket</label>
-          <select
-            value={selectedTicketId || ticketFactura?.id_factura || ''}
-            onChange={(event) => setSelectedTicketId(event.target.value)}
-            className="w-full max-w-xl rounded-lg border border-gray-200 p-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-          >
-            <option value="">Seleccione factura</option>
-            {facturas.map((factura) => (
-              <option key={factura.id_factura} value={factura.id_factura}>
-                #{factura.id_factura} - {getClienteFactura(factura) || 'Consumidor final'} - {money(factura.total)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
-          Este apartado genera un ticket corto para impresora termica o impresion normal. La factura queda guardada en el historial; el ticket solo es la vista de entrega al cliente.
-        </div>
-
         <button
           type="button"
-          onClick={() => onPrint(ticketFactura)}
-          disabled={!ticketFactura}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={onBack}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
         >
-          <Printer className="h-4 w-4" /> Imprimir ticket
+          <ArrowLeft className="h-4 w-4" /> Volver a facturas
         </button>
+
+        <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
+          Detalle del ticket seleccionado. Desde aqui puedes imprimirlo o guardarlo como archivo en la computadora.
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => onPrint(ticketFactura)}
+            disabled={!ticketFactura}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Printer className="h-4 w-4" /> Imprimir
+          </button>
+          <button
+            type="button"
+            onClick={() => onSave(ticketFactura)}
+            disabled={!ticketFactura}
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" /> Guardar
+          </button>
+        </div>
       </div>
 
       <div className="mx-auto w-full max-w-[320px] rounded-sm border border-gray-200 bg-white p-5 font-mono text-sm text-gray-900 shadow-sm">
@@ -461,6 +531,22 @@ const TicketTerminal = ({ facturas, selectedTicketId, setSelectedTicketId, ticke
             <div className="text-center text-xs text-gray-500">
               Gracias por su visita<br />
               Conserve este ticket para garantia.
+            </div>
+            <TicketDivider />
+            <div className="text-center">
+              <div className="font-bold">VOUCHER DE GARANTIA</div>
+              <div className="text-xs text-gray-500">Garantia {garantia?.id_garantia ? `#${garantia.id_garantia}` : 'pendiente'}</div>
+            </div>
+            <div className="mt-3 space-y-1 text-xs">
+              <div>Factura: #{ticketFactura.id_factura}</div>
+              <div>Duracion: {garantia?.duracion_meses || 3} meses</div>
+              <div>Inicio: {fechaInicioGarantia}</div>
+              <div>Vence: {fechaVencimientoGarantia}</div>
+              <div>Cubre: reparacion realizada y repuestos instalados por CTE.</div>
+            </div>
+            <TicketDivider />
+            <div className="text-xs leading-relaxed text-gray-600">
+              {garantia?.condiciones || 'Garantia de 3 meses sujeta a la reparacion realizada. No cubre golpes, humedad, mala manipulacion ni intervenciones de terceros.'}
             </div>
           </>
         ) : (

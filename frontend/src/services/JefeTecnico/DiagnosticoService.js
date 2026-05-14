@@ -25,7 +25,6 @@ export const diagnosticoService = {
   getTodos: () => api.get('/diagnosticos/todos'),
   getOrdenes: () => api.get('/diagnosticos/ordenes'),
   getOrdenById: (id) => api.get(`/diagnosticos/ordenes/${id}`),
-  updateOrden: (id_orden, ordenData) => api.put(`/diagnosticos/ordenes/${id_orden}`, ordenData),
   getRepuestos: () => api.get('/diagnosticos/repuestos'),
   getTecnicos: () => api.get('/diagnosticos/tecnicos'),
   asignar: (id_diagnostico, id_tecnico) => 

@@ -1,5 +1,6 @@
 import prisma from '../../app/prismaClient.js';
 import { ORDEN_ESTADOS, RESULTADOS_ORDEN, assertInList } from '../../utils/domainValidation.js';
+import { notifyJefeTecnico } from '../../services/notifications.js';
 
 const ordenInclude = {
   tecnico: true,
@@ -138,6 +139,14 @@ export const actualizarDiagnosticoAsignado = async (req, res) => {
     `;
     const diagnostico = rows[0]?.data;
 
+    notifyJefeTecnico({
+      type: 'diagnostico_completado',
+      title: 'Diagnostico completado',
+      message: `Diagnostico #${req.params.id} quedo listo para revision/aprobacion`,
+      severity: 'success',
+      entity: { kind: 'diagnostico', id: Number(req.params.id) },
+    });
+
     res.json({ data: diagnostico });
   } catch (error) {
     console.error('Error al actualizar diagnostico asignado:', error);
@@ -205,6 +214,14 @@ export const actualizarEstadoOrden = async (req, res) => {
       include: ordenInclude,
     });
 
+    notifyJefeTecnico({
+      type: estadoCierre ? 'orden_cerrada' : 'orden_estado',
+      title: estadoCierre ? 'Orden cerrada' : 'Cambio de estado',
+      message: `Orden #${orden.id_orden} cambio a ${orden.estado}`,
+      severity: estadoNuevo === 'IRREPARABLE' ? 'warning' : 'info',
+      entity: { kind: 'orden', id: orden.id_orden },
+    });
+
     res.json({ data: orden });
   } catch (error) {
     console.error('Error al actualizar estado de orden:', error);
@@ -239,6 +256,14 @@ export const solicitarRepuesto = async (req, res) => {
       SELECT data FROM solicitar_pieza_orden_tecnico_proc(${Number(req.params.id)}, ${piezaSolicitada}, ${cantidadUsada})
     `;
     const solicitud = rows[0]?.data;
+
+    notifyJefeTecnico({
+      type: 'repuesto_solicitado',
+      title: 'Solicitud de repuesto',
+      message: `Nueva solicitud de pieza para orden #${req.params.id}`,
+      severity: 'warning',
+      entity: { kind: 'orden', id: Number(req.params.id) },
+    });
 
     res.status(201).json({ data: solicitud, message: 'Solicitud de pieza enviada al jefe tecnico' });
   } catch (error) {
