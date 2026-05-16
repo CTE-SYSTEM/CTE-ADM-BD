@@ -30,6 +30,12 @@ const TAB_DIAGNOSTICOS = 'asignar_diagnostico';
 const TAB_ORDENES = 'asignar_orden';
 const TAB_REPUESTOS = 'repuestos';
 const TAB_ALERTAS = 'alertas';
+const TAB_CORRECCIONES = 'correcciones';
+
+const DIAGNOSTICO_ESTADOS = ['PENDIENTE', 'INGRESADO', 'EN_REVISION', 'DIAGNOSTICADO', 'COMPLETADO', 'APROBADO', 'RECHAZADO'];
+const ORDEN_ESTADOS = ['PENDIENTE', 'APROBADO', 'EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'IRREPARABLE', 'ENTREGADO'];
+const REPUESTO_ESTADOS = ['PENDIENTE', 'APROBADO', 'DENEGADO'];
+const PRIORIDADES = ['Normal', 'Alta', 'Urgente'];
 
 const JefeDashboard = () => {
   const { user, logout } = useContext(AuthContext);
@@ -38,6 +44,8 @@ const JefeDashboard = () => {
   const [diagnosticosPendientes, setDiagnosticosPendientes] = useState([]);
   const [ordenesAprobadas, setOrdenesAprobadas] = useState([]);
   const [repuestosPendientes, setRepuestosPendientes] = useState([]);
+  const [correcciones, setCorrecciones] = useState({ diagnosticos: [], ordenes: [], repuestos: [] });
+  const [repuestosCatalogo, setRepuestosCatalogo] = useState([]);
   const [tecnicos, setTecnicos] = useState([]);
   const [activeTab, setActiveTab] = useState(TAB_DIAGNOSTICOS);
   const [loading, setLoading] = useState(true);
@@ -45,7 +53,11 @@ const JefeDashboard = () => {
   const [tecnicosSeleccionados, setTecnicosSeleccionados] = useState({});
 
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [editItem, setEditItem] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [editError, setEditError] = useState('');
   const [detalles, setDetalles] = useState(null);
   const [loadingDetalles, setLoadingDetalles] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
@@ -95,17 +107,21 @@ const JefeDashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [diagRes, ordenesRes, repuestosRes, tecRes] = await Promise.all([
+      const [diagRes, ordenesRes, repuestosRes, tecRes, correccionesRes, repuestosCatalogoRes] = await Promise.all([
         diagnosticoService.getPendientes(),
         ordenesService.getAprobadas(),
         repuestoService.getPendientesAprobacion(),
         diagnosticoService.getTecnicos(),
+        diagnosticoService.getCorrecciones(),
+        diagnosticoService.getRepuestos(),
       ]);
 
       setDiagnosticosPendientes(getData(diagRes));
       setOrdenesAprobadas(getData(ordenesRes));
       setRepuestosPendientes(getData(repuestosRes));
       setTecnicos(getData(tecRes));
+      setCorrecciones(correccionesRes?.data?.data || { diagnosticos: [], ordenes: [], repuestos: [] });
+      setRepuestosCatalogo(getData(repuestosCatalogoRes));
     } catch (error) {
       console.error('Error en la carga de datos:', error);
     } finally {
@@ -138,6 +154,16 @@ const JefeDashboard = () => {
 
   const getEquipo = (row) => row.equipo || row.diagnostico?.equipo || row.orden?.diagnostico?.equipo;
 
+  const getCorreccionTipo = (row) => row.__tipo || (row.id_detalle_repuesto ? 'repuesto' : row.id_orden ? 'orden' : 'diagnostico');
+
+  const getCorreccionId = (row) => row.id_diagnostico || row.id_orden || row.id_detalle_repuesto;
+
+  const correccionesData = useMemo(() => [
+    ...(correcciones.diagnosticos || []).map((item) => ({ ...item, __tipo: 'diagnostico' })),
+    ...(correcciones.ordenes || []).map((item) => ({ ...item, __tipo: 'orden' })),
+    ...(correcciones.repuestos || []).map((item) => ({ ...item, __tipo: 'repuesto' })),
+  ], [correcciones]);
+
   const getFechaBase = (row) =>
     row.fecha_asignacion ||
     row.updatedAt ||
@@ -167,6 +193,11 @@ const JefeDashboard = () => {
     return `${tecnico.nombre} - ${tecnico.especialidad || 'GENERAL'}`;
   };
 
+  const getTecnicoNombre = (id) => {
+    const tecnico = tecnicos.find((t) => String(t.id_tecnico) === String(id));
+    return tecnico?.nombre || 'el tecnico seleccionado';
+  };
+
   const handleTecnicoChange = (row, value) => {
     setTecnicosSeleccionados((prev) => ({
       ...prev,
@@ -179,6 +210,15 @@ const JefeDashboard = () => {
     const idTecnico = tecnicosSeleccionados[getRowKey(row)] || getTecnicoId(row);
 
     if (!id || !idTecnico || savingId) return;
+
+    const tipo = row.id_orden ? 'orden' : 'diagnostico';
+    const tecnicoNombre = getTecnicoNombre(idTecnico);
+    const yaAsignado = Boolean(getTecnicoId(row));
+    const mensaje = yaAsignado
+      ? `Esta ${tipo} ya tiene un tecnico asignado. Deseas cambiarla a ${tecnicoNombre}?`
+      : `Deseas asignar esta ${tipo} a ${tecnicoNombre}?`;
+
+    if (!window.confirm(mensaje)) return;
 
     setSavingId(getRowKey(row));
     try {
@@ -206,7 +246,9 @@ const JefeDashboard = () => {
     if (!id || savingId) return;
 
     const texto = accion === 'aprobar' ? 'aprobar' : 'rechazar';
-    if (!window.confirm(`Deseas ${texto} esta solicitud de repuesto?`)) return;
+    const repuesto = solicitud.repuesto?.nombre || solicitud.pieza_solicitada || 'pieza solicitada';
+    const cantidad = solicitud.cantidad_usada || 1;
+    if (!window.confirm(`Deseas ${texto} ${cantidad} unidad(es) de ${repuesto} para la solicitud #${id}?`)) return;
 
     setSavingId(`repuesto-${id}`);
     try {
@@ -218,6 +260,73 @@ const JefeDashboard = () => {
       await fetchData();
     } catch (error) {
       console.error(`Error al ${texto} repuesto:`, error);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const openEditModal = (row) => {
+    const tipo = getCorreccionTipo(row);
+    setEditItem(row);
+    setEditError('');
+
+    if (tipo === 'diagnostico') {
+      setEditForm({
+        tecnico_id: getTecnicoId(row) || '',
+        prioridad: row.prioridad || 'Normal',
+        estado_del_diagnostico: row.estado_del_diagnostico || 'EN_REVISION',
+        Estado_aprobacion: row.Estado_aprobacion || 'Pendiente',
+      });
+    } else if (tipo === 'orden') {
+      setEditForm({
+        tecnico_id: getTecnicoId(row) || '',
+        prioridad: row.prioridad || row.diagnostico?.prioridad || 'Normal',
+        estado: row.estado || 'PENDIENTE',
+      });
+    } else {
+      setEditForm({
+        repuesto_id: row.repuesto_id || '',
+        pieza_solicitada: row.pieza_solicitada || '',
+        cantidad_usada: row.cantidad_usada || 1,
+        estado_aprobacion: row.estado_aprobacion || 'APROBADO',
+      });
+    }
+
+    setShowEditModal(true);
+  };
+
+  const handleEditField = (field, value) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditItem(null);
+    setEditForm({});
+    setEditError('');
+  };
+
+  const handleSaveCorreccion = async () => {
+    if (!editItem || savingId) return;
+
+    const tipo = getCorreccionTipo(editItem);
+    const id = getCorreccionId(editItem);
+    setSavingId(`correccion-${tipo}-${id}`);
+    setEditError('');
+
+    try {
+      if (tipo === 'diagnostico') {
+        await diagnosticoService.corregirDiagnostico(id, editForm);
+      } else if (tipo === 'orden') {
+        await diagnosticoService.corregirOrden(id, editForm);
+      } else {
+        await diagnosticoService.corregirRepuesto(id, editForm);
+      }
+
+      await fetchData();
+      closeEditModal();
+    } catch (error) {
+      setEditError(error?.response?.data?.error || 'No se pudo guardar la correccion.');
     } finally {
       setSavingId(null);
     }
@@ -412,6 +521,84 @@ const JefeDashboard = () => {
     },
   ];
 
+  const correccionesColumns = [
+    {
+      header: 'Referencia',
+      accessor: 'referencia',
+      render: (row) => {
+        const tipo = getCorreccionTipo(row);
+        return (
+          <div className="py-2">
+            <span className="font-black text-indigo-600 block text-base leading-none">#{getCorreccionId(row)}</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+              {tipo === 'diagnostico' ? 'Diagnostico asignado' : tipo === 'orden' ? 'Orden asignada' : 'Repuesto aprobado'}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      header: 'Equipo / Cliente',
+      accessor: 'equipo',
+      render: (row) => {
+        const equipo = getEquipo(row);
+        const tipo = getCorreccionTipo(row);
+        return (
+          <div className="flex flex-col">
+            <span className="font-bold text-slate-800 uppercase text-xs">
+              {tipo === 'repuesto'
+                ? row.repuesto?.nombre || row.pieza_solicitada || 'Pieza sin nombre'
+                : `${equipo?.marca || 'S/M'} ${equipo?.modelo || 'S/M'}`}
+            </span>
+            <span className="text-[10px] text-slate-400 font-black uppercase italic tracking-tighter">
+              {equipo?.cliente?.nombre || 'Particular'}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      header: 'Tecnico / Estado',
+      accessor: 'estado',
+      render: (row) => {
+        const tipo = getCorreccionTipo(row);
+        const tecnico = row.tecnico || row.orden?.tecnico || row.diagnostico?.tecnico || row.orden?.diagnostico?.tecnico;
+        const estado = tipo === 'diagnostico'
+          ? row.estado_del_diagnostico
+          : tipo === 'orden'
+            ? row.estado
+            : row.estado_aprobacion;
+        return (
+          <div className="flex flex-col">
+            <span className="font-bold text-slate-800 uppercase text-xs">{tecnico?.nombre || 'Sin tecnico'}</span>
+            <span className="text-[10px] text-indigo-500 font-black uppercase tracking-tighter">{estado || 'Sin estado'}</span>
+          </div>
+        );
+      },
+    },
+    {
+      header: 'Prioridad / Cantidad',
+      accessor: 'prioridad',
+      render: (row) => (
+        getCorreccionTipo(row) === 'repuesto'
+          ? <span className="font-black text-slate-700">{row.cantidad_usada || 1}</span>
+          : <PrioridadBadge prioridad={row.prioridad || row.diagnostico?.prioridad || 'NORMAL'} />
+      ),
+    },
+    {
+      header: 'Acciones',
+      accessor: 'acciones',
+      render: (row) => (
+        <button
+          onClick={() => openEditModal(row)}
+          className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all font-black text-[10px] uppercase"
+        >
+          <Settings size={14} /> Modificar
+        </button>
+      ),
+    },
+  ];
+
   const mainData =
     activeTab === TAB_DIAGNOSTICOS
       ? diagnosticosPendientes.filter((item) => !getTecnicoId(item))
@@ -419,9 +606,15 @@ const JefeDashboard = () => {
         ? ordenesAprobadas.filter((item) => !getTecnicoId(item))
         : activeTab === TAB_REPUESTOS
           ? repuestosPendientes
-          : alertasRetraso;
+          : activeTab === TAB_CORRECCIONES
+            ? correccionesData
+            : alertasRetraso;
 
-  const mainColumns = activeTab === TAB_REPUESTOS ? repuestosColumns : asignacionColumns;
+  const mainColumns = activeTab === TAB_REPUESTOS
+    ? repuestosColumns
+    : activeTab === TAB_CORRECCIONES
+      ? correccionesColumns
+      : asignacionColumns;
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans text-slate-900">
@@ -520,6 +713,7 @@ const JefeDashboard = () => {
           <TabButton active={activeTab === TAB_ORDENES} onClick={() => setActiveTab(TAB_ORDENES)} icon={<Package size={16} />} label="Ordenes por aprobar" />
           <TabButton active={activeTab === TAB_REPUESTOS} onClick={() => setActiveTab(TAB_REPUESTOS)} icon={<ShieldCheck size={16} />} label="Aprobacion de Repuestos" />
           <TabButton active={activeTab === TAB_ALERTAS} onClick={() => setActiveTab(TAB_ALERTAS)} icon={<Bell size={16} />} label={`Alertas (${alertasRetraso.length})`} />
+          <TabButton active={activeTab === TAB_CORRECCIONES} onClick={() => setActiveTab(TAB_CORRECCIONES)} icon={<Settings size={16} />} label={`Correcciones (${correccionesData.length})`} />
         </div>
 
         <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden">
@@ -568,6 +762,98 @@ const JefeDashboard = () => {
                   No se encontraron detalles.
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editItem && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
+                  Correccion #{getCorreccionId(editItem)}
+                </p>
+                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
+                  {getCorreccionTipo(editItem) === 'diagnostico'
+                    ? 'Modificar diagnostico'
+                    : getCorreccionTipo(editItem) === 'orden'
+                      ? 'Modificar orden'
+                      : 'Modificar repuesto'}
+                </h2>
+              </div>
+              <button onClick={closeEditModal} className="p-3 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-8 overflow-y-auto space-y-5">
+              {getCorreccionTipo(editItem) !== 'repuesto' ? (
+                <>
+                  <FormSelect label="Tecnico asignado" value={editForm.tecnico_id || ''} onChange={(value) => handleEditField('tecnico_id', value)}>
+                    <option value="">Sin tecnico</option>
+                    {tecnicos.map((tecnico) => (
+                      <option key={tecnico.id_tecnico} value={tecnico.id_tecnico}>
+                        {tecnico.nombre} - {tecnico.especialidad || 'GENERAL'}
+                      </option>
+                    ))}
+                  </FormSelect>
+                  <FormSelect label="Prioridad" value={editForm.prioridad || 'Normal'} onChange={(value) => handleEditField('prioridad', value)}>
+                    {PRIORIDADES.map((prioridad) => <option key={prioridad} value={prioridad}>{prioridad}</option>)}
+                  </FormSelect>
+                  {getCorreccionTipo(editItem) === 'diagnostico' ? (
+                    <>
+                      <FormSelect label="Estado del diagnostico" value={editForm.estado_del_diagnostico || 'EN_REVISION'} onChange={(value) => handleEditField('estado_del_diagnostico', value)}>
+                        {DIAGNOSTICO_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
+                      </FormSelect>
+                      <FormSelect label="Estado de aprobacion" value={editForm.Estado_aprobacion || 'Pendiente'} onChange={(value) => handleEditField('Estado_aprobacion', value)}>
+                        {['Pendiente', 'Aprobado', 'Rechazado'].map((estado) => <option key={estado} value={estado}>{estado}</option>)}
+                      </FormSelect>
+                    </>
+                  ) : (
+                    <FormSelect label="Estado de la orden" value={editForm.estado || 'PENDIENTE'} onChange={(value) => handleEditField('estado', value)}>
+                      {ORDEN_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
+                    </FormSelect>
+                  )}
+                </>
+              ) : (
+                <>
+                  <FormSelect label="Repuesto de inventario" value={editForm.repuesto_id || ''} onChange={(value) => handleEditField('repuesto_id', value)}>
+                    <option value="">Sin repuesto asociado</option>
+                    {repuestosCatalogo.map((repuesto) => (
+                      <option key={repuesto.id_repuesto} value={repuesto.id_repuesto}>
+                        {repuesto.nombre || `Repuesto #${repuesto.id_repuesto}`}
+                      </option>
+                    ))}
+                  </FormSelect>
+                  <FormInput label="Pieza solicitada" value={editForm.pieza_solicitada || ''} onChange={(value) => handleEditField('pieza_solicitada', value)} />
+                  <FormInput label="Cantidad" type="number" min="1" value={editForm.cantidad_usada || 1} onChange={(value) => handleEditField('cantidad_usada', value)} />
+                  <FormSelect label="Estado de aprobacion" value={editForm.estado_aprobacion || 'APROBADO'} onChange={(value) => handleEditField('estado_aprobacion', value)}>
+                    {REPUESTO_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
+                  </FormSelect>
+                </>
+              )}
+
+              {editError && (
+                <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-xs font-bold text-red-600">
+                  {editError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/60 p-6">
+              <button onClick={closeEditModal} className="px-5 py-3 rounded-xl bg-white border border-slate-200 text-slate-500 font-black text-[10px] uppercase hover:text-slate-800">
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveCorreccion}
+                disabled={savingId === `correccion-${getCorreccionTipo(editItem)}-${getCorreccionId(editItem)}`}
+                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {savingId === `correccion-${getCorreccionTipo(editItem)}-${getCorreccionId(editItem)}` ? <Settings size={16} className="animate-spin" /> : <Save size={16} />}
+                Guardar cambios
+              </button>
             </div>
           </div>
         </div>
@@ -627,6 +913,32 @@ const DetailBox = ({ label, value, isFull, highlight }) => (
     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">{label}</span>
     <p className={`text-sm font-bold ${highlight ? 'text-indigo-700' : 'text-slate-700'}`}>{value || 'N/A'}</p>
   </div>
+);
+
+const FormSelect = ({ label, value, onChange, children }) => (
+  <label className="block">
+    <span className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="w-full rounded-xl border-2 border-slate-100 bg-white px-4 py-3 text-xs font-bold uppercase text-slate-700 outline-none transition-all focus:border-indigo-500"
+    >
+      {children}
+    </select>
+  </label>
+);
+
+const FormInput = ({ label, value, onChange, type = 'text', min }) => (
+  <label className="block">
+    <span className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+    <input
+      type={type}
+      min={min}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="w-full rounded-xl border-2 border-slate-100 bg-white px-4 py-3 text-xs font-bold text-slate-700 outline-none transition-all focus:border-indigo-500"
+    />
+  </label>
 );
 
 const cardColors = {

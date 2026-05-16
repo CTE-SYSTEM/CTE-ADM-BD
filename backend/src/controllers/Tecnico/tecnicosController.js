@@ -88,10 +88,7 @@ export const getMisOrdenes = async (req, res) => {
 
     const ordenes = await prisma.ordenes.findMany({
       where: {
-        OR: [
-          { tecnico_id: tecnico.id_tecnico },
-          { diagnostico: { tecnico_id: tecnico.id_tecnico } },
-        ],
+        tecnico_id: tecnico.id_tecnico,
       },
       include: ordenInclude,
       orderBy: [

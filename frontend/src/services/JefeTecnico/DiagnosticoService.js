@@ -27,6 +27,13 @@ export const diagnosticoService = {
   getOrdenById: (id) => api.get(`/diagnosticos/ordenes/${id}`),
   getRepuestos: () => api.get('/diagnosticos/repuestos'),
   getTecnicos: () => api.get('/diagnosticos/tecnicos'),
+  getCorrecciones: () => api.get('/diagnosticos/correcciones'),
+  corregirDiagnostico: (id_diagnostico, data) =>
+    api.patch(`/diagnosticos/correcciones/diagnosticos/${id_diagnostico}`, data),
+  corregirOrden: (id_orden, data) =>
+    api.patch(`/diagnosticos/correcciones/ordenes/${id_orden}`, data),
+  corregirRepuesto: (id_detalle_repuesto, data) =>
+    api.patch(`/diagnosticos/correcciones/repuestos/${id_detalle_repuesto}`, data),
   asignar: (id_diagnostico, id_tecnico) => 
     api.patch(`/diagnosticos/${id_diagnostico}/asignar`, { id_tecnico }),
   asignarOrden: (id_orden, id_tecnico) => 

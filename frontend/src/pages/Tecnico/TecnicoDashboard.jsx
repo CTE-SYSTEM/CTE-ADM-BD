@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Package, Wrench, X, FileText, ClipboardList, Eye } from 'lucide-react';
+import { Package, Wrench, X, FileText, ClipboardList, Eye, LogOut, UserRound, CheckCircle2 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../services/api';
 
@@ -290,7 +290,7 @@ const CierreOrdenModal = ({ orden, estado, onClose, onSubmit }) => {
 };
 
 const TecnicoDashboard = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const [diagnosticos, setDiagnosticos] = useState([]);
   const [ordenes, setOrdenes] = useState([]);
   const [repuestosCatalogo, setRepuestosCatalogo] = useState([]);
@@ -558,30 +558,71 @@ const TecnicoDashboard = () => {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-black text-gray-800 tracking-tight text-left">PANEL TECNICO</h1>
-      </div>
+    <div className="min-h-screen bg-[#111514] font-sans text-slate-100">
+      <header className="bg-[#0f172a] text-white px-6 py-8 shadow-xl">
+        <div className="mx-auto flex max-w-[1840px] flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-5">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-xl font-black shadow-lg shadow-indigo-500/20">
+              CTE
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-indigo-300">Area tecnica</p>
+              <h1 className="m-0 text-xl font-black italic uppercase tracking-tight text-white">
+                Panel <span className="text-indigo-400">Tecnico</span>
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/50 text-slate-200">
+              <UserRound size={22} />
+            </div>
+            <div className="text-left sm:text-right">
+              <p className="mb-1 text-[10px] font-black uppercase leading-none tracking-[0.2em] text-indigo-400">
+                Usuario conectado
+              </p>
+              <div className="flex items-center gap-2 sm:justify-end">
+                <span className="text-sm font-bold uppercase tracking-tight text-white">
+                  {user?.username || 'Tecnico'}
+                </span>
+                <span className="rounded border border-indigo-500/30 bg-indigo-500/20 px-2 py-0.5 text-[9px] font-black uppercase text-indigo-300">
+                  {user?.rol || 'Tecnico'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={logout}
+              className="group flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800/50 p-2 pr-4 transition-all hover:border-red-500/50 hover:bg-red-500/10"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 transition-colors group-hover:text-red-500">
+                <LogOut size={20} />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-red-500">
+                Salir
+              </span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-[1840px] px-6 py-10">
+        <div className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-4">
+          <TecnicoStatCard icon={<ClipboardList size={22} />} label="En revision" value={diagnosticosEnRevision.length} color="violet" />
+          <TecnicoStatCard icon={<CheckCircle2 size={22} />} label="Diagnosticos completados" value={diagnosticosCompletados.length} color="emerald" />
+          <TecnicoStatCard icon={<Wrench size={22} />} label="Ordenes activas" value={ordenesActivas.length} color="blue" />
+          <TecnicoStatCard icon={<Package size={22} />} label="Mis piezas" value={solicitudesRepuestos.length} color="amber" />
+        </div>
 
       {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</div>}
 
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="flex flex-wrap gap-x-8 gap-y-2">
-          <button onClick={() => setActiveTab('diagnosticos')} className={`py-4 px-1 border-b-2 font-bold text-xs uppercase tracking-widest flex items-center ${activeTab === 'diagnosticos' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-400'}`}>
-            <ClipboardList size={16} className="mr-2" /> En Revision ({diagnosticosEnRevision.length})
-          </button>
-          <button onClick={() => setActiveTab('diagnosticos_completados')} className={`py-4 px-1 border-b-2 font-bold text-xs uppercase tracking-widest flex items-center ${activeTab === 'diagnosticos_completados' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-400'}`}>
-            <FileText size={16} className="mr-2" /> Completados ({diagnosticosCompletados.length})
-          </button>
-          <button onClick={() => setActiveTab('ordenes')} className={`py-4 px-1 border-b-2 font-bold text-xs uppercase tracking-widest flex items-center ${activeTab === 'ordenes' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400'}`}>
-            <Wrench size={16} className="mr-2" /> Ordenes Activas ({ordenesActivas.length})
-          </button>
-          <button onClick={() => setActiveTab('ordenes_completadas')} className={`py-4 px-1 border-b-2 font-bold text-xs uppercase tracking-widest flex items-center ${activeTab === 'ordenes_completadas' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-gray-400'}`}>
-            <Wrench size={16} className="mr-2" /> Ordenes Completadas ({ordenesCompletadas.length})
-          </button>
-          <button onClick={() => setActiveTab('repuestos')} className={`py-4 px-1 border-b-2 font-bold text-xs uppercase tracking-widest flex items-center ${activeTab === 'repuestos' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400'}`}>
-            <Package size={16} className="mr-2" /> Mis Piezas ({solicitudesRepuestos.length})
-          </button>
+      <div className="mb-8">
+        <nav className="flex flex-wrap gap-3">
+          <TecnicoTabButton active={activeTab === 'diagnosticos'} onClick={() => setActiveTab('diagnosticos')} icon={<ClipboardList size={16} />} label={`En Revision (${diagnosticosEnRevision.length})`} />
+          <TecnicoTabButton active={activeTab === 'diagnosticos_completados'} onClick={() => setActiveTab('diagnosticos_completados')} icon={<FileText size={16} />} label={`Completados (${diagnosticosCompletados.length})`} />
+          <TecnicoTabButton active={activeTab === 'ordenes'} onClick={() => setActiveTab('ordenes')} icon={<Wrench size={16} />} label={`Ordenes Activas (${ordenesActivas.length})`} />
+          <TecnicoTabButton active={activeTab === 'ordenes_completadas'} onClick={() => setActiveTab('ordenes_completadas')} icon={<Wrench size={16} />} label={`Ordenes Completadas (${ordenesCompletadas.length})`} />
+          <TecnicoTabButton active={activeTab === 'repuestos'} onClick={() => setActiveTab('repuestos')} icon={<Package size={16} />} label={`Mis Piezas (${solicitudesRepuestos.length})`} />
         </nav>
       </div>
 
@@ -668,8 +709,39 @@ const TecnicoDashboard = () => {
           onSubmit={handleCerrarOrden}
         />
       )}
+      </main>
     </div>
   );
 };
+
+const tecnicoCardColors = {
+  amber: 'bg-amber-500/15 text-amber-400',
+  blue: 'bg-blue-500/15 text-blue-400',
+  emerald: 'bg-emerald-500/15 text-emerald-400',
+  violet: 'bg-violet-500/15 text-violet-400',
+};
+
+const TecnicoStatCard = ({ icon, label, value, color }) => (
+  <div className="rounded-[2rem] border border-blue-500/25 bg-[#090d0f] p-6 shadow-xl shadow-black/20">
+    <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl ${tecnicoCardColors[color] || tecnicoCardColors.blue}`}>
+      {icon}
+    </div>
+    <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-300">{label}</p>
+    <span className="text-3xl font-black tracking-tighter text-slate-100">{value}</span>
+  </div>
+);
+
+const TecnicoTabButton = ({ active, onClick, icon, label }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-3 rounded-2xl px-6 py-4 text-[10px] font-black uppercase transition-all ${
+      active
+        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-700/20'
+        : 'border border-blue-500/25 bg-[#090d0f] text-slate-300 hover:border-indigo-400 hover:text-white'
+    }`}
+  >
+    {icon} <span>{label}</span>
+  </button>
+);
 
 export default TecnicoDashboard;

@@ -96,14 +96,15 @@ function App() {
               { path: 'secretaria/facturacion', element: <RequireAuth><FacturacionSecretaria /></RequireAuth> },
               { path: 'secretaria/nueva-orden', element: <RequireAuth><NuevaOrden /></RequireAuth> },
               { path: 'secretaria/diagnostico', element: <RequireAuth><Diagnostico /></RequireAuth> },
-
-              // Tecnico Normal
-              { path: 'tecnico', element: <RequireAuth><TecnicoDashboard /></RequireAuth> },
             ],
           },
 
           // 2. RUTAS INDEPENDIENTES (Sin Sidebar Global)
-          // El JefeDashboard ya trae su propio Header integrado
+          // Los dashboards tecnicos ya traen su propio Header integrado
+          {
+            path: 'tecnico',
+            element: <RequireAuth><TecnicoDashboard /></RequireAuth>
+          },
           { 
             path: 'tecnico-jefe', 
             element: <RequireAuth><JefeDashboard /></RequireAuth> 

@@ -1,6 +1,14 @@
 // backend/src/controllers/JefeTecnico/DiagnosticoController.js
 import prisma from '../../app/prismaClient.js';
 import { notifyJefeTecnico, notifyTecnico } from '../../services/notifications.js';
+import {
+  DIAGNOSTICO_ESTADOS,
+  ORDEN_ESTADOS,
+  PRIORIDADES,
+  REPUESTO_ESTADOS,
+  assertInList,
+  parsePositiveId,
+} from '../../utils/domainValidation.js';
 
 // --- UTILIDADES INTERNAS ---
 
@@ -35,6 +43,163 @@ export const getDiagnosticosPendientes = async (req, res) => {
 };
 
 export const getTodosDiagnosticos = getDiagnosticosPendientes;
+
+const diagnosticoInclude = {
+  equipo: { include: { cliente: true } },
+  tecnico: true,
+};
+
+const ordenInclude = {
+  tecnico: true,
+  diagnostico: {
+    include: {
+      equipo: { include: { cliente: true } },
+      tecnico: true,
+    },
+  },
+};
+
+const repuestoSolicitudInclude = {
+  repuesto: true,
+  orden: {
+    include: {
+      tecnico: true,
+      diagnostico: {
+        include: {
+          tecnico: true,
+          equipo: { include: { cliente: true } },
+        },
+      },
+    },
+  },
+};
+
+export const getCorreccionesJefeTecnico = async (req, res) => {
+  try {
+    const [diagnosticos, ordenes, repuestos] = await Promise.all([
+      prisma.diagnosticos.findMany({
+        where: {
+          OR: [
+            { tecnico_id: { not: null } },
+            { Estado_aprobacion: { in: ['Aprobado', 'APROBADO'] } },
+            { estado_del_diagnostico: { in: ['EN_REVISION', 'DIAGNOSTICADO', 'COMPLETADO', 'APROBADO'] } },
+          ],
+        },
+        include: diagnosticoInclude,
+        orderBy: { id_diagnostico: 'desc' },
+      }),
+      prisma.ordenes.findMany({
+        where: {
+          OR: [
+            { tecnico_id: { not: null } },
+            { estado: { in: ['APROBADO', 'EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'IRREPARABLE', 'ENTREGADO'] } },
+          ],
+        },
+        include: ordenInclude,
+        orderBy: { id_orden: 'desc' },
+      }),
+      prisma.ordenes_Repuestos.findMany({
+        where: { estado_aprobacion: { in: ['APROBADO', 'DENEGADO'] } },
+        include: repuestoSolicitudInclude,
+        orderBy: { id_detalle_repuesto: 'desc' },
+      }),
+    ]);
+
+    res.json({ data: { diagnosticos, ordenes, repuestos } });
+  } catch (error) {
+    console.error('Error al obtener correcciones del jefe tecnico:', error);
+    res.status(500).json({ error: 'Error al obtener correcciones', details: error.message });
+  }
+};
+
+export const corregirDiagnosticoJefeTecnico = async (req, res) => {
+  try {
+    const { tecnico_id, prioridad, estado_del_diagnostico, Estado_aprobacion } = req.body;
+    const tecnicoId = tecnico_id === '' || tecnico_id === null ? null : parsePositiveId(tecnico_id);
+
+    if (tecnico_id && !tecnicoId) {
+      return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
+    }
+
+    const diagnostico = await prisma.diagnosticos.update({
+      where: { id_diagnostico: Number(req.params.id) },
+      data: {
+        tecnico_id: tecnico_id === undefined ? undefined : tecnicoId,
+        fecha_asignacion: tecnico_id === undefined ? undefined : tecnicoId ? new Date() : null,
+        prioridad: prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : undefined,
+        estado_del_diagnostico: estado_del_diagnostico ? assertInList(estado_del_diagnostico, DIAGNOSTICO_ESTADOS, 'Estado del diagnostico') : undefined,
+        Estado_aprobacion: Estado_aprobacion || undefined,
+      },
+      include: diagnosticoInclude,
+    });
+
+    res.json({ message: 'Diagnostico corregido correctamente', data: diagnostico });
+  } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Diagnostico no encontrado' });
+    if (error.message?.includes('no es valido')) return res.status(400).json({ error: error.message });
+    res.status(500).json({ error: 'Error al corregir diagnostico', details: error.message });
+  }
+};
+
+export const corregirOrdenJefeTecnico = async (req, res) => {
+  try {
+    const { tecnico_id, prioridad, estado } = req.body;
+    const tecnicoId = tecnico_id === '' || tecnico_id === null ? null : parsePositiveId(tecnico_id);
+
+    if (tecnico_id && !tecnicoId) {
+      return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
+    }
+
+    const orden = await prisma.ordenes.update({
+      where: { id_orden: Number(req.params.id) },
+      data: {
+        tecnico_id: tecnico_id === undefined ? undefined : tecnicoId,
+        prioridad: prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : undefined,
+        estado: estado ? assertInList(estado, ORDEN_ESTADOS, 'Estado de la orden') : undefined,
+      },
+      include: ordenInclude,
+    });
+
+    res.json({ message: 'Orden corregida correctamente', data: orden });
+  } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Orden no encontrada' });
+    if (error.message?.includes('no es valido')) return res.status(400).json({ error: error.message });
+    res.status(500).json({ error: 'Error al corregir orden', details: error.message });
+  }
+};
+
+export const corregirRepuestoJefeTecnico = async (req, res) => {
+  try {
+    const { repuesto_id, pieza_solicitada, cantidad_usada, estado_aprobacion } = req.body;
+    const repuestoId = repuesto_id === '' || repuesto_id === null ? null : parsePositiveId(repuesto_id);
+    const cantidad = cantidad_usada === undefined || cantidad_usada === '' ? undefined : Number(cantidad_usada);
+
+    if (repuesto_id && !repuestoId) {
+      return res.status(400).json({ error: 'El repuesto seleccionado no es valido' });
+    }
+
+    if (cantidad !== undefined && (!Number.isInteger(cantidad) || cantidad < 1)) {
+      return res.status(400).json({ error: 'La cantidad debe ser un entero mayor a cero' });
+    }
+
+    const solicitud = await prisma.ordenes_Repuestos.update({
+      where: { id_detalle_repuesto: Number(req.params.id) },
+      data: {
+        repuesto_id: repuesto_id === undefined ? undefined : repuestoId,
+        pieza_solicitada: pieza_solicitada === undefined ? undefined : String(pieza_solicitada || '').trim() || null,
+        cantidad_usada: cantidad,
+        estado_aprobacion: estado_aprobacion ? assertInList(estado_aprobacion, REPUESTO_ESTADOS, 'Estado del repuesto') : undefined,
+      },
+      include: repuestoSolicitudInclude,
+    });
+
+    res.json({ message: 'Solicitud de repuesto corregida correctamente', data: solicitud });
+  } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Solicitud no encontrada' });
+    if (error.message?.includes('no es valido')) return res.status(400).json({ error: error.message });
+    res.status(500).json({ error: 'Error al corregir repuesto', details: error.message });
+  }
+};
 
 export const getDiagnosticoById = async (req, res) => {
   try {
