@@ -1,32 +1,32 @@
 import { Router } from 'express';
 import authMiddleware from '../../../middlewares/authMiddleware.js';
+import { onlyAdminPro } from '../../../controllers/admin_pro/accessController.js';
+import { getEquiposAvanzado, getEquipoUltimoDiagnostico, updateEquipoAdmin } from '../../../controllers/admin_pro/equiposController.js';
+import { getRepuestosAvanzado, updateRepuestoAdmin } from '../../../controllers/admin_pro/repuestosController.js';
 import {
-  onlyAdminPro,
-  getEquiposAvanzado,
-  getRepuestosAvanzado,
   getOrdenesAvanzado,
-  getFacturasAvanzado,
+  updateOrdenAdmin,
+  getRepuestosPorOrdenAdmin,
+  downloadRepuestosPorOrdenAdmin,
+} from '../../../controllers/admin_pro/ordenesController.js';
+import { getFacturasAvanzado } from '../../../controllers/admin_pro/facturasController.js';
+import {
   getGarantiasAdmin,
   createGarantiaAdmin,
   updateGarantiaAdmin,
   renewGarantiaAdmin,
+} from '../../../controllers/admin_pro/garantiasController.js';
+import {
   getUsuarios,
   createUsuario,
   updateUsuario,
   updateUsuarioPassword,
   deleteUsuario,
-  getMonitoreoGeneral,
-  getDashboardResumen,
-  updateOrdenAdmin,
-  updateRepuestoAdmin,
-  getRepuestosPorOrdenAdmin,
-  downloadRepuestosPorOrdenAdmin,
-  getEquipoUltimoDiagnostico,
-  updateDiagnosticoEstadoAdmin,
-  getHistorialEquipo,
-  getHistorialRepuesto,
-  getReporteAdminPro
-} from '../../../controllers/admin_pro/adminProController.js';
+} from '../../../controllers/admin_pro/usuariosController.js';
+import { getMonitoreoGeneral, getDashboardResumen } from '../../../controllers/admin_pro/dashboardController.js';
+import { updateDiagnosticoEstadoAdmin } from '../../../controllers/admin_pro/diagnosticosController.js';
+import { getHistorialEquipo, getHistorialRepuesto } from '../../../controllers/admin_pro/historialController.js';
+import { getReporteAdminPro } from '../../../controllers/admin_pro/reportesController.js';
 
 const router = Router();
 
@@ -35,6 +35,7 @@ router.use(onlyAdminPro);
 
 router.get('/equipos', getEquiposAvanzado);
 router.get('/equipos/:id/historial', getHistorialEquipo);
+router.put('/equipos/:id', updateEquipoAdmin);
 router.get('/repuestos', getRepuestosAvanzado);
 router.get('/repuestos/:id/historial', getHistorialRepuesto);
 router.get('/ordenes', getOrdenesAvanzado);

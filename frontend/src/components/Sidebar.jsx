@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { NavLink } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import BrandLogo from './BrandLogo';
 import { 
   LayoutDashboard, 
   Users, 
@@ -25,17 +26,17 @@ const Sidebar = ({ open = true }) => {
     // --- ROL: ADMINISTRADOR ---
     { name: 'Dashboard', to: '/admin', roles: ['Administrador', 'admin_pro'], icon: LayoutDashboard },
     { name: 'Usuarios', to: '/admin/usuarios', roles: ['Administrador', 'admin_pro'], icon: Users },
+    { name: 'Clientes', to: '/admin/clientes', roles: ['Administrador', 'admin_pro'], icon: Users },
     { name: 'Equipos', to: '/admin/equipos', roles: ['Administrador', 'admin_pro'], icon: Wrench },
+    { name: 'Diagnósticos', to: '/admin/diagnosticos', roles: ['Administrador', 'admin_pro'], icon: ClipboardList },
+    { name: 'Técnicos', to: '/admin/tecnicos', roles: ['Administrador', 'admin_pro'], icon: Stethoscope },
     { name: 'Órdenes', to: '/admin/ordenes', roles: ['Administrador', 'admin_pro'], icon: Receipt },
+    { name: 'Órdenes estado', to: '/admin/ordenes-estado', roles: ['Administrador', 'admin_pro'], icon: Receipt },
+    { name: 'Facturación', to: '/admin/facturacion', roles: ['Administrador', 'admin_pro'], icon: Receipt },
+    { name: 'Garantías', to: '/admin/garantias', roles: ['Administrador', 'admin_pro'], icon: ShieldCheck },
+    { name: 'Inventario', to: '/admin/inventario', roles: ['Administrador', 'admin_pro'], icon: Package },
     { name: 'Repuestos', to: '/admin/repuestos', roles: ['Administrador', 'admin_pro'], icon: HardDrive },
     { name: 'Compras', to: '/admin/compras', roles: ['Administrador', 'admin_pro'], icon: ShoppingCart },
-    { name: 'Técnicos', to: '/admin/tecnicos', roles: ['Administrador', 'admin_pro'], icon: Stethoscope },
-    { name: 'Clientes', to: '/admin/clientes', roles: ['Administrador', 'admin_pro'], icon: Users },
-    { name: 'Inventario', to: '/admin/inventario', roles: ['Administrador', 'admin_pro'], icon: Package },
-    { name: 'Facturación', to: '/admin/facturacion', roles: ['Administrador', 'admin_pro'], icon: Receipt },
-    { name: 'Órdenes estado', to: '/admin/ordenes-estado', roles: ['Administrador', 'admin_pro'], icon: Receipt },
-    { name: 'Diagnósticos', to: '/admin/diagnosticos', roles: ['Administrador', 'admin_pro'], icon: ClipboardList },
-    { name: 'Garantías', to: '/admin/garantias', roles: ['Administrador', 'admin_pro'], icon: ShieldCheck },
     { name: 'Historial Equipo', to: '/admin/historial-equipo', roles: ['Administrador', 'admin_pro'], icon: Monitor },
     { name: 'Historial Repuesto', to: '/admin/historial-repuesto', roles: ['Administrador', 'admin_pro'], icon: ClipboardList },
 
@@ -61,9 +62,7 @@ const Sidebar = ({ open = true }) => {
   return (
     <aside className={`app-sidebar ${open ? 'flex' : 'hidden lg:flex'} flex-col w-20 lg:w-64 bg-[#0f1724] text-white h-screen sticky top-0 transition-all duration-300`}>
       <div className="p-4 border-b border-gray-800 flex flex-col items-center lg:items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-indigo-500/20">
-          CTE
-        </div>
+        <BrandLogo className="h-14 w-14 shadow-lg shadow-indigo-500/20 lg:h-16 lg:w-36" />
         <div className="hidden lg:block overflow-hidden w-full">
           <div className="text-sm font-semibold truncate text-gray-100">{user?.username}</div>
           <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">{user?.rol}</div>
@@ -73,20 +72,20 @@ const Sidebar = ({ open = true }) => {
       <nav className="p-2 flex-1 overflow-y-auto custom-scrollbar">
         <ul className="space-y-1">
           {menuItems.map((item) => (
-            <li key={item.to + item.name}>
+            <li key={item.to + item.name} className="w-full">
               <NavLink
                 to={item.to}
                 // El atributo 'end' evita que el Dashboard se quede azul cuando visitas sub-rutas
                 end={item.to === '/secretaria' || item.to === '/'} 
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
+                  `flex w-full min-w-0 items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
                   ${isActive 
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
                     : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'}`
                 }
               >
                 <item.icon className="w-5 h-5 flex-shrink-0" />
-                <span className="hidden lg:inline text-sm font-medium tracking-wide">
+                <span className="hidden min-w-0 flex-1 truncate text-sm font-medium tracking-wide lg:inline">
                   {item.name}
                 </span>
               </NavLink>

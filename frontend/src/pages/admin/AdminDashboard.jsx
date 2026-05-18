@@ -4,13 +4,13 @@ import api from '../../services/api';
 import Table from '../../components/Table';
 
 const summaryCards = [
-  { title: 'Equipos', key: 'equipos', color: 'from-sky-500 to-indigo-500' },
-  { title: 'Repuestos', key: 'repuestos', color: 'from-emerald-500 to-teal-500' },
-  { title: 'Órdenes', key: 'ordenes', color: 'from-indigo-500 to-violet-500' },
-  { title: 'Facturas', key: 'facturas', color: 'from-orange-500 to-amber-500' },
-  { title: 'Usuarios', key: 'usuarios', color: 'from-fuchsia-500 to-pink-500' },
-  { title: 'Diagnósticos pendientes', key: 'diagnosticosPendientes', color: 'from-rose-500 to-red-500' },
-  { title: 'Órdenes en reparación', key: 'ordenesEnReparacion', color: 'from-cyan-500 to-sky-500' },
+  { title: 'Equipos', key: 'equipos', color: 'bg-sky-50 text-sky-700 border-sky-100' },
+  { title: 'Repuestos', key: 'repuestos', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+  { title: 'Órdenes', key: 'ordenes', color: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
+  { title: 'Facturas', key: 'facturas', color: 'bg-orange-50 text-orange-700 border-orange-100' },
+  { title: 'Usuarios', key: 'usuarios', color: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-100' },
+  { title: 'Diagnósticos pendientes', key: 'diagnosticosPendientes', color: 'bg-rose-50 text-rose-700 border-rose-100' },
+  { title: 'Órdenes en reparación', key: 'ordenesEnReparacion', color: 'bg-cyan-50 text-cyan-700 border-cyan-100' },
 ];
 
 const latestOrdersColumns = [
@@ -76,48 +76,45 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      
+      {/* Encabezado Principal */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Panel avanzado de administración</h1>
-          <p className="text-gray-500 mt-1">Accede rápidamente a los principales indicadores y gestiona la empresa desde aquí.</p>
+          <h1 className="text-2xl font-bold text-slate-800">Panel avanzado de administración</h1>
+          <p className="text-gray-400 text-sm mt-0.5">Accede rápidamente a los principales indicadores de la empresa.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div>
           <button
             type="button"
             onClick={() => setShowHelp((prev) => !prev)}
-            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm"
           >
             {showHelp ? 'Ocultar ayuda' : 'Ayuda'}
           </button>
-          <Link to="/admin/usuarios" className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition">Usuarios</Link>
-          <Link to="/admin/equipos" className="rounded-full bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 transition">Equipos</Link>
-          <Link to="/admin/ordenes" className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition">Órdenes</Link>
-          <Link to="/admin/repuestos" className="rounded-full bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-700 transition">Repuestos</Link>
-          <Link to="/admin/compras" className="rounded-full bg-yellow-600 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-700 transition">Compras</Link>
-          <Link to="/admin/tecnicos" className="rounded-full bg-fuchsia-600 px-4 py-2 text-sm font-semibold text-white hover:bg-fuchsia-700 transition">Técnicos</Link>
-          <Link to="/admin/clientes" className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 transition">Clientes</Link>
         </div>
       </div>
 
-      {loading && <div className="rounded-xl bg-white p-6 shadow-sm text-gray-600">Cargando datos del panel...</div>}
-      {error && <div className="rounded-xl bg-red-50 p-6 text-red-700 shadow-sm">{error}</div>}
+      {loading && <div className="rounded-2xl bg-white p-6 shadow-sm text-gray-400 text-center">Cargando datos del panel...</div>}
+      {error && <div className="rounded-2xl bg-red-50 p-6 text-red-700 shadow-sm">{error}</div>}
 
+      {/* Banner Informativo / Ayuda (Estilo Bloque Oscuro) */}
       {showHelp && (
-        <section className="rounded-3xl bg-slate-50 p-6 shadow-sm border border-slate-200">
-          <h2 className="text-xl font-semibold">Cómo usar el panel Admin Pro</h2>
-          <p className="mt-3 text-sm text-slate-600 leading-7">
-            Este panel centraliza los principales indicadores de la administración. Usa los botones rápidos para navegar por las secciones de equipos,
-            órdenes, repuestos, compras y usuarios.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl bg-white p-4 border border-slate-200">
-              <p className="text-sm font-semibold text-slate-800">Resumen</p>
-              <p className="mt-2 text-sm text-slate-600">Los bloques superiores muestran métricas clave de equipos, órdenes, garantías y usuarios.</p>
+        <section className="rounded-2xl bg-slate-950 p-6 text-white shadow-sm space-y-4 animate-fade-in">
+          <div>
+            <h2 className="text-lg font-bold">Cómo usar el panel Admin Pro</h2>
+            <p className="mt-1 text-sm text-slate-300">
+              Este panel centraliza las operaciones del sistema. A continuación dispones de un resumen de cómo se estructuran las métricas actuales:
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl bg-slate-900 p-4 border border-slate-800">
+              <p className="text-sm font-semibold text-indigo-400">Tarjetas de Resumen</p>
+              <p className="mt-1 text-xs text-slate-400">Muestran totales globales en tiempo real del estado de la empresa.</p>
             </div>
-            <div className="rounded-2xl bg-white p-4 border border-slate-200">
-              <p className="text-sm font-semibold text-slate-800">Acciones rápidas</p>
-              <p className="mt-2 text-sm text-slate-600">En la sección inferior encontrarás accesos directos para revisar equipos, gestionar órdenes y controlar inventario.</p>
+            <div className="rounded-xl bg-slate-900 p-4 border border-slate-800">
+              <p className="text-sm font-semibold text-emerald-400">Tablas de Monitoreo</p>
+              <p className="mt-1 text-xs text-slate-400">Monitorea órdenes entrantes, garantías próximas a vencer e ingresos de equipos.</p>
             </div>
           </div>
         </section>
@@ -125,61 +122,76 @@ export default function AdminDashboard() {
 
       {dashboard && (
         <>
+          {/* Bloques de Métricas Recortadas (Cards) */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {summaryCards.map((card) => (
-              <div key={card.key} className="rounded-3xl bg-white p-5 shadow-sm border border-gray-100 min-h-[170px]">
-                <div className={`inline-flex rounded-full bg-gradient-to-r ${card.color} bg-opacity-10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-slate-700`}>{card.title}</div>
-                <div className="mt-6 flex items-end gap-3">
-                  <span className="text-4xl font-bold text-slate-900">{dashboard.totals[card.key] ?? 0}</span>
-                  <span className="text-sm text-gray-500">Resultados</span>
+              <div key={card.key} className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100 flex flex-col justify-between min-h-[140px]">
+                <div className={`inline-flex self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider border ${card.color}`}>
+                  {card.title}
+                </div>
+                <div className="mt-4 flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-slate-900">{dashboard.totals[card.key] ?? 0}</span>
+                  <span className="text-xs font-medium text-gray-400">totales</span>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr_0.9fr]">
-            <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <div>
-                  <h2 className="text-xl font-semibold">Órdenes recientes</h2>
-                  <p className="text-sm text-gray-500">Las últimas 5 órdenes registradas.</p>
-                </div>
+          {/* Grid de Contenido Principal (Tablas Balanceadas) */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            
+            {/* Órdenes Recientes */}
+            <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
+              <div className="mb-4">
+                <h2 className="text-lg font-bold text-slate-800">Órdenes recientes</h2>
+                <p className="text-sm text-gray-400">Las últimas 5 órdenes registradas en el sistema.</p>
               </div>
-              <Table columns={latestOrdersColumns} data={dashboard.latestOrders} />
+              <div className="overflow-x-auto">
+                <Table columns={latestOrdersColumns} data={dashboard.latestOrders} sortable />
+              </div>
             </section>
 
-            <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* Vista Previa de Equipos */}
+            <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 flex flex-col justify-between">
+              <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-semibold">Vista previa de equipos</h2>
-                  <p className="text-sm text-gray-500">Equipos registrados para revisar sin salir del panel.</p>
+                  <h2 className="text-lg font-bold text-slate-800">Vista previa de equipos</h2>
+                  <p className="text-sm text-gray-400">Equipos pendientes de revisión en taller.</p>
                 </div>
                 <Link
                   to="/admin/equipos"
-                  className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
                 >
                   Ver todos
                 </Link>
               </div>
-              <Table columns={equiposPreviewColumns} data={equiposPreview} />
+              <div className="overflow-x-auto">
+                <Table columns={equiposPreviewColumns} data={equiposPreview} sortable />
+              </div>
             </section>
 
-            <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
+            {/* Garantías por Vencer (Ocupa el ancho completo en pantallas grandes si queda sola) */}
+            <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 lg:col-span-2">
               <div className="mb-4">
-                <h2 className="text-xl font-semibold">Garantías por vencer</h2>
-                <p className="text-sm text-gray-500">Garantías que expiran en los próximos 30 días.</p>
+                <h2 className="text-lg font-bold text-slate-800">Garantías por vencer</h2>
+                <p className="text-sm text-gray-400">Alertas de garantías que expiran en los próximos 30 días.</p>
               </div>
-              <Table columns={upcomingGarantiasColumns} data={dashboard.upcomingGarantias} />
+              <div className="overflow-x-auto">
+                <Table columns={upcomingGarantiasColumns} data={dashboard.upcomingGarantias} sortable />
+              </div>
             </section>
           </div>
 
-          <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-            <h2 className="text-xl font-semibold mb-4">Acciones rápidas</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Link to="/admin/usuarios" className="rounded-2xl border border-gray-200 bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">Administrar usuarios</Link>
-              <Link to="/admin/equipos" className="rounded-2xl border border-gray-200 bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">Revisar equipos</Link>
-              <Link to="/admin/ordenes" className="rounded-2xl border border-gray-200 bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">Gestionar órdenes</Link>
-              <Link to="/admin/inventario" className="rounded-2xl border border-gray-200 bg-slate-50 px-4 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">Control de inventario</Link>
+          {/* Sección Unificada de Acciones Rápidas */}
+          <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+            <h2 className="text-lg font-bold text-slate-800 mb-4">Módulos de acceso rápido</h2>
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+              <Link to="/admin/usuarios" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Usuarios</Link>
+              <Link to="/admin/equipos" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Equipos</Link>
+              <Link to="/admin/ordenes" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Órdenes</Link>
+              <Link to="/admin/repuestos" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Repuestos</Link>
+              <Link to="/admin/compras" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Compras</Link>
+              <Link to="/admin/tecnicos" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Técnicos</Link>
             </div>
           </section>
         </>

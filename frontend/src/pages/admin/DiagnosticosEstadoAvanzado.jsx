@@ -3,12 +3,21 @@ import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
+// Definimos las columnas usando render() para formatear visualmente los presupuestos
 const columns = [
   { header: 'Estado', accessor: 'estado' },
   { header: 'Aprobación', accessor: 'aprobacion' },
   { header: 'Cantidad', accessor: 'cantidad' },
-  { header: 'Presupuesto total', accessor: 'presupuesto_total' },
-  { header: 'Promedio', accessor: 'presupuesto_promedio' },
+  { 
+    header: 'Presupuesto total', 
+    accessor: 'presupuesto_total',
+    render: (row) => row.presupuesto_total ? `$ ${Number(row.presupuesto_total).toFixed(2)}` : '$ 0.00'
+  },
+  { 
+    header: 'Promedio', 
+    accessor: 'presupuesto_promedio',
+    render: (row) => row.presupuesto_promedio ? `$ ${Number(row.presupuesto_promedio).toFixed(2)}` : '$ 0.00'
+  },
 ];
 
 export default function DiagnosticosEstadoAvanzado() {
@@ -28,12 +37,14 @@ export default function DiagnosticosEstadoAvanzado() {
       if (toDate) query.push(`fecha_fin=${toDate}`);
       const url = `/admin_pro/reportes/diagnosticos_estado${query.length ? `?${query.join('&')}` : ''}`;
       const res = await api.get(url);
-      const data = res.data?.data || [];
+      const reportData = res.data?.data || [];
+      
+      // Guardamos números puros para que el sortable ordene los montos exactamente
       setData(
-        data.map((item) => ({
+        reportData.map((item) => ({
           ...item,
-          presupuesto_total: item.presupuesto_total ? `$ ${Number(item.presupuesto_total).toFixed(2)}` : '$ 0.00',
-          presupuesto_promedio: item.presupuesto_promedio ? `$ ${Number(item.presupuesto_promedio).toFixed(2)}` : '$ 0.00',
+          presupuesto_total: item.presupuesto_total ? Number(item.presupuesto_total) : 0,
+          presupuesto_promedio: item.presupuesto_promedio ? Number(item.presupuesto_promedio) : 0,
         }))
       );
     } catch (err) {
@@ -49,8 +60,15 @@ export default function DiagnosticosEstadoAvanzado() {
 
   const downloadReportCsv = async () => {
     setDownloading(true);
+    setError('');
     try {
-      downloadJsonCsv(data, columns, `diagnosticos_estado_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
+      // Formateamos temporalmente para la salida de los archivos planos
+      const exportData = data.map(item => ({
+        ...item,
+        presupuesto_total: `$ ${item.presupuesto_total.toFixed(2)}`,
+        presupuesto_promedio: `$ ${item.presupuesto_promedio.toFixed(2)}`
+      }));
+      downloadJsonCsv(exportData, columns, `diagnosticos_estado_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
     } catch (err) {
       setError('No se pudo descargar el reporte.');
     } finally {
@@ -60,8 +78,14 @@ export default function DiagnosticosEstadoAvanzado() {
 
   const downloadReportPdf = async () => {
     setDownloading(true);
+    setError('');
     try {
-      downloadJsonPdf(data, columns, `diagnosticos_estado_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Diagnósticos por estado');
+      const exportData = data.map(item => ({
+        ...item,
+        presupuesto_total: `$ ${item.presupuesto_total.toFixed(2)}`,
+        presupuesto_promedio: `$ ${item.presupuesto_promedio.toFixed(2)}`
+      }));
+      downloadJsonPdf(exportData, columns, `diagnosticos_estado_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Diagnósticos por estado');
     } catch (err) {
       setError('No se pudo descargar el reporte en PDF.');
     } finally {
@@ -70,69 +94,99 @@ export default function DiagnosticosEstadoAvanzado() {
   };
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      
+      {/* Encabezado Principal */}
       <div>
-        <h2 className="text-2xl font-bold">Diagnósticos por estado</h2>
-        <p className="text-gray-500 mt-1">Supervisa el avance de diagnósticos y el presupuesto estimado por estado.</p>
+        <h1 className="text-2xl font-bold text-slate-800">Diagnósticos por estado</h1>
+        <p className="text-gray-400 text-sm mt-0.5">Supervisa el avance de diagnósticos y el presupuesto estimado por estado.</p>
       </div>
 
-      <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-semibold">Filtrar por periodo</h3>
-            <p className="text-sm text-gray-500">Selecciona el rango para ver las métricas de diagnóstico.</p>
+      {/* Tarjeta de Filtros y Tabla */}
+      <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-6">
+        
+        {/* Fila superior: Título e Inputs de Fecha */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between border-b border-gray-50 pb-4">
+          <div className="shrink-0">
+            <h2 className="text-lg font-bold text-slate-800">Filtrar por periodo</h2>
+            <p className="text-sm text-gray-400">Selecciona el rango para ver las métricas de diagnóstico.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3 w-full max-w-3xl">
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Desde</span>
+          
+          {/* Estructura Flex equilibrada para el manejo seguro de los anchos */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 w-full lg:w-auto">
+            
+            {/* Input Desde */}
+            <div className="w-full sm:w-[150px] shrink-0">
+              <span className="text-xs font-bold text-gray-500 uppercase block">Desde</span>
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="mt-1 w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Hasta</span>
+            </div>
+
+            {/* Input Hasta */}
+            <div className="w-full sm:w-[150px] shrink-0">
+              <span className="text-xs font-bold text-gray-500 uppercase block">Hasta</span>
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="mt-1 w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
-            </label>
-            <div className="flex w-full flex-col items-center justify-center gap-3 sm:flex-row sm:justify-end">
+            </div>
+            
+            {/* Grupo de Acciones Rápidas con protección whitespace-nowrap */}
+            <div className="flex gap-2 items-end w-full sm:w-auto mt-2 sm:mt-0">
               <button
                 type="button"
                 onClick={fetchReport}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 sm:w-auto"
+                disabled={loading}
+                className="flex-1 sm:flex-none px-5 py-2 rounded-xl bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 whitespace-nowrap"
               >
                 Consultar
               </button>
               <button
                 type="button"
                 onClick={downloadReportCsv}
-                disabled={downloading}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
+                disabled={downloading || loading || data.length === 0}
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+                title="Exportar a Excel / CSV"
               >
-                {downloading ? 'Descargando...' : 'Exportar CSV'}
+                CSV
               </button>
               <button
                 type="button"
                 onClick={downloadReportPdf}
-                disabled={downloading}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
+                disabled={downloading || loading || data.length === 0}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+                title="Exportar a PDF impreso"
               >
-                {downloading ? 'Descargando...' : 'Exportar PDF'}
+                PDF
               </button>
             </div>
           </div>
         </div>
 
-        {loading && <div className="text-gray-600">Cargando reporte...</div>}
-        {error && <div className="text-red-600">{error}</div>}
-        {!loading && !error && <Table columns={columns} data={data} />}
+        {/* Control de Estados de Respuesta de la API */}
+        {loading && <div className="text-gray-400 text-center py-10 text-sm">Procesando métricas de diagnóstico...</div>}
+        {error && <div className="text-red-600 bg-red-50 p-4 rounded-xl text-sm font-semibold">{error}</div>}
+        
+        {!loading && !error && (
+          <div className="overflow-x-auto">
+            {data.length === 0 ? (
+              <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
+                No se encontraron diagnósticos ni presupuestos registrados en el rango seleccionado.
+              </div>
+            ) : (
+              /* Pasamos sortable para habilitar la ordenación interactiva */
+              <Table columns={columns} data={data} sortable />
+            )}
+          </div>
+        )}
       </section>
+
     </div>
   );
 }

@@ -17,7 +17,7 @@ const columns = [
       <button
         type="button"
         onClick={row.onViewHistory}
-        className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700"
+        className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-700 shadow-sm"
       >
         Ver historial
       </button>
@@ -27,6 +27,7 @@ const columns = [
 
 const fetchInventario = async (setRepuestos, setLoading, setError) => {
   setLoading(true);
+  setError('');
   try {
     const res = await api.get('/admin_pro/reportes/inventario');
     const data = res.data;
@@ -36,9 +37,11 @@ const fetchInventario = async (setRepuestos, setLoading, setError) => {
           id_repuesto: r.id_repuesto,
           repuesto: r.repuesto || '-',
           categoria: r.categoria || '-',
-          stock_estimado: r.stock_estimado ?? '-',
-          ultimo_costo: r.ultimo_costo ? `$ ${Number(r.ultimo_costo).toFixed(2)}` : '-',
+          stock_estimado: r.stock_estimado ?? 0,
+          ultimo_costo: r.ultimo_costo ? `$ ${Number(r.ultimo_costo).toFixed(2)}` : '$ 0.00',
           historial: `${r.cantidad_usada || 0} usos`,
+          raw_stock: Number(r.stock_estimado) || 0,
+          raw_usos: Number(r.cantidad_usada) || 0,
           raw: r,
         }))
       );
@@ -46,9 +49,10 @@ const fetchInventario = async (setRepuestos, setLoading, setError) => {
       setError('No se pudo cargar el inventario');
     }
   } catch (e) {
-    setError('Error de red o servidor');
+    setError('Error de red o servidor al intentar conectar.');
+  } finally {
+    setLoading(false);
   }
-  setLoading(false);
 };
 
 export default function InventarioAvanzado() {
@@ -112,6 +116,7 @@ export default function InventarioAvanzado() {
     }
   };
 
+  // Filtrado de componentes en base al buscador
   const filteredRepuestos = repuestos.filter((repuesto) => {
     const term = searchText.trim().toLowerCase();
     if (!term) return true;
@@ -127,75 +132,139 @@ export default function InventarioAvanzado() {
     onViewHistory: () => handleViewHistory(repuesto),
   }));
 
+  // Cálculos consolidados para el panel de indicadores de control
+  const totalItemsDistintos = repuestos.length;
+  const totalStockDisponible = repuestos.reduce((acc, item) => acc + item.raw_stock, 0);
+  const totalUsosHistoricos = repuestos.reduce((acc, item) => acc + item.raw_usos, 0);
+
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      
+      {/* Encabezado Principal */}
       <div>
-        <h2 className="text-2xl font-bold">Control avanzado de inventario</h2>
-        <p className="text-gray-500 mt-1">Visualiza stock estimado, revisa costos y explora el historial de uso de cada repuesto.</p>
+        <h1 className="text-2xl font-bold text-slate-800">Control avanzado de inventario</h1>
+        <p className="text-gray-400 text-sm mt-0.5">Monitorea niveles de existencias, costos de adquisición y la trazabilidad de uso de cada pieza.</p>
       </div>
 
-      <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-semibold">Inventario de repuestos</h3>
-            <p className="text-sm text-gray-500">Las cifras se basan en compras y usos aprobados.</p>
+      {/* Grid Dinámico de KPIs de Inventario */}
+      {!loading && !error && repuestos.length > 0 && (
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Variedad de Repuestos</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalItemsDistintos} ítems</p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+            <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Existencias Totales</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalStockDisponible} unidades</p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100 col-span-2 md:col-span-1">
+            <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">Salidas / Usos Totales</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalUsosHistoricos} colocaciones</p>
+          </div>
+        </div>
+      )}
+
+      {/* Sección General del Catálogo de Repuestos */}
+      <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-gray-50 pb-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">Disponibilidad física de almacén</h2>
+            <p className="text-sm text-gray-400">Balance calculado a partir de facturas de proveedores y órdenes cerradas.</p>
+          </div>
+          
+          {/* Controles de Búsqueda y Descarga Unificados */}
+          <div className="flex flex-col gap-2 sm:flex-row w-full lg:w-auto">
             <input
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Buscar repuesto o categoría"
-              className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 sm:w-80"
+              placeholder="Buscar repuesto o categoría..."
+              className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:w-64"
             />
-            <button
-              type="button"
-              onClick={downloadInventoryCsv}
-              disabled={downloading}
-              className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {downloading ? 'Descargando...' : 'Exportar CSV'}
-            </button>
-            <button
-              type="button"
-              onClick={downloadInventoryPdf}
-              disabled={downloading}
-              className="inline-flex items-center justify-center rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {downloading ? 'Descargando...' : 'Exportar PDF'}
-            </button>
-          </div>
-        </div>
-
-        {loading && <div className="text-gray-600">Cargando inventario...</div>}
-        {error && <div className="text-red-600">{error}</div>}
-        {!loading && !error && <Table columns={columns} data={repuestosWithActions} />}
-      </div>
-
-      {selectedRepuesto && (
-        <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-xl font-semibold">Historial de {selectedRepuesto.repuesto}</h3>
-              <p className="text-sm text-gray-500">Usos recientes del componente y órdenes vinculadas.</p>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={downloadInventoryCsv}
+                disabled={downloading || loading || repuestos.length === 0}
+                className="w-full sm:w-auto rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
+              >
+                CSV
+              </button>
+              <button
+                type="button"
+                onClick={downloadInventoryPdf}
+                disabled={downloading || loading || repuestos.length === 0}
+                className="w-full sm:w-auto rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
+              >
+                PDF
+              </button>
             </div>
-            <span className="inline-flex rounded-full bg-indigo-100 px-3 py-1 text-sm font-semibold text-indigo-700">Stock estimado: {selectedRepuesto.stock_estimado}</span>
+          </div>
+        </div>
+
+        {/* Control de Estados de Carga y Tablas */}
+        {loading && <div className="text-gray-400 text-center py-10 text-sm">Sincronizando existencias de repuestos...</div>}
+        {error && <div className="text-red-600 bg-red-50 p-4 rounded-xl text-sm font-semibold">{error}</div>}
+        
+        {!loading && !error && (
+          <div className="overflow-x-auto">
+            {filteredRepuestos.length === 0 ? (
+              <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
+                No se encontraron componentes que coincidan con los términos de búsqueda introducidos.
+              </div>
+            ) : (
+              <Table columns={columns} data={repuestosWithActions} sortable />
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Panel Inferior: Historial Detallado del Componente Seleccionado */}
+      {selectedRepuesto && (
+        <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4 animate-fadeIn">
+          <div className="flex items-start justify-between border-b border-gray-50 pb-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-bold text-slate-800">Historial de {selectedRepuesto.repuesto}</h3>
+                <span className="inline-flex rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-600">
+                  Stock actual: {selectedRepuesto.stock_estimado} ud
+                </span>
+              </div>
+              <p className="text-sm text-gray-400 mt-0.5">Asignaciones directas del componente técnico a dispositivos reparados.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedRepuesto(null)}
+              className="text-gray-400 hover:text-slate-600 text-xl font-semibold px-2 transition"
+              title="Cerrar panel de historial"
+            >
+              &times;
+            </button>
           </div>
 
-          {historyLoading && <div className="mt-4 text-gray-600">Cargando historial...</div>}
-          {historyError && <div className="mt-4 text-red-600">{historyError}</div>}
+          {historyLoading && <div className="text-gray-400 text-center py-8 text-sm">Rastreando órdenes vinculadas...</div>}
+          {historyError && <div className="text-red-600 bg-red-50 p-4 rounded-xl text-sm font-semibold">{historyError}</div>}
+          
           {!historyLoading && !historyError && (
-            <Table
-              columns={[
-                { header: 'Fecha instalación', accessor: 'fecha_instalacion' },
-                { header: 'Equipo', accessor: 'equipo' },
-                { header: 'Cliente', accessor: 'cliente' },
-                { header: 'Orden', accessor: 'orden' },
-              ]}
-              data={historial}
-            />
+            <div className="overflow-x-auto">
+              {historial.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
+                  Este repuesto está registrado en el inventario pero no se ha instalado en ningún equipo hasta la fecha.
+                </div>
+              ) : (
+                <Table
+                  columns={[
+                    { header: 'Fecha instalación', accessor: 'fecha_instalacion' },
+                    { header: 'Equipo / Dispositivo', accessor: 'equipo' },
+                    { header: 'Cliente asignado', accessor: 'cliente' },
+                    { header: 'Número de Orden', accessor: 'orden' },
+                  ]}
+                  data={historial} sortable />
+              )}
+            </div>
           )}
-        </div>
+        </section>
       )}
+      
     </div>
   );
 }

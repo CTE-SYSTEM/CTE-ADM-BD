@@ -39,54 +39,61 @@ export default function GarantiasAvanzado() {
   const [downloading, setDownloading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Columnas de Listado Principal de Garantías
   const columns = [
-    { header: 'ID Garantia', accessor: 'id_garantia' },
+    { header: 'ID Garantía', accessor: 'id_garantia' },
     { header: 'Factura', accessor: 'factura_id' },
     { header: 'Orden', accessor: 'orden_id' },
     { header: 'Cliente', accessor: 'cliente' },
     { header: 'Equipo', accessor: 'equipo' },
     { header: 'Inicio', accessor: 'fecha_inicio' },
     { header: 'Vence', accessor: 'fecha_vencimiento' },
-    { header: 'Duracion (meses)', accessor: 'duracion_meses' },
-    { header: 'Estado', accessor: 'estado' },
+    { header: 'Duración (meses)', accessor: 'duracion_meses' },
+    {
+      header: 'Estado',
+      accessor: 'estado',
+      render: (row) => (
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          row.isExpired ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
+        }`}>
+          {row.estado}
+        </span>
+      )
+    },
     {
       header: 'Acciones',
       accessor: 'acciones',
       render: (row) => (
-        <div className="flex flex-col items-center justify-center gap-2">
-          <button
-            type="button"
-            disabled={isProcessing}
-            onClick={() => handleRenewGarantia(row.id_garantia, row.duracion_actual)}
-            className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
-          >
-            Revalidar
-          </button>
-          <span className={`text-xs font-semibold ${row.isExpired ? 'text-red-600' : 'text-green-600'}`}>
-            {row.estado}
-          </span>
-        </div>
+        <button
+          type="button"
+          disabled={isProcessing}
+          onClick={() => handleRenewGarantia(row.id_garantia, row.duracion_actual)}
+          className="px-3 py-1.5 rounded-lg bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition whitespace-nowrap"
+        >
+          Revalidar
+        </button>
       ),
     },
     { header: 'Condiciones', accessor: 'condiciones' },
   ];
 
+  // Columnas de Tabla de Equipos
   const equiposColumns = [
-    { header: 'Equipo', accessor: 'id_equipo' },
+    { header: 'ID Equipo', accessor: 'id_equipo' },
     { header: 'Cliente', accessor: 'cliente' },
     { header: 'Detalle', accessor: 'equipo' },
     { header: 'Factura', accessor: 'factura_id' },
-    { header: 'Garantia', accessor: 'garantia_id' },
+    { header: 'Garantía ID', accessor: 'garantia_id' },
     { header: 'Estado', accessor: 'estado' },
     {
-      header: 'Accion',
+      header: 'Acción',
       accessor: 'accion',
       render: (row) => (
         <button
           type="button"
           disabled={isProcessing || row.accion === 'Sin factura'}
           onClick={() => handleEquipoGarantiaAction(row)}
-          className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-slate-300 ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold text-white transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap ${
             row.garantia ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'
           }`}
         >
@@ -110,7 +117,7 @@ export default function GarantiasAvanzado() {
       setFacturas(facturasRes.data?.data || []);
       setEquiposGarantia(equiposRes.data?.data || []);
     } catch (err) {
-      setError('Error al cargar Garantias.');
+      setError('No se pudieron cargar los registros de garantías.');
     } finally {
       setLoading(false);
     }
@@ -134,8 +141,8 @@ export default function GarantiasAvanzado() {
         equipo: getEquipoLabel(equipo),
         factura_id: facturaAsignable?.id_factura || garantia?.factura_id || '-',
         garantia_id: garantia?.id_garantia || '-',
-        estado: garantia ? garantia.estado : 'Sin garantia',
-        accion: garantia ? 'Revalidar garantia' : (facturaAsignable ? 'Asignar garantia' : 'Sin factura'),
+        estado: garantia ? garantia.estado : 'Sin garantía',
+        accion: garantia ? 'Revalidar' : (facturaAsignable ? 'Asignar' : 'Sin factura'),
         garantia,
         facturaAsignable,
       };
@@ -162,24 +169,25 @@ export default function GarantiasAvanzado() {
           duracion_meses: Number(duracionMeses) || Number(equipo.garantia.duracion_actual) || 12,
           condiciones: condiciones || equipo.garantia.condiciones,
         });
-        setActionMessage(res.data?.message || 'Garantia revalidada correctamente.');
+        setActionMessage(res.data?.message || 'Garantía revalidada correctamente.');
       } else if (equipo.facturaAsignable) {
         const res = await api.post('/admin_pro/garantias', {
           factura_id: Number(equipo.facturaAsignable.id_factura),
           condiciones,
           duracion_meses: Number(duracionMeses) || 12,
         });
-        setCreateMessage(res.data?.message || 'Garantia asignada correctamente al equipo.');
+        setCreateMessage(res.data?.message || 'Garantía asignada correctamente.');
       } else {
-        setError('Este equipo no tiene una factura asociada. Primero debe existir una factura para poder asignarle garantia.');
+        setError('Este equipo no tiene una factura asociada.');
         return;
       }
 
       setCondiciones('');
       setDuracionMeses('12');
+      setSelectedEquipoId('');
       await fetchGarantias();
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo procesar la garantia del equipo.');
+      setError(err.response?.data?.error || 'No se pudo procesar la acción de garantía.');
     } finally {
       setIsProcessing(false);
     }
@@ -192,7 +200,7 @@ export default function GarantiasAvanzado() {
     setError('');
 
     if (!facturaId || !duracionMeses) {
-      setError('Factura y Duracion son obligatorios.');
+      setError('La factura y duración son parámetros requeridos.');
       return;
     }
 
@@ -203,13 +211,13 @@ export default function GarantiasAvanzado() {
         duracion_meses: Number(duracionMeses),
       });
 
-      setCreateMessage(res.data?.message || 'Garantia creada correctamente.');
+      setCreateMessage(res.data?.message || 'Garantía creada correctamente.');
       setFacturaId('');
       setCondiciones('');
       setDuracionMeses('12');
       fetchGarantias();
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo crear la Garantia.');
+      setError(err.response?.data?.error || 'No se pudo registrar la nueva garantía.');
     }
   };
 
@@ -223,10 +231,10 @@ export default function GarantiasAvanzado() {
       const res = await api.post(`/admin_pro/garantias/${id}/renovar`, {
         duracion_meses: Number(duracion) || 12,
       });
-      setActionMessage(res.data?.message || 'Garantia revalidada correctamente.');
+      setActionMessage(res.data?.message || 'Garantía revalidada correctamente.');
       fetchGarantias();
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo revalidar la Garantia.');
+      setError(err.response?.data?.error || 'No se pudo revalidar la garantía.');
     } finally {
       setIsProcessing(false);
     }
@@ -237,7 +245,7 @@ export default function GarantiasAvanzado() {
     try {
       downloadJsonCsv(garantias, columns, 'garantias.csv');
     } catch (err) {
-      setError('No se pudo descargar el reporte.');
+      setError('No se pudo descargar el reporte en CSV.');
     } finally {
       setDownloading(false);
     }
@@ -246,7 +254,7 @@ export default function GarantiasAvanzado() {
   const downloadGarantiasPdf = async () => {
     setDownloading(true);
     try {
-      downloadJsonPdf(garantias, columns, 'garantias.pdf', 'Reporte de Garantias');
+      downloadJsonPdf(garantias, columns, 'garantias.pdf', 'Reporte de Garantías');
     } catch (err) {
       setError('No se pudo descargar el reporte en PDF.');
     } finally {
@@ -263,218 +271,214 @@ export default function GarantiasAvanzado() {
   const vencidas = garantias.filter((g) => g.isExpired).length;
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      
+      {/* Encabezado Principal */}
       <div>
-        <h2 className="text-2xl font-bold mb-2">Gestión de Garantias</h2>
-        <p className="text-sm text-gray-500">Controla el ciclo de vida de Garantias y revalida las que corresponda.</p>
+        <h1 className="text-2xl font-bold text-slate-800">Gestión de garantías</h1>
+        <p className="text-gray-400 text-sm mt-0.5">Controla el ciclo de vida de las garantías y revalida las que correspondan.</p>
       </div>
 
-      <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-5">
-        <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      {/* KPI de Resumen Rápido */}
+      {!loading && (
+        <div className="grid gap-4 grid-cols-3">
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total expedidas</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalGarantias}</p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+            <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">Garantías Vigentes</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{vigentes} pólizas</p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+            <p className="text-xs font-bold text-red-500 uppercase tracking-wider">Pólizas Vencidas</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{vencidas} casos</p>
+          </div>
+        </div>
+      )}
+
+      {/* SECCIÓN 1: Revalidación y Asignación Directa por Equipo */}
+      <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-6 space-y-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between border-b border-gray-50 pb-4">
           <div>
-            <h3 className="text-lg font-semibold">Revalidacion y asignacion por equipo</h3>
-            <p className="text-sm text-gray-500">
-              Si el equipo ya tiene garantia, se revalida. Si no tiene y cuenta con factura, se le asigna una nueva.
-            </p>
+            <h2 className="text-lg font-bold text-slate-800">Revalidación y asignación por equipo</h2>
+            <p className="text-sm text-gray-400">Asigna pólizas a equipos con factura o extiende la duración de vigencias existentes.</p>
           </div>
           <input
             value={equipoSearch}
             onChange={(e) => setEquipoSearch(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 lg:w-96"
-            placeholder="Buscar equipo, cliente o factura"
+            className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 lg:w-80"
+            placeholder="Buscar equipo, cliente o ID factura..."
           />
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-          <div className="min-w-0">
-            {loading ? <div className="text-gray-600">Cargando equipos...</div> : <Table columns={equiposColumns} data={equiposRevalidacion} />}
+        <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
+          <div className="min-w-0 overflow-x-auto">
+            {loading ? (
+              <div className="text-gray-400 text-center py-10 text-sm">Sincronizando inventario de equipos...</div>
+            ) : (
+              <Table columns={equiposColumns} data={equiposRevalidacion} sortable />
+            )}
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <label className="block text-sm font-medium text-gray-700">Equipo seleccionado</label>
-            <select
-              value={selectedEquipoId}
-              onChange={(e) => setSelectedEquipoId(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Selecciona equipo</option>
-              {equiposRevalidacion.map((equipo) => (
-                <option key={equipo.id_equipo} value={equipo.id_equipo}>
-                  #{equipo.id_equipo} - {equipo.equipo}
-                </option>
-              ))}
-            </select>
-
-            <div className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-700">
-              <p className="font-semibold text-slate-900">{selectedEquipo?.equipo || 'Sin seleccion'}</p>
-              <p className="mt-2">Cliente: {selectedEquipo?.cliente || '-'}</p>
-              <p>Factura: {selectedEquipo?.factura_id || '-'}</p>
-              <p>Garantia: {selectedEquipo?.garantia_id || '-'}</p>
-              <p>Estado: {selectedEquipo?.estado || '-'}</p>
+          {/* Panel Lateral de Acción sobre el Equipo Seleccionado */}
+          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-4 h-fit">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase">Equipo seleccionado</label>
+              <select
+                value={selectedEquipoId}
+                onChange={(e) => setSelectedEquipoId(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">-- Elige un equipo --</option>
+                {equiposRevalidacion.map((eq) => (
+                  <option key={eq.id_equipo} value={eq.id_equipo}>
+                    #{eq.id_equipo} - {eq.equipo}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="mt-4 space-y-3">
-              <label className="block">
-                <span className="text-sm font-medium text-gray-700">Duracion (meses)</span>
+            <div className="rounded-xl bg-white p-3.5 text-xs text-slate-600 space-y-1.5 shadow-sm border border-gray-100">
+              <p className="font-bold text-slate-800 truncate">{selectedEquipo?.equipo || 'Ningún equipo seleccionado'}</p>
+              <p>Clnt: <span className="font-semibold text-slate-700">{selectedEquipo?.cliente || '-'}</span></p>
+              <p>Fact: <span className="font-semibold text-slate-700">{selectedEquipo?.factura_id || '-'}</span></p>
+              <p>Garantía: <span className="font-semibold text-slate-700">{selectedEquipo?.garantia_id || '-'}</span></p>
+              <p>Estado: <span className="font-semibold text-slate-700">{selectedEquipo?.estado || '-'}</span></p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <span className="text-xs font-bold text-gray-500 uppercase block">Duración (meses)</span>
                 <input
                   type="number"
                   min="1"
                   max="36"
                   value={duracionMeses}
                   onChange={(e) => setDuracionMeses(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium text-gray-700">Condiciones</span>
+              </div>
+              <div>
+                <span className="text-xs font-bold text-gray-500 uppercase block">Condiciones</span>
                 <textarea
                   value={condiciones}
                   onChange={(e) => setCondiciones(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  rows={4}
-                  placeholder="Condiciones para la garantia"
+                  className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  rows={3}
+                  placeholder="Especificaciones o exclusiones de la póliza..."
                 />
-              </label>
+              </div>
               <button
                 type="button"
                 disabled={!selectedEquipo || isProcessing || selectedEquipo?.accion === 'Sin factura'}
                 onClick={() => handleEquipoGarantiaAction(selectedEquipo)}
-                className="inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300 transition"
+                className="w-full px-4 py-2 rounded-xl bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed"
               >
-                {selectedEquipo?.garantia ? 'Revalidar garantia' : 'Asignar garantia'}
+                {selectedEquipo?.garantia ? 'Confirmar Revalidación' : 'Asignar Nueva Garantía'}
               </button>
             </div>
           </div>
         </div>
-
-        {createMessage && <div className="mt-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">{createMessage}</div>}
-        {actionMessage && <div className="mt-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">{actionMessage}</div>}
-        {error && <div className="mt-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
-          <div className="bg-white shadow-sm rounded-2xl border border-gray-100 p-5 h-full">
-            <h3 className="text-lg font-semibold mb-3">Crear nueva Garantia</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Factura ID</label>
-                <input
-                  type="number"
-                  value={facturaId}
-                  onChange={(e) => setFacturaId(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Ingresa el ID de factura"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Duracion (meses)</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={duracionMeses}
-                  onChange={(e) => setDuracionMeses(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Condiciones</label>
-                <textarea
-                  value={condiciones}
-                  onChange={(e) => setCondiciones(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  rows={4}
-                  placeholder="Describe las condiciones de la Garantia"
-                />
-              </div>
-              <button
-                type="submit"
-                className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition"
-              >
-                Guardar Garantia
-              </button>
-              {createMessage && <div className="text-sm text-green-600">{createMessage}</div>}
-              {error && <div className="text-sm text-red-600">{error}</div>}
-            </form>
-          </div>
-        </div>
-
-        <div className="bg-white shadow-sm rounded-2xl border border-gray-100 p-5 h-full flex flex-col justify-between gap-5">
+      {/* SECCIÓN 2: Registro Manual y Tabla Global */}
+      <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+        
+        {/* Formulario de Creación Manual */}
+        <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-5 h-fit space-y-4">
           <div>
-            <h3 className="text-lg font-semibold mb-3">Resumen rápido</h3>
-            <p className="text-sm text-gray-600 mb-5">
-              Genera, revisa y revalida Garantias de forma ordenada. Actualiza los registros directamente desde la tabla.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-slate-50 p-4 text-center">
-                <p className="text-sm text-gray-500">Total</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900">{totalGarantias}</p>
-              </div>
-              <div className="rounded-2xl bg-emerald-50 p-4 text-center">
-                <p className="text-sm text-emerald-700">Vigentes</p>
-                <p className="mt-2 text-2xl font-semibold text-emerald-900">{vigentes}</p>
-              </div>
-              <div className="rounded-2xl bg-red-50 p-4 text-center">
-                <p className="text-sm text-red-700">Vencidas</p>
-                <p className="mt-2 text-2xl font-semibold text-red-900">{vencidas}</p>
-              </div>
-            </div>
+            <h2 className="text-lg font-bold text-slate-800">Emisión manual</h2>
+            <p className="text-xs text-gray-400">Genera una cobertura directa vinculando un ID de factura existente.</p>
           </div>
-          <div className="space-y-3">
-            <h4 className="text-base font-semibold">Exportar listado</h4>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            <div>
+              <span className="text-xs font-bold text-gray-500 uppercase block">Factura ID</span>
+              <input
+                type="number"
+                value={facturaId}
+                onChange={(e) => setFacturaId(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                placeholder="Ej. 1042"
+              />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-gray-500 uppercase block">Duración (meses)</span>
+              <input
+                type="number"
+                min="1"
+                value={duracionMeses}
+                onChange={(e) => setDuracionMeses(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-gray-500 uppercase block">Condiciones de cobertura</span>
+              <textarea
+                value={condiciones}
+                onChange={(e) => setCondiciones(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                rows={3}
+                placeholder="Detalla los términos..."
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm"
+            >
+              Guardar Póliza
+            </button>
+          </form>
+        </section>
+
+        {/* Listado Global de todas las Garantías */}
+        <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-6 space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-50 pb-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Libro de garantías expedidas</h2>
+              <p className="text-sm text-gray-400">Historial completo de estados, plazos de vencimiento y clientes contables.</p>
+            </div>
+            <div className="flex gap-2 self-end sm:self-auto">
               <button
                 type="button"
                 onClick={downloadGarantiasCsv}
-                disabled={downloading}
-                className="inline-flex min-w-[140px] items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={downloading || loading || garantias.length === 0}
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+                title="Exportar a CSV"
               >
-                {downloading ? 'Descargando...' : 'Exportar CSV'}
+                CSV
               </button>
               <button
                 type="button"
                 onClick={downloadGarantiasPdf}
-                disabled={downloading}
-                className="inline-flex min-w-[140px] items-center justify-center rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={downloading || loading || garantias.length === 0}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+                title="Exportar a PDF"
               >
-                {downloading ? 'Descargando...' : 'Exportar PDF'}
+                PDF
               </button>
             </div>
           </div>
-        </div>
-      </section>
 
-      <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">Listado de Garantias</h3>
-            <p className="text-sm text-gray-500">Revisa todas las Garantias activas y vencidas con acciones rápidas.</p>
+          {/* Renderizado de Feedback de acciones de la API */}
+          {createMessage && <div className="rounded-xl bg-emerald-50 p-3.5 text-xs font-semibold text-emerald-700">{createMessage}</div>}
+          {actionMessage && <div className="rounded-xl bg-emerald-50 p-3.5 text-xs font-semibold text-emerald-700">{actionMessage}</div>}
+          {error && <div className="rounded-xl bg-red-50 p-3.5 text-xs font-semibold text-red-700">{error}</div>}
+
+          <div className="overflow-x-auto">
+            {loading ? (
+              <div className="text-gray-400 text-center py-10 text-sm">Consultando libros contables...</div>
+            ) : garantias.length === 0 ? (
+              <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
+                No hay pólizas de garantía registradas en el sistema todavía.
+              </div>
+            ) : (
+              <Table columns={columns} data={garantias} sortable />
+            )}
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={downloadGarantiasCsv}
-              disabled={downloading}
-              className="inline-flex min-w-[140px] items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {downloading ? 'Descargando...' : 'Exportar CSV'}
-            </button>
-            <button
-              type="button"
-              onClick={downloadGarantiasPdf}
-              disabled={downloading}
-              className="inline-flex min-w-[140px] items-center justify-center rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {downloading ? 'Descargando...' : 'Exportar PDF'}
-            </button>
-          </div>
-        </div>
-        {loading && <div className="text-gray-600">Cargando Garantias...</div>}
-        {actionMessage && <div className="mb-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">{actionMessage}</div>}
-        {error && <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-        {!loading && <Table columns={columns} data={garantias} />}
-      </section>
+        </section>
+      </div>
+
     </div>
   );
 }
-

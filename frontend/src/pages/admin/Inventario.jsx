@@ -44,7 +44,7 @@ const Inventario = () => {
           </div>
         </form>
         <div className="bg-white p-4 rounded-lg shadow-sm">
-          <Table columns={columns} data={repuestos} />
+          <Table columns={columns} data={repuestos} sortable />
         </div>
       </div>
     </div>

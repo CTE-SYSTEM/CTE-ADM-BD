@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 
@@ -16,7 +16,7 @@ const columns = [
       <button
         type="button"
         onClick={row.onShowDetails}
-        className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700"
+        className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 shadow-sm"
       >
         Ver / Editar
       </button>
@@ -74,6 +74,9 @@ export default function OrdenesAvanzado() {
   const [repuestoError, setRepuestoError] = useState('');
   const [downloading, setDownloading] = useState(false);
 
+  // Referencia para manejar el desplazamiento automático
+  const editSectionRef = useRef(null);
+
   useEffect(() => {
     fetchOrdenes(setOrdenes, setLoading, setError);
     api.get('/tecnicos')
@@ -85,12 +88,11 @@ export default function OrdenesAvanzado() {
     setRepuestoLoading(true);
     setRepuestoError('');
     setRepuestosOrden([]);
-
     try {
       const res = await api.get(`/admin_pro/ordenes/${ordenId}/repuestos`);
       setRepuestosOrden(res.data?.data || []);
     } catch (err) {
-      setRepuestoError(err.response?.data?.error || 'No se pudo cargar los repuestos de la orden.');
+      setRepuestoError(err.response?.data?.error || 'No se pudo cargar los repuestos.');
     } finally {
       setRepuestoLoading(false);
     }
@@ -102,6 +104,11 @@ export default function OrdenesAvanzado() {
     setAssignedTechnician(orden.tecnico_id);
     setMessage('');
     loadRepuestosOrden(orden.id_orden);
+
+    // Auto-scroll suave asegurando que la sección ya exista en el DOM
+    setTimeout(() => {
+      editSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
   const handleDownloadRepuestosReport = async () => {
@@ -133,7 +140,6 @@ export default function OrdenesAvanzado() {
     if (!selectedOrden) return;
     setSaving(true);
     setMessage('');
-
     try {
       await api.put(`/admin_pro/ordenes/${selectedOrden.id_orden}`, {
         estado: status,
@@ -154,122 +160,176 @@ export default function OrdenesAvanzado() {
     onShowDetails: () => handleShowDetails(orden),
   }));
 
+  // Estadísticas simples calculadas en renderizado
+  const ordenesPendientes = ordenes.filter(o => o.estado === 'PENDIENTE').length;
+  const ordenesReparacion = ordenes.filter(o => o.estado === 'REPARACION').length;
+
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      
+      {/* Encabezado Principal */}
       <div>
-        <h2 className="text-2xl font-bold">Gestión avanzada de órdenes</h2>
-        <p className="text-gray-500 mt-1">Supervisa y actualiza el estado de órdenes, revisa técnicos asignados y prioriza el trabajo.</p>
+        <h1 className="text-2xl font-bold text-slate-800">Gestión avanzada de órdenes</h1>
+        <p className="text-gray-400 text-sm mt-0.5">Supervisa el estado de órdenes en taller, técnicos asignados y repuestos vinculados.</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.8fr_1fr]">
-        <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-          {loading && <div className="text-gray-600">Cargando órdenes...</div>}
-          {error && <div className="text-red-600">{error}</div>}
-          {!loading && !error && <Table columns={columns} data={ordenesWithActions} />}
-        </section>
+      {/* Grid de KPIs Superiores */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Órdenes Totales</p>
+          <p className="mt-2 text-3xl font-extrabold text-slate-900">{ordenes.length}</p>
+        </div>
+        <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+          <p className="text-xs font-bold text-amber-500 uppercase tracking-wider">Pendientes</p>
+          <p className="mt-2 text-3xl font-extrabold text-slate-900">{ordenesPendientes}</p>
+        </div>
+        <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+          <p className="text-xs font-bold text-blue-500 uppercase tracking-wider">En Reparación</p>
+          <p className="mt-2 text-3xl font-extrabold text-slate-900">{ordenesReparacion}</p>
+        </div>
+        <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+          <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">Técnicos Activos</p>
+          <p className="mt-2 text-3xl font-extrabold text-slate-900">{technicians.length}</p>
+        </div>
+      </div>
 
-        <aside className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm border border-slate-800">
-          <h3 className="text-lg font-semibold">Panel de acción rápida</h3>
-          <p className="mt-2 text-sm text-slate-300">Selecciona una orden para ver detalles y cambiar su estado.</p>
-          <div className="mt-6 space-y-4">
-            <div className="rounded-2xl bg-slate-900 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Órdenes totales</p>
-              <p className="mt-2 text-3xl font-semibold">{ordenes.length}</p>
-            </div>
-            <div className="rounded-2xl bg-slate-900 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Técnicos disponibles</p>
-              <p className="mt-2 text-3xl font-semibold">{technicians.length}</p>
-            </div>
+      {/* Tabla General de Órdenes */}
+      <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">Flujo de trabajo general</h2>
+          <p className="text-sm text-gray-400">Listado Maestro de las hojas de servicio técnico generadas.</p>
+        </div>
+
+        {loading && <div className="text-gray-400 text-center py-6">Consultando base de datos de órdenes...</div>}
+        {error && <div className="text-red-600 bg-red-50 p-4 rounded-xl">{error}</div>}
+        
+        {!loading && !error && (
+          <div className="overflow-x-auto">
+            <Table columns={columns} data={ordenesWithActions} sortable />
           </div>
-        </aside>
+        )}
       </div>
 
+      {/* Editor y Gestión de Repuestos Avanzado */}
       {selectedOrden && (
-        <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div ref={editSectionRef} className="grid gap-6 lg:grid-cols-3 pt-2 animate-fade-in">
+          
+          {/* Controles de la Orden */}
+          <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-5 h-fit">
             <div>
-              <h3 className="text-xl font-semibold">Editar orden #{selectedOrden.id_orden}</h3>
-              <p className="text-sm text-gray-500">Cliente: {selectedOrden.cliente} · Equipo: {selectedOrden.equipo}</p>
+              <h3 className="text-lg font-bold text-slate-800">Editar Orden #{selectedOrden.id_orden}</h3>
+              <p className="text-sm text-gray-400 truncate">Mantenimiento asignado a este documento.</p>
             </div>
-            <span className="inline-flex rounded-full bg-indigo-100 px-3 py-1 text-sm font-semibold text-indigo-700">Estado actual: {selectedOrden.estado}</span>
-          </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Cambiar estado</span>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="mt-1 block w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Asignar técnico</span>
-              <select
-                value={assignedTechnician || ''}
-                onChange={(e) => setAssignedTechnician(e.target.value ? Number(e.target.value) : null)}
-                className="mt-1 block w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-              >
-                <option value="">Sin asignar</option>
-                {technicians.map((tech) => (
-                  <option key={tech.id_tecnico} value={tech.id_tecnico}>{tech.nombre}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <button
-              type="button"
-              onClick={handleUpdateOrden}
-              disabled={saving}
-              className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {saving ? 'Guardando...' : 'Guardar cambios'}
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadRepuestosReport}
-              disabled={downloading}
-              className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {downloading ? 'Generando reporte...' : 'Generar reporte de repuestos'}
-            </button>
-          </div>
-
-          {message && <div className="mt-4 text-sm text-slate-600">{message}</div>}
-
-          <div className="mt-8 rounded-3xl bg-slate-50 p-5 border border-gray-200">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <div className="p-4 bg-slate-50 border border-gray-100 rounded-xl space-y-2 text-sm">
               <div>
-                <h4 className="text-lg font-semibold">Repuestos en esta orden</h4>
-                <p className="text-sm text-gray-500">Revisa todas las piezas solicitadas y su estado de aprobación.</p>
+                <span className="text-xs text-gray-400 block font-bold uppercase">Cliente</span>
+                <span className="font-semibold text-slate-700">{selectedOrden.cliente}</span>
               </div>
-              <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-semibold text-indigo-700">{repuestosOrden.length} ítems</span>
+              <div>
+                <span className="text-xs text-gray-400 block font-bold uppercase">Equipo / Dispositivo</span>
+                <span className="font-semibold text-slate-700">{selectedOrden.equipo}</span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-400 block font-bold uppercase">Estado Inicial</span>
+                <span className="inline-flex mt-1 rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-100">{selectedOrden.estado}</span>
+              </div>
             </div>
 
-            {repuestoLoading && <div className="text-gray-600">Cargando repuestos...</div>}
-            {repuestoError && <div className="text-red-600">{repuestoError}</div>}
-            {!repuestoLoading && !repuestoError && (
-              <Table
-                columns={[
-                  { header: 'Repuesto', accessor: 'nombre' },
-                  { header: 'Categoría', accessor: 'categoria' },
-                  { header: 'Pieza solicitada', accessor: 'pieza_solicitada' },
-                  { header: 'Cantidad', accessor: 'cantidad_usada' },
-                  { header: 'Aprobación', accessor: 'estado_aprobacion' },
-                  { header: 'Costo', accessor: 'costo_unitario' },
-                ]}
-                data={repuestosOrden}
-              />
+            <div className="space-y-4">
+              <label className="block space-y-1.5">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Actualizar flujo</span>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Técnico encargado</span>
+                <select
+                  value={assignedTechnician || ''}
+                  onChange={(e) => setAssignedTechnician(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
+                >
+                  <option value="">Sin asignar</option>
+                  {technicians.map((tech) => (
+                    <option key={tech.id_tecnico} value={tech.id_tecnico}>{tech.nombre}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={handleUpdateOrden}
+                disabled={saving}
+                className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition disabled:bg-slate-300 shadow-sm"
+              >
+                {saving ? 'Guardando...' : 'Aplicar Cambios'}
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleDownloadRepuestosReport}
+                disabled={downloading}
+                className="w-full rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-200 transition disabled:bg-slate-300"
+              >
+                {downloading ? 'Exportando...' : 'Exportar CSV de repuestos'}
+              </button>
+            </div>
+
+            {message && (
+              <div className="p-3 bg-slate-50 text-xs font-semibold text-slate-600 rounded-xl text-center border border-gray-100">
+                {message}
+              </div>
             )}
           </div>
-        </section>
+
+          {/* Tabla Secundaria de Repuestos */}
+          <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 lg:col-span-2 space-y-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Inventario y repuestos vinculados</h3>
+                <p className="text-sm text-gray-400">Piezas solicitadas por el técnico para completar la reparación.</p>
+              </div>
+              <span className="rounded-xl bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 border border-indigo-100 self-start sm:self-center">
+                {repuestosOrden.length} Solicitudes
+              </span>
+            </div>
+
+            {repuestoLoading && <div className="text-gray-400 text-center py-6 text-sm">Cargando lista de materiales...</div>}
+            {repuestoError && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-xl">{repuestoError}</div>}
+            
+            {!repuestoLoading && !repuestoError && (
+              <div className="overflow-x-auto">
+                {repuestosOrden.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
+                    Esta orden no requiere o no se le han asignado repuestos hasta el momento.
+                  </div>
+                ) : (
+                  <Table
+                    columns={[
+                      { header: 'Repuesto', accessor: 'nombre' },
+                      { header: 'Categoría', accessor: 'categoria' },
+                      { header: 'Pieza solicitada', accessor: 'pieza_solicitada' },
+                      { header: 'Cantidad', accessor: 'cantidad_usada' },
+                      { header: 'Aprobación', accessor: 'estado_aprobacion' },
+                      { header: 'Costo Unitario', accessor: 'costo_unitario' },
+                    ]}
+                    data={repuestosOrden} sortable />
+                )}
+              </div>
+            )}
+          </div>
+
+        </div>
       )}
     </div>
   );

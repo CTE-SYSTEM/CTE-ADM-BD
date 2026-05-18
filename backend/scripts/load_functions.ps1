@@ -10,7 +10,8 @@ $files = @(
   "scripts/modules/Secretaria/Proveedores.sql",
   "scripts/modules/Secretaria/Repuesto.sql",
   "scripts/modules/JefeTecnico/Diagnostico.sql",
-  "scripts/modules/Tecnico/Tecnico.sql",
+  "scripts/modules/Tecnico/01_consultas.sql",
+  "scripts/modules/Tecnico/02_acciones.sql",
   "scripts/modules/admin_pro/AdminPro.sql"
 )
 

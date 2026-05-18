@@ -29,10 +29,13 @@ export default function RendimientoTecnicos() {
       if (toDate) query.push(`fecha_fin=${toDate}`);
       const url = `/admin_pro/reportes/tecnicos${query.length ? `?${query.join('&')}` : ''}`;
       const res = await api.get(url);
-      const data = res.data?.data || [];
+      const reportData = res.data?.data || [];
+      
       setData(
-        data.map((item) => ({
+        reportData.map((item) => ({
           ...item,
+          raw_facturado: Number(item.total_facturado) || 0,
+          raw_completadas: Number(item.ordenes_finalizadas) || 0,
           total_facturado: item.total_facturado ? `$ ${Number(item.total_facturado).toFixed(2)}` : '$ 0.00',
         }))
       );
@@ -69,70 +72,120 @@ export default function RendimientoTecnicos() {
     }
   };
 
+  // Cálculo dinámico de totales globales para las tarjetas informativas
+  const facturacionGlobal = data.reduce((acc, item) => acc + (item.raw_facturado || 0), 0);
+  const totalOrdenesCerradas = data.reduce((acc, item) => acc + (item.raw_completadas || 0), 0);
+
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      
+      {/* Encabezado Principal */}
       <div>
-        <h2 className="text-2xl font-bold">Rendimiento de técnicos</h2>
-        <p className="text-gray-500 mt-1">Evalúa la productividad y facturación por técnico en el periodo seleccionado.</p>
+        <h1 className="text-2xl font-bold text-slate-800">Rendimiento de técnicos</h1>
+        <p className="text-gray-400 text-sm mt-0.5">Evalúa y analiza la productividad, diagnósticos completados y volumen de facturación por técnico.</p>
       </div>
 
-      <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
-          <div>
-            <h3 className="text-lg font-semibold">Filtrar por periodo</h3>
-            <p className="text-sm text-gray-500">Consulta el rendimiento por intervalo de fechas.</p>
+      {/* Panel Unificado de Filtros de Periodo */}
+      <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+          <div className="max-w-md">
+            <h3 className="text-base font-bold text-slate-800">Filtrar por periodo</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Consulta la carga de trabajo y el rendimiento por intervalos de fecha específicos.</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3 w-full max-w-3xl">
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Desde</span>
+
+          <div className="grid gap-4 sm:grid-cols-3 w-full xl:max-w-4xl items-end">
+            <label className="block space-y-1.5">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Desde</span>
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="mt-1 w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Hasta</span>
+            
+            <label className="block space-y-1.5">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hasta</span>
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="mt-1 w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </label>
-            <div className="flex items-center gap-3">
+
+            {/* Grupo de Botones de Control de Reportes */}
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={fetchReport}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+                disabled={loading}
+                className="rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300"
               >
                 Consultar
               </button>
               <button
                 type="button"
                 onClick={downloadReportCsv}
-                disabled={downloading}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={downloading || data.length === 0}
+                className="rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
               >
-                {downloading ? 'Descargando...' : 'Exportar CSV'}
+                CSV
               </button>
               <button
                 type="button"
                 onClick={downloadReportPdf}
-                disabled={downloading}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={downloading || data.length === 0}
+                className="rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
               >
-                {downloading ? 'Descargando...' : 'Exportar PDF'}
+                PDF
               </button>
             </div>
           </div>
         </div>
-
-        {loading && <div className="text-gray-600">Cargando datos...</div>}
-        {error && <div className="text-red-600">{error}</div>}
-        {!loading && !error && <Table columns={columns} data={data} />}
       </section>
+
+      {/* Grid de Resumen de Productividad General */}
+      {!loading && !error && data.length > 0 && (
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Facturación de Taller</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">$ {facturacionGlobal.toFixed(2)}</p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+            <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Órdenes Finalizadas</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalOrdenesCerradas} servicios</p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100 col-span-2 md:col-span-1">
+            <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">Personal Evaluado</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{data.length} técnicos</p>
+          </div>
+        </div>
+      )}
+
+      {/* Contenedor Principal de la Tabla de Rendimiento */}
+      <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">Métricas individuales del equipo</h2>
+          <p className="text-sm text-gray-400">Comparativa analítica del volumen de diagnósticos y cierres por personal técnico.</p>
+        </div>
+
+        {loading && <div className="text-gray-400 text-center py-10 text-sm">Procesando rendimiento de personal...</div>}
+        {error && <div className="text-red-600 bg-red-50 p-4 rounded-xl text-sm font-semibold">{error}</div>}
+        
+        {!loading && !error && (
+          <div className="overflow-x-auto">
+            {data.length === 0 ? (
+              <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
+                No se registraron movimientos o asignaciones para los técnicos en las fechas seleccionadas.
+              </div>
+            ) : (
+              <Table columns={columns} data={data} sortable />
+            )}
+          </div>
+        )}
+      </section>
+
     </div>
   );
 }

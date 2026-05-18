@@ -6,11 +6,19 @@ import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 const columns = [
   { header: 'ID', accessor: 'id_factura' },
   { header: 'Orden', accessor: 'id_orden' },
-  { header: 'Fecha', accessor: 'fecha_emision' },
+  { 
+    header: 'Fecha', 
+    accessor: 'fecha_emision',
+    render: (row) => row.fecha_emision ? new Date(row.fecha_emision).toLocaleDateString() : '-'
+  },
   { header: 'Cliente', accessor: 'cliente' },
   { header: 'Equipo', accessor: 'equipo' },
   { header: 'Técnico', accessor: 'tecnico' },
-  { header: 'Total', accessor: 'total' },
+  { 
+    header: 'Total', 
+    accessor: 'total',
+    render: (row) => row.total ? `$ ${Number(row.total).toFixed(2)}` : '$ 0.00'
+  },
   { header: 'Método de Pago', accessor: 'metodo_pago' },
 ];
 
@@ -32,20 +40,21 @@ export default function FacturasAvanzado() {
       const url = `/admin_pro/reportes/facturacion${query.length ? `?${query.join('&')}` : ''}`;
       const res = await api.get(url);
       const data = res.data?.data || [];
+      
       setFacturas(
         data.map((f) => ({
           id_factura: f.id_factura,
           id_orden: f.id_orden,
-          fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '- ',
+          fecha_emision: f.fecha_emision || null,
           cliente: f.cliente || '-',
           equipo: f.equipo || '-',
           tecnico: f.tecnico || '-',
-          total: f.total ? `$ ${Number(f.total).toFixed(2)}` : '$ 0.00',
+          total: f.total ? Number(f.total) : 0, 
           metodo_pago: f.metodo_pago || '-',
         }))
       );
     } catch (err) {
-      setError('No se pudo cargar la información de facturas');
+      setError('No se pudo cargar la información de facturas.');
     } finally {
       setLoading(false);
     }
@@ -59,7 +68,12 @@ export default function FacturasAvanzado() {
     setDownloading(true);
     setError('');
     try {
-      downloadJsonCsv(facturas, columns, `facturacion_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
+      const exportData = facturas.map(f => ({
+        ...f,
+        fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '-',
+        total: `$ ${f.total.toFixed(2)}`
+      }));
+      downloadJsonCsv(exportData, columns, `facturacion_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
     } catch (err) {
       setError('No se pudo descargar el reporte.');
     } finally {
@@ -71,7 +85,12 @@ export default function FacturasAvanzado() {
     setDownloading(true);
     setError('');
     try {
-      downloadJsonPdf(facturas, columns, `facturacion_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Reporte de Facturación');
+      const exportData = facturas.map(f => ({
+        ...f,
+        fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '-',
+        total: `$ ${f.total.toFixed(2)}`
+      }));
+      downloadJsonPdf(exportData, columns, `facturacion_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Reporte de Facturación');
     } catch (err) {
       setError('No se pudo descargar el reporte en PDF.');
     } finally {
@@ -79,70 +98,121 @@ export default function FacturasAvanzado() {
     }
   };
 
+  const totalIngresos = facturas.reduce((acc, f) => acc + f.total, 0);
+  const operacionesEfectivo = facturas.filter(f => f.metodo_pago.toLowerCase().includes('efectivo')).length;
+  const operacionesDigital = facturas.length - operacionesEfectivo;
+
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      
+      {/* Encabezado Principal */}
       <div>
-        <h2 className="text-2xl font-bold">Facturación avanzada</h2>
-        <p className="text-gray-500 mt-1">Analiza facturación por orden y período, con exportación directa.</p>
+        <h1 className="text-2xl font-bold text-slate-800">Facturación avanzada</h1>
+        <p className="text-gray-400 text-sm mt-0.5">Analiza los ingresos percibidos del taller por rangos de fecha y métodos de pago.</p>
       </div>
 
-      <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end mb-6">
-          <div>
-            <h3 className="text-lg font-semibold">Filtro por periodo</h3>
-            <p className="text-sm text-gray-500">Filtra la facturación por fecha de emisión.</p>
+      {/* Grid Dinámico de KPIs Financieros */}
+      {!loading && !error && facturas.length > 0 && (
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+            <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">Ingresos Totales (Rango)</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">$ {totalIngresos.toFixed(2)}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3 w-full max-w-3xl">
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Desde</span>
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Flujo en Efectivo</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{operacionesEfectivo} transac.</p>
+          </div>
+          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100 col-span-2 md:col-span-1">
+            <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Bancos / Medios Digitales</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{operacionesDigital} operaciones</p>
+          </div>
+        </div>
+      )}
+
+      {/* Tarjeta de Filtros y Tabla */}
+      <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-6">
+        
+        {/* Fila superior: Título e Inputs de Fecha */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between border-b border-gray-50 pb-4">
+          <div className="shrink-0">
+            <h2 className="text-lg font-bold text-slate-800">Parámetros de conciliación</h2>
+            <p className="text-sm text-gray-400">Selecciona fechas de emisión para acotar los libros contables.</p>
+          </div>
+          
+          {/* MODIFICACIÓN: Cambiamos a estructura flex para controlar el ancho de las fechas al milímetro */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 w-full lg:w-auto dynamic-filters">
+            
+            {/* Input Desde - Reducido con max-w-[150px] */}
+            <div className="w-full sm:w-[150px] shrink-0">
+              <span className="text-xs font-bold text-gray-500 uppercase block">Desde</span>
               <input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                className="mt-1 w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-gray-700">Hasta</span>
+            </div>
+
+            {/* Input Hasta - Reducido con max-w-[150px] */}
+            <div className="w-full sm:w-[150px] shrink-0">
+              <span className="text-xs font-bold text-gray-500 uppercase block">Hasta</span>
               <input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                className="mt-1 w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
-            </label>
-            <div className="flex w-full flex-col items-center justify-center gap-3 sm:flex-row sm:justify-end">
+            </div>
+            
+            {/* Grupo de Acciones Rápidas - Mantiene tamaños horizontales fijos con un padding perfecto */}
+            <div className="flex gap-2 items-end w-full sm:w-auto mt-2 sm:mt-0">
               <button
                 type="button"
                 onClick={fetchFacturas}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 sm:w-auto"
+                disabled={loading}
+                className="flex-1 sm:flex-none px-5 py-2 rounded-xl bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 whitespace-nowrap"
               >
                 Consultar
               </button>
               <button
                 type="button"
                 onClick={downloadFacturasCsv}
-                disabled={downloading}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
+                disabled={downloading || loading || facturas.length === 0}
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+                title="Exportar a Excel / CSV"
               >
-                {downloading ? 'Descargando...' : 'Exportar CSV'}
+                CSV
               </button>
               <button
                 type="button"
                 onClick={downloadFacturasPdf}
-                disabled={downloading}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
+                disabled={downloading || loading || facturas.length === 0}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+                title="Exportar a PDF impreso"
               >
-                {downloading ? 'Descargando...' : 'Exportar PDF'}
+                PDF
               </button>
             </div>
           </div>
         </div>
 
-        {loading && <div className="text-gray-600">Cargando facturas...</div>}
-        {error && <div className="text-red-600">{error}</div>}
-        {!loading && !error && <Table columns={columns} data={facturas} />}
+        {/* Control de Estados de Respuesta de la API */}
+        {loading && <div className="text-gray-400 text-center py-10 text-sm">Conciliando extractos financieros...</div>}
+        {error && <div className="text-red-600 bg-red-50 p-4 rounded-xl text-sm font-semibold">{error}</div>}
+        
+        {!loading && !error && (
+          <div className="overflow-x-auto">
+            {facturas.length === 0 ? (
+              <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
+                No se encontraron facturas ni cobros registrados en el rango de fechas seleccionado.
+              </div>
+            ) : (
+              <Table columns={columns} data={facturas} sortable />
+            )}
+          </div>
+        )}
       </section>
+
     </div>
   );
 }

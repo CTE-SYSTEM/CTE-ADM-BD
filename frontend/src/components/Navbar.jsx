@@ -8,12 +8,6 @@ const Navbar = ({ onToggleSidebar }) => {
     <header className="app-navbar flex items-center justify-between p-3 border-b bg-white shadow-sm">
       <div className="flex items-center gap-4">
         <button onClick={onToggleSidebar} className="text-gray-500 hover:text-gray-700 lg:hidden">☰</button>
-        <div className="flex items-center gap-3">
-          <h1 className="logo text-lg font-semibold">CTE</h1>
-        </div>
-        <div className="hidden md:block">
-          <input placeholder="Buscar..." className="w-64 px-3 py-2 border rounded-lg text-sm" />
-        </div>
       </div>
         <div className="flex items-center gap-4">
         {user ? (

@@ -8,5 +8,6 @@
 \i scripts/modules/Secretaria/Proveedores.sql
 \i scripts/modules/Secretaria/Repuesto.sql
 \i scripts/modules/JefeTecnico/Diagnostico.sql
-\i scripts/modules/Tecnico/Tecnico.sql
+\i scripts/modules/Tecnico/01_consultas.sql
+\i scripts/modules/Tecnico/02_acciones.sql
 \i scripts/modules/admin_pro/AdminPro.sql

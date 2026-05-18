@@ -24,6 +24,7 @@ import { ordenesService } from '../../services/secretaria/ordenesService';
 import { repuestoService } from '../../services/secretaria/repuestosService';
 import { createNotificationsSocket } from '../../services/notificationsSocket';
 import Table from '../../components/Table';
+import BrandLogo from '../../components/BrandLogo';
 import { PrioridadBadge } from '../Secretaria/Diagnostico';
 
 const TAB_DIAGNOSTICOS = 'asignar_diagnostico';
@@ -621,9 +622,7 @@ const JefeDashboard = () => {
       <header className="bg-[#0f172a] text-white p-6 shadow-xl">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-5">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-xl font-black shadow-lg shadow-indigo-500/20">
-              CTE
-            </div>
+            <BrandLogo className="h-12 w-20 shadow-lg shadow-indigo-500/20" />
             <div>
               <h1 className="text-xl text-white italic uppercase tracking-tight">
                 Panel <span className="text-indigo-400">Jefe Tecnico</span>
