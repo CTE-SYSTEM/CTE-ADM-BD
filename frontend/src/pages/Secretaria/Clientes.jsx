@@ -24,14 +24,14 @@ const normalizePhone = (value = '') => {
   return digits.length > 8 ? digits.slice(-8) : digits;
 };
 
-const sanitizeName = (value = '') => String(value).replace(/[^\p{L}\s]/gu, '');
+const sanitizeInternationalPhone = (value = '') => String(value).replace(/[^\d+\-()./\s]/g, '');
 
 const normalizeClientePayload = (data = emptyCliente) => ({
   ...emptyCliente,
   ...data,
-  nombre: sanitizeName(data.nombre).trim().replace(/\s+/g, ' '),
+  nombre: data.nombre,
   telefono: normalizePhone(data.telefono),
-  contacto_secundario: normalizePhone(data.contacto_secundario),
+  contacto_secundario: data.contacto_secundario,
 });
 
 const tourSteps = [
@@ -43,7 +43,7 @@ const tourSteps = [
   {
     target: 'entries',
     title: '2. Datos del cliente',
-    text: 'El campo nombre solo permite letras y espacios. Los telefonos solo aceptan numeros y el espacio del formato XXXX XXXX se coloca automaticamente.',
+    text: 'Registra nombre, telefono y contacto secundario. El contacto secundario acepta formatos internacionales sin letras y conserva el formato escrito.',
   },
   {
     target: 'actions',
@@ -70,23 +70,23 @@ const tourHighlightClass = (isActive) =>
 // Componente de Formulario actualizado
 const ClienteForm = ({ onSubmit, onCancel, initialData = null, activeTourTarget = '' }) => {
   const [formData, setFormData] = useState({
-    nombre: sanitizeName(initialData?.nombre || ''),
+    nombre: initialData?.nombre || '',
     telefono: formatPhone(initialData?.telefono || ''),
     direccion: initialData?.direccion || '',
     correo: initialData?.correo || '',
-    contacto_secundario: formatPhone(initialData?.contacto_secundario || ''),
+    contacto_secundario: initialData?.contacto_secundario || '',
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     let nextValue = value;
 
-    if (name === 'telefono' || name === 'contacto_secundario') {
+    if (name === 'telefono') {
       nextValue = formatPhone(value);
     }
 
-    if (name === 'nombre') {
-      nextValue = sanitizeName(value);
+    if (name === 'contacto_secundario') {
+      nextValue = sanitizeInternationalPhone(value);
     }
 
     setFormData((prev) => ({ ...prev, [name]: nextValue }));
@@ -101,7 +101,7 @@ const ClienteForm = ({ onSubmit, onCancel, initialData = null, activeTourTarget 
         <Field label="Nombre Completo" name="nombre" value={formData.nombre} onChange={handleChange} required />
         <Field label="Telefono" name="telefono" value={formData.telefono} onChange={handleChange} inputMode="numeric" maxLength={9} />
         <Field label="Correo" name="correo" type="email" value={formData.correo} onChange={handleChange} />
-        <Field label="Contacto secundario" name="contacto_secundario" value={formData.contacto_secundario} onChange={handleChange} inputMode="numeric" maxLength={9} />
+        <Field label="Contacto secundario" name="contacto_secundario" value={formData.contacto_secundario} onChange={handleChange} inputMode="tel" placeholder="+1-212-555-0198" />
         <Field label="Direccion" name="direccion" value={formData.direccion} onChange={handleChange} className="md:col-span-2" />
       </div>
       
@@ -286,7 +286,7 @@ const Clientes = () => {
     { header: 'Nombre', accessor: 'nombre', contentClassName: 'whitespace-nowrap leading-relaxed' },
     { header: 'Telefono', accessor: 'telefono', contentClassName: 'whitespace-nowrap leading-relaxed', render: (row) => formatPhone(row.telefono) || '-' },
     { header: 'Correo', accessor: 'correo' },
-    { header: 'Contacto secundario', accessor: 'contacto_secundario', contentClassName: 'whitespace-nowrap leading-relaxed', render: (row) => formatPhone(row.contacto_secundario) || '-' },
+    { header: 'Contacto secundario', accessor: 'contacto_secundario', contentClassName: 'whitespace-nowrap leading-relaxed', render: (row) => row.contacto_secundario || '-' },
     { header: 'Direccion', accessor: 'direccion', contentClassName: 'max-w-[360px] whitespace-normal break-words leading-relaxed' },
     {
       header: 'Acciones',
@@ -310,6 +310,7 @@ const Clientes = () => {
 
     return (
       String(cliente.nombre || '').toLowerCase().includes(term) ||
+      String(cliente.contacto_secundario || '').toLowerCase().includes(term) ||
       (phoneTerm && (telefono.includes(phoneTerm) || contactoSecundario.includes(phoneTerm)))
     );
   });

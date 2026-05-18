@@ -2,13 +2,31 @@ import prisma from '../../app/prismaClient.js';
 import { METODOS_PAGO, assertInList } from '../../utils/domainValidation.js';
 
 const normalizeText = (value = '') => String(value).trim().replace(/\s+/g, ' ');
+const sameMoney = (left, right) => Number(left || 0) === Number(right || 0);
+
+const buildRepuestoVariantWhere = (repuesto, proveedorId, costoNumber) => ({
+  descontinuada: false,
+  tipo_repuesto_id: repuesto.tipo_repuesto_id,
+  nombre: repuesto.nombre ? { equals: repuesto.nombre, mode: 'insensitive' } : null,
+  descripcion: repuesto.descripcion ? { equals: repuesto.descripcion, mode: 'insensitive' } : null,
+  proveedor_id: proveedorId,
+  costo_individual: costoNumber,
+  ganancia_cordobas: repuesto.ganancia_cordobas,
+});
+
+const isSameRepuestoVariant = (repuesto, proveedorId, costoNumber) => {
+  return (
+    Number(repuesto.proveedor_id || 0) === proveedorId
+    && sameMoney(repuesto.costo_individual, costoNumber)
+  );
+};
 
 export const getCompras = async (req, res) => {
   try {
     const compras = await prisma.compras.findMany({
       include: {
         proveedor: true,
-        repuesto: true,
+        repuesto: { include: { proveedor: true, categoria: true } },
       },
       orderBy: { id_compra: 'desc' },
     });
@@ -56,7 +74,10 @@ export const createCompra = async (req, res) => {
 
     const [proveedor, repuesto] = await Promise.all([
       prisma.proveedores.findFirst({ where: { id_proveedor: proveedorId, descontinuada: false } }),
-      prisma.repuestos.findFirst({ where: { id_repuesto: repuestoId, descontinuada: false } }),
+      prisma.repuestos.findFirst({
+        where: { id_repuesto: repuestoId, descontinuada: false },
+        include: { proveedor: true, categoria: true },
+      }),
     ]);
 
     if (!proveedor) {
@@ -68,9 +89,41 @@ export const createCompra = async (req, res) => {
     }
 
     const compra = await prisma.$transaction(async (tx) => {
+      let targetRepuestoId = repuestoId;
+      const repuestoSinVarianteDefinida = !repuesto.proveedor_id && !Number(repuesto.costo_individual || 0);
+      const mismaVariante = isSameRepuestoVariant(repuesto, proveedorId, costoNumber);
+      const tieneProveedorBase = Boolean(repuesto.proveedor_id);
+      const tieneCostoBase = Number(repuesto.costo_individual || 0) > 0;
+      const debeCrearVariante = !repuestoSinVarianteDefinida && ((tieneProveedorBase || tieneCostoBase) && !mismaVariante);
+
+      if (debeCrearVariante) {
+        const varianteExistente = await tx.repuestos.findFirst({
+          where: buildRepuestoVariantWhere(repuesto, proveedorId, costoNumber),
+        });
+
+        if (varianteExistente) {
+          targetRepuestoId = varianteExistente.id_repuesto;
+        } else {
+          const variante = await tx.repuestos.create({
+            data: {
+              tipo_repuesto_id: repuesto.tipo_repuesto_id,
+              proveedor_id: proveedorId,
+              nombre: repuesto.nombre,
+              descripcion: repuesto.descripcion,
+              costo_individual: costoNumber,
+              porcentaje_de_ganacia: repuesto.porcentaje_de_ganacia,
+              ganancia_cordobas: repuesto.ganancia_cordobas,
+              activo: true,
+              descontinuada: false,
+            },
+          });
+          targetRepuestoId = variante.id_repuesto;
+        }
+      }
+
       const created = await tx.compras.create({
         data: {
-          repuesto_id: repuestoId,
+          repuesto_id: targetRepuestoId,
           proveedor_id: proveedorId,
           documento: normalizeText(documento) || null,
           fecha_obtencion: fecha,
@@ -80,13 +133,16 @@ export const createCompra = async (req, res) => {
         },
         include: {
           proveedor: true,
-          repuesto: true,
+          repuesto: { include: { proveedor: true, categoria: true } },
         },
       });
 
       await tx.repuestos.update({
-        where: { id_repuesto: repuestoId },
-        data: { costo_individual: costoNumber },
+        where: { id_repuesto: targetRepuestoId },
+        data: {
+          proveedor_id: proveedorId,
+          costo_individual: costoNumber,
+        },
       });
 
       return created;

@@ -488,7 +488,7 @@ const Repuestos = () => {
 
   const filteredRepuestos = repuestos.filter((repuesto) => {
     const matchNombre = repuesto.nombre?.toLowerCase().includes(filterNombre.toLowerCase());
-    const categoriaCompleta = `${repuesto.categoria?.nombre_tipo || ''} ${repuesto.categoria?.electronico || ''}`.toLowerCase();
+    const categoriaCompleta = `${repuesto.categoria?.nombre_tipo || ''} ${repuesto.categoria?.electronico || ''} ${repuesto.proveedor?.nombre || ''}`.toLowerCase();
     const matchCat = categoriaCompleta.includes(filterCategoria.toLowerCase());
     return matchNombre && matchCat;
   });
@@ -500,6 +500,7 @@ const Repuestos = () => {
         <div className="flex flex-col">
           <span className="font-bold text-gray-800 leading-tight">{row.nombre}</span>
           <span className="text-[11px] text-gray-400 italic">{row.descripcion || 'Sin detalles'}</span>
+          <span className="text-[10px] font-bold uppercase text-slate-500">{row.proveedor?.nombre || 'Sin proveedor asignado'}</span>
         </div>
       </div>
     ) },
@@ -538,7 +539,7 @@ const Repuestos = () => {
       <div className="flex justify-between items-end mb-8">
         <div className="text-left">
           <h2 className="text-3xl font-black text-gray-800 tracking-tight">Inventario de Repuestos</h2>
-          <p className="text-gray-500 font-medium italic text-sm">Gestion de componentes y stock para CTE</p>
+          <p className="text-gray-500 font-medium italic text-sm">Gestion de componentes para CTE</p>
         </div>
         <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
           <button

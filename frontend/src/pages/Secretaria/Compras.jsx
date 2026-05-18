@@ -10,8 +10,8 @@ const money = (value) => `C$ ${Number(value || 0).toFixed(2)}`;
 
 const tourSteps = [
   { target: 'create', title: '1. Registrar compra', text: 'Nueva Compra abre el formulario para registrar entradas de repuestos.' },
-  { target: 'form', title: '2. Datos principales', text: 'Seleccione proveedor y repuesto existentes. Esto evita compras asociadas a datos incorrectos.' },
-  { target: 'numbers', title: '3. Cantidad y costo', text: 'Cantidad y costo deben ser mayores que cero. El costo actualiza el costo del repuesto.' },
+  { target: 'form', title: '2. Datos principales', text: 'Seleccione proveedor y repuesto base. Si proveedor o costo cambian, la entrada se registra en otra variante.' },
+  { target: 'numbers', title: '3. Cantidad y costo', text: 'La cantidad se registra como entrada de inventario; no decide si el repuesto es igual o diferente.' },
   { target: 'search', title: '4. Buscar compras', text: 'Filtra por proveedor, repuesto o documento para revisar entradas previas.' },
   { target: 'table', title: '5. Revisar historial', text: 'La tabla muestra fecha, cantidad, costo unitario y total para detectar errores de captura.' },
 ];
@@ -125,7 +125,11 @@ const CompraForm = ({ onSubmit, onCancel, proveedores = [], repuestos = [], acti
 
         <Select label="Repuesto" name="repuesto_id" value={formData.repuesto_id} onChange={handleChange} required>
           <option value="">Seleccione un repuesto</option>
-          {repuestos.map((repuesto) => <option key={repuesto.id_repuesto} value={String(repuesto.id_repuesto)}>{repuesto.nombre} - {repuesto.categoria?.nombre_tipo}</option>)}
+          {repuestos.map((repuesto) => (
+            <option key={repuesto.id_repuesto} value={String(repuesto.id_repuesto)}>
+              {repuesto.nombre} - {repuesto.categoria?.nombre_tipo} - {repuesto.proveedor?.nombre || 'Sin proveedor'} - {money(repuesto.costo_individual)}
+            </option>
+          ))}
         </Select>
 
         <Field label="Documento" name="documento" value={formData.documento} onChange={handleChange} placeholder="Factura o recibo" maxLength={80} />
@@ -146,7 +150,9 @@ const CompraForm = ({ onSubmit, onCancel, proveedores = [], repuestos = [], acti
       <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
         <span className="font-bold">Total estimado:</span> {money(subtotal)}
         {selectedRepuesto?.costo_individual && (
-          <span className="ml-2 text-xs">Costo actual del repuesto: {money(selectedRepuesto.costo_individual)}</span>
+          <span className="ml-2 text-xs">
+            Variante actual: {selectedRepuesto.proveedor?.nombre || 'Sin proveedor'} | {money(selectedRepuesto.costo_individual)}
+          </span>
         )}
       </div>
 
@@ -241,7 +247,12 @@ const Compras = () => {
   const columnas = [
     { header: 'ID', accessor: 'id_compra' },
     { header: 'Proveedor', accessor: 'proveedor', render: (row) => row.proveedor?.nombre },
-    { header: 'Repuesto', accessor: 'repuesto', render: (row) => row.repuesto?.nombre },
+    { header: 'Repuesto', accessor: 'repuesto', render: (row) => (
+      <div className="flex flex-col">
+        <span>{row.repuesto?.nombre}</span>
+        <span className="text-[10px] text-gray-400">{row.repuesto?.proveedor?.nombre || row.proveedor?.nombre || 'Sin proveedor'}</span>
+      </div>
+    ) },
     { header: 'Documento', accessor: 'documento', render: (row) => row.documento || '-' },
     { header: 'Fecha', accessor: 'fecha_obtencion', render: (row) => row.fecha_obtencion ? new Date(row.fecha_obtencion).toLocaleDateString() : '-' },
     { header: 'Cantidad', accessor: 'cantidad' },

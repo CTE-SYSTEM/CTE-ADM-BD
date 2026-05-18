@@ -8,9 +8,9 @@ const Table = ({ columns, data }) => {
       <table className="w-full min-w-max table-auto border-collapse">
         <thead className="sticky top-0 z-10 bg-white">
           <tr className="border-b border-gray-100 bg-gray-50/50">
-            {columns.map((c) => (
+            {columns.map((c, index) => (
               <th 
-                key={c.accessor} 
+                key={c.accessor || c.header || index} 
                 className="text-left px-3 py-3 text-[13px] font-semibold text-gray-400 uppercase tracking-tight whitespace-nowrap sm:px-6 sm:py-4"
               >
                 {c.header}
@@ -28,9 +28,9 @@ const Table = ({ columns, data }) => {
           ) : (
             data.map((row, i) => (
               <tr key={i} className="hover:bg-gray-50/30 transition-all duration-200">
-                {columns.map((c) => (
+                {columns.map((c, colIndex) => (
                   <td 
-                    key={c.accessor} 
+                    key={c.accessor || c.header || colIndex} 
                     /* 
                        "align-top" hace que si una celda crece, 
                        el resto del contenido de la fila se quede arriba. 

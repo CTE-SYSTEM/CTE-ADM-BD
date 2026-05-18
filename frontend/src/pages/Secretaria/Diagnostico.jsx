@@ -5,6 +5,7 @@ import {
   Loader2, Phone, User, Monitor, AlertCircle, 
   CheckCircle2, Search, Edit3, XCircle, LayoutList, HelpCircle, X
 } from 'lucide-react';
+import Autocomplete from '../../components/Autocomplete';
 import { getClientes } from '../../services/secretaria/clientesService';
 import { getEquipos } from '../../services/secretaria/equiposService';
 import { 
@@ -374,10 +375,19 @@ const Diagnostico = () => {
             data-tour-target="owner"
             className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${tourHighlightClass(activeTourTarget === 'owner')}`}
           >
-            <Select label="Cliente (Dueño)" name="cliente_id" value={formData.cliente_id} onChange={handleChange} required>
-              <option value="">Seleccione el cliente</option>
-              {clientes.map((c) => <option key={c.id_cliente} value={c.id_cliente}>{c.nombre}</option>)}
-            </Select>
+            <Autocomplete
+              label="Cliente (Dueño)"
+              name="cliente_id"
+              value={formData.cliente_id}
+              onChange={handleChange}
+              options={clientes}
+              getOptionValue={(cliente) => cliente.id_cliente}
+              getOptionLabel={(cliente) => cliente.nombre || `Cliente #${cliente.id_cliente}`}
+              getOptionDescription={(cliente) => `ID: ${cliente.id_cliente}${cliente.telefono ? ` | ${cliente.telefono}` : ''}`}
+              placeholder="Buscar cliente por nombre, ID o telefono..."
+              emptyMessage="No hay clientes con ese criterio"
+              required
+            />
 
             {clienteSeleccionado ? (
               <div className="animate-in fade-in zoom-in duration-200">
@@ -401,14 +411,20 @@ const Diagnostico = () => {
             data-tour-target="equipment"
             className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${tourHighlightClass(activeTourTarget === 'equipment')}`}
           >
-            <Select label="Equipo Registrado" name="equipo_id" value={formData.equipo_id} onChange={handleChange} required disabled={!formData.cliente_id}>
-              <option value="">Seleccione el equipo</option>
-              {equiposDelCliente.map((e) => (
-                <option key={e.id_equipo} value={e.id_equipo}>
-                  {e.marca} {e.modelo} ({e.numero_serie})
-                </option>
-              ))}
-            </Select>
+            <Autocomplete
+              label="Equipo Registrado"
+              name="equipo_id"
+              value={formData.equipo_id}
+              onChange={handleChange}
+              options={equiposDelCliente}
+              getOptionValue={(equipo) => equipo.id_equipo}
+              getOptionLabel={(equipo) => [equipo.marca, equipo.modelo].filter(Boolean).join(' ') || `Equipo #${equipo.id_equipo}`}
+              getOptionDescription={(equipo) => [equipo.tipo, equipo.numero_serie ? `S/N: ${equipo.numero_serie}` : '', `ID: ${equipo.id_equipo}`].filter(Boolean).join(' | ')}
+              placeholder={formData.cliente_id ? 'Buscar equipo por marca, modelo, tipo o serie...' : 'Seleccione un cliente primero'}
+              emptyMessage="No hay equipos para ese criterio"
+              disabled={!formData.cliente_id}
+              required
+            />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Electrónico</label>

@@ -1,5 +1,5 @@
-import { jsPDF } from 'jspdf/dist/jspdf.es.min.js';
-import 'jspdf-autotable/es';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const escapeValue = (value) => {
   const text = value == null ? '' : String(value);
@@ -54,7 +54,7 @@ export const downloadJsonPdf = (rows, columns, filename, title = 'Reporte') => {
   doc.setFontSize(11);
   doc.setTextColor(60);
 
-  doc.autoTable({
+  autoTable(doc, {
     head: [headers],
     body,
     startY: 26,
