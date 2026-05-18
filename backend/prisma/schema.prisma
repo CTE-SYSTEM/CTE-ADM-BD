@@ -134,6 +134,7 @@ model Categorias_Repuestos {
 model Repuestos {
   id_repuesto       Int                  @id @default(autoincrement())
   tipo_repuesto_id  Int
+  proveedor_id      Int?
   nombre            String?
   descripcion       String?
   costo_individual Decimal?             @db.Decimal(18, 2) // Se actualiza con la última compra se necesita un trigger
@@ -143,6 +144,7 @@ model Repuestos {
   descontinuada     Boolean              @default(false)
 
   categoria        Categorias_Repuestos @relation(fields: [tipo_repuesto_id], references: [id_tipo_repuesto])
+  proveedor        Proveedores?         @relation(fields: [proveedor_id], references: [id_proveedor])
   compras          Compras[]
   ordenes_detalles Ordenes_Repuestos[]
 
@@ -176,6 +178,7 @@ model Proveedores {
   web          String?   
   notas        String?   // Para anotar horarios o si tienen buenos repuestos o si incluso hubo problemas con las piezas
   descontinuada    Boolean @default(true)
+  repuestos    Repuestos[]
   compras      Compras[]
 
   @@map("Proveedores")

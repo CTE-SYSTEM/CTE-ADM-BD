@@ -84,7 +84,7 @@ export default function GarantiasAvanzado() {
   return (
     <div className="p-4 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Gestión de Garantías</h2>
+        <h2 className="text-2xl font-bold mb-2">Revalidación de Garantías</h2>
         <p className="text-sm text-gray-500">
           
         </p>

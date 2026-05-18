@@ -94,21 +94,35 @@ const SolicitarRepuestoModal = ({ orden, repuestos, onClose, onSubmit }) => {
             <p className="font-bold text-gray-700">{orden.equipo}</p>
           </div>
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Pieza solicitada</label>
-            <input
-              required
-              list="repuestos-disponibles"
-              className="w-full px-3 py-2 border rounded-lg text-sm"
-              value={repuesto}
-              onChange={(e) => setRepuesto(e.target.value)}
-              placeholder="Puede ser una pieza nueva o existente"
-            />
-            <datalist id="repuestos-disponibles">
+            <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Pieza existente</label>
+            <select
+              className="w-full px-3 py-2 border rounded-lg text-sm bg-white"
+              value={repuestoId}
+              onChange={(e) => {
+                setRepuestoId(e.target.value);
+                if (e.target.value) setRepuesto('');
+              }}
+            >
+              <option value="">No esta en inventario / escribir manualmente</option>
               {repuestos.map((item) => (
-                <option key={item.id_repuesto} value={item.nombre || ''} />
+                <option key={item.id_repuesto} value={item.id_repuesto}>
+                  {item.nombre || 'Sin nombre'} - {item.proveedor?.nombre || 'Sin proveedor'} - C$ {Number(item.costo_individual || 0).toFixed(2)}
+                </option>
               ))}
-            </datalist>
+            </select>
           </div>
+          {!repuestoId && (
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Pieza solicitada</label>
+              <input
+                required
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+                value={repuesto}
+                onChange={(e) => setRepuesto(e.target.value)}
+                placeholder="Escriba la pieza si aun no existe"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Cantidad</label>
             <input type="number" min="1" className="w-full px-3 py-2 border rounded-lg text-sm" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />

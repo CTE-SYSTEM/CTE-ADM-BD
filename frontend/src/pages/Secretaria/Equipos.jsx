@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Table from '../../components/Table';
-import { Plus, Search, Edit, Phone, User, HelpCircle, X, ArrowRight, ShieldCheck } from 'lucide-react';
+import Autocomplete from '../../components/Autocomplete';
+import { Plus, Search, Edit, Phone, User, HelpCircle, X, ArrowRight } from 'lucide-react';
 import { getClientes } from '../../services/secretaria/clientesService';
 import { createEquipo, getEquipos, updateEquipo } from '../../services/secretaria/equiposService';
 
@@ -17,6 +18,8 @@ const toPascalCase = (value) => (
     .join(' ')
 );
 
+const sanitizeEquipmentText = (value = '') => String(value).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+
 const getTiposSugeridos = (equipos) => {
   const tipos = [...BASE_TIPOS_EQUIPO, ...equipos.map((equipo) => equipo.tipo).filter(Boolean)]
     .map(toPascalCase);
@@ -24,10 +27,32 @@ const getTiposSugeridos = (equipos) => {
   return [...new Set(tipos)].sort((a, b) => a.localeCompare(b));
 };
 
+const sameText = (left = '', right = '') =>
+  String(left).trim().localeCompare(String(right).trim(), 'es', { sensitivity: 'base' }) === 0;
+
+const uniqueSorted = (values = []) =>
+  [...new Set(values.map(sanitizeEquipmentText).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+
+const getEquiposPorTipo = (equipos = [], tipo = '') =>
+  equipos.filter((equipo) => tipo && sameText(equipo.tipo, tipo));
+
+const getMarcasSugeridas = (equipos = [], tipo = '') =>
+  uniqueSorted(getEquiposPorTipo(equipos, tipo).map((equipo) => equipo.marca));
+
+const getModelosSugeridos = (equipos = [], tipo = '', marca = '') => {
+  const equiposPorTipo = getEquiposPorTipo(equipos, tipo);
+  const equiposFiltrados = marca
+    ? equiposPorTipo.filter((equipo) => sameText(equipo.marca, marca))
+    : equiposPorTipo;
+
+  return uniqueSorted(equiposFiltrados.map((equipo) => equipo.modelo));
+};
+
 const tourSteps = [
   { target: 'create', title: '1. Registrar equipo', text: 'Nuevo Equipo abre el formulario. Si vienes desde Clientes, el cliente ya queda seleccionado para evitar capturar el equipo a otra persona.' },
   { target: 'client', title: '2. Confirmar cliente', text: 'Primero confirma el cliente correcto. La verificacion muestra telefono e ID para reducir errores antes de guardar.' },
-  { target: 'details', title: '3. Datos seguros', text: 'Tipo, marca y modelo son obligatorios. El tipo se normaliza y las sugerencias ayudan a mantener nombres consistentes.' },
+  { target: 'details', title: '3. Datos seguros', text: 'Tipo, marca y modelo son obligatorios. Las sugerencias de marca y modelo se filtran por el tipo de equipo seleccionado.' },
   { target: 'actions', title: '4. Guardar o seguir', text: 'Guardar Equipo registra el aparato y vuelve a la lista. Guardar y Seguir registra el aparato y abre Diagnostico con cliente y equipo seleccionados.' },
   { target: 'search', title: '5. Buscar por cliente', text: 'El buscador filtra por nombre del cliente para encontrar rapidamente sus equipos.' },
   { target: 'table', title: '6. Revisar y editar', text: 'La tabla permite revisar y editar equipos. No se elimina desde secretaria para evitar perdida accidental de registros.' },
@@ -38,12 +63,10 @@ const tourHighlightClass = (isActive) =>
     ? 'relative z-[60] rounded-xl bg-white ring-4 ring-indigo-400 ring-offset-4 ring-offset-white shadow-2xl transition-all'
     : '';
 
-const sanitizeEquipmentText = (value = '') => String(value).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
-
 const sortClientesByName = (clientes = []) =>
   [...clientes].sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { sensitivity: 'base' }));
 
-const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], preSelectedClient = null, tiposSugeridos = [], activeTourTarget = '' }) => {
+const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], equipos = [], preSelectedClient = null, tiposSugeridos = [], activeTourTarget = '' }) => {
   const [formData, setFormData] = useState({
     cliente_id: initialData?.cliente_id || preSelectedClient?.id || '',
     tipo: initialData?.tipo || '',
@@ -54,9 +77,17 @@ const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], pre
   const [formError, setFormError] = useState('');
 
   const clienteInfo = clientes.find(c => String(c.id_cliente) === String(formData.cliente_id));
+  const marcasSugeridas = getMarcasSugeridas(equipos, formData.tipo);
+  const modelosSugeridos = getModelosSugeridos(equipos, formData.tipo, formData.marca);
   const handleChange = (e) => {
     setFormError('');
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === 'tipo' ? { marca: '', modelo: '' } : {}),
+      ...(name === 'marca' ? { modelo: '' } : {}),
+    }));
   };
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -84,19 +115,19 @@ const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], pre
           data-tour-target="client"
           className={`${clienteInfo ? "md:col-span-1" : "md:col-span-2"} ${tourHighlightClass(activeTourTarget === 'client')}`}
         >
-          <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-          <select 
-            name="cliente_id" 
-            value={formData.cliente_id} 
-            onChange={handleChange} 
-            required 
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white"
-          >
-            <option value="">Seleccione un cliente</option>
-            {clientes.map((c) => (
-              <option key={c.id_cliente} value={c.id_cliente}>{c.nombre}</option>
-            ))}
-          </select>
+          <Autocomplete
+            label="Cliente"
+            name="cliente_id"
+            value={formData.cliente_id}
+            onChange={handleChange}
+            options={clientes}
+            getOptionValue={(cliente) => cliente.id_cliente}
+            getOptionLabel={(cliente) => cliente.nombre || `Cliente #${cliente.id_cliente}`}
+            getOptionDescription={(cliente) => `ID: ${cliente.id_cliente}${cliente.telefono ? ` | ${cliente.telefono}` : ''}`}
+            placeholder="Buscar cliente por nombre, ID o telefono..."
+            emptyMessage="No hay clientes con ese criterio"
+            required
+          />
         </div>
 
         {/* Verificación visual en Formulario */}
@@ -120,8 +151,8 @@ const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], pre
           className={`md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 ${tourHighlightClass(activeTourTarget === 'details')}`}
         >
           <TipoField value={formData.tipo} onChange={handleChange} tiposSugeridos={tiposSugeridos} />
-          <Field label="Marca" name="marca" value={formData.marca} onChange={handleChange} placeholder="Ej: HP" maxLength={40} required />
-          <Field label="Modelo" name="modelo" value={formData.modelo} onChange={handleChange} placeholder="Ej: Victus 15" maxLength={60} required />
+          <MarcaField value={formData.marca} onChange={handleChange} marcasSugeridas={marcasSugeridas} disabled={!formData.tipo} />
+          <ModeloField value={formData.modelo} onChange={handleChange} modelosSugeridos={modelosSugeridos} disabled={!formData.tipo} />
           <Field label="Número de Serie" name="numero_serie" value={formData.numero_serie} onChange={handleChange} placeholder="S/N" maxLength={80} />
         </div>
       </div>
@@ -157,33 +188,53 @@ const Field = ({ label, className = '', ...props }) => (
 
 const TipoField = ({ value, onChange, tiposSugeridos }) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-    <input
+    <Autocomplete
+      label="Tipo"
       name="tipo"
       value={value}
       onChange={onChange}
-      list="tipos-equipo"
+      options={tiposSugeridos.map((tipo) => ({ value: tipo, label: tipo }))}
       placeholder="Ej: Laptop"
+      emptyMessage="Escriba un nuevo tipo de equipo"
+      allowCustom
       required
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
     />
-    <datalist id="tipos-equipo">
-      {tiposSugeridos.map((tipo) => (
-        <option key={tipo} value={tipo} />
-      ))}
-    </datalist>
-    <div className="mt-2 flex flex-wrap gap-2">
-      {tiposSugeridos.slice(0, 8).map((tipo) => (
-        <button
-          key={tipo}
-          type="button"
-          onClick={() => onChange({ target: { name: 'tipo', value: tipo } })}
-          className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md hover:bg-indigo-100 transition-colors"
-        >
-          {tipo}
-        </button>
-      ))}
-    </div>
+  </div>
+);
+
+const MarcaField = ({ value, onChange, marcasSugeridas, disabled }) => (
+  <div>
+    <Autocomplete
+      label="Marca"
+      name="marca"
+      value={value}
+      onChange={onChange}
+      options={marcasSugeridas.map((marca) => ({ value: marca, label: marca }))}
+      placeholder={disabled ? 'Seleccione un tipo primero' : 'Ej: HP'}
+      emptyMessage="Escriba una nueva marca para este tipo"
+      allowCustom
+      disabled={disabled}
+      maxLength={40}
+      required
+    />
+  </div>
+);
+
+const ModeloField = ({ value, onChange, modelosSugeridos, disabled }) => (
+  <div>
+    <Autocomplete
+      label="Modelo"
+      name="modelo"
+      value={value}
+      onChange={onChange}
+      options={modelosSugeridos.map((modelo) => ({ value: modelo, label: modelo }))}
+      placeholder={disabled ? 'Seleccione un tipo primero' : 'Ej: Victus 15'}
+      emptyMessage="Escriba un nuevo modelo para este tipo"
+      allowCustom
+      disabled={disabled}
+      maxLength={60}
+      required
+    />
   </div>
 );
 
@@ -398,6 +449,7 @@ const Equipos = () => {
             onCancel={() => { setShowForm(false); setEditingEquipo(null); }} 
             initialData={editingEquipo} 
             clientes={clientes}
+            equipos={equipos}
             preSelectedClient={preSelectedClient}
             tiposSugeridos={tiposSugeridos}
             activeTourTarget={activeTourTarget}

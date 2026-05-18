@@ -39,6 +39,9 @@ const normalizeRepuestoInput = async (body) => {
     nombre: normalizeText(body.nombre),
     descripcion: normalizeText(body.descripcion),
     tipo_repuesto_id,
+    ...(Object.prototype.hasOwnProperty.call(body, 'proveedor_id')
+      ? { proveedor_id: body.proveedor_id ? Number(body.proveedor_id) : null }
+      : {}),
     costo_individual: normalizeNumber(body.costo_individual),
     ganancia_cordobas: normalizeNumber(body.ganancia_cordobas),
   };
@@ -48,7 +51,7 @@ export const getRepuestos = async (req, res) => {
   try {
     const repuestos = await prisma.repuestos.findMany({
       where: { descontinuada: false },
-      include: { categoria: true },
+      include: { categoria: true, proveedor: true },
       orderBy: { id_repuesto: 'desc' },
     });
     res.json({ success: true, data: repuestos });
@@ -72,7 +75,7 @@ export const createRepuesto = async (req, res) => {
         ...data,
         descontinuada: false,
       },
-      include: { categoria: true },
+      include: { categoria: true, proveedor: true },
     });
 
     res.status(201).json({ success: true, data: repuesto });
@@ -95,7 +98,7 @@ export const updateRepuesto = async (req, res) => {
     const repuesto = await prisma.repuestos.update({
       where: { id_repuesto: Number(id) },
       data,
-      include: { categoria: true },
+      include: { categoria: true, proveedor: true },
     });
 
     res.json({ success: true, data: repuesto });
