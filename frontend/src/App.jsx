@@ -97,6 +97,7 @@ function App() {
               { path: 'admin/tecnicos', element: <RequireAuth><RendimientoTecnicos /></RequireAuth> },
               { path: 'admin/clientes', element: <RequireAuth><ClientesAvanzado /></RequireAuth> },
               { path: 'admin/inventario', element: <RequireAuth><InventarioAvanzado /></RequireAuth> },
+              { path: 'admin/visualizacion-control-facturas', element: <RequireAuth><FacturasAvanzado /></RequireAuth> },
               { path: 'admin/facturacion', element: <RequireAuth><FacturasAvanzado /></RequireAuth> },
               { path: 'admin/ordenes-estado', element: <RequireAuth><OrdenesEstadoAvanzado /></RequireAuth> },
               { path: 'admin/diagnosticos', element: <RequireAuth><DiagnosticosEstadoAvanzado /></RequireAuth> },

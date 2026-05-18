@@ -32,7 +32,7 @@ const Sidebar = ({ open = true }) => {
     { name: 'Técnicos', to: '/admin/tecnicos', roles: ['Administrador', 'admin_pro'], icon: Stethoscope },
     { name: 'Órdenes', to: '/admin/ordenes', roles: ['Administrador', 'admin_pro'], icon: Receipt },
     { name: 'Órdenes estado', to: '/admin/ordenes-estado', roles: ['Administrador', 'admin_pro'], icon: Receipt },
-    { name: 'Facturación', to: '/admin/facturacion', roles: ['Administrador', 'admin_pro'], icon: Receipt },
+    { name: 'Visualizacion y control de facturas', to: '/admin/visualizacion-control-facturas', roles: ['Administrador', 'admin_pro'], icon: Receipt },
     { name: 'Garantías', to: '/admin/garantias', roles: ['Administrador', 'admin_pro'], icon: ShieldCheck },
     { name: 'Inventario', to: '/admin/inventario', roles: ['Administrador', 'admin_pro'], icon: Package },
     { name: 'Repuestos', to: '/admin/repuestos', roles: ['Administrador', 'admin_pro'], icon: HardDrive },

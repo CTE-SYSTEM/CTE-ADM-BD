@@ -73,7 +73,7 @@ export default function FacturasAvanzado() {
         fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '-',
         total: `$ ${f.total.toFixed(2)}`
       }));
-      downloadJsonCsv(exportData, columns, `facturacion_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
+      downloadJsonCsv(exportData, columns, `control_facturas_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
     } catch (err) {
       setError('No se pudo descargar el reporte.');
     } finally {
@@ -90,7 +90,7 @@ export default function FacturasAvanzado() {
         fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '-',
         total: `$ ${f.total.toFixed(2)}`
       }));
-      downloadJsonPdf(exportData, columns, `facturacion_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Reporte de Facturación');
+      downloadJsonPdf(exportData, columns, `control_facturas_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Reporte de control de facturas');
     } catch (err) {
       setError('No se pudo descargar el reporte en PDF.');
     } finally {
@@ -107,7 +107,7 @@ export default function FacturasAvanzado() {
       
       {/* Encabezado Principal */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Facturación avanzada</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Visualizacion y control de facturas</h1>
         <p className="text-gray-400 text-sm mt-0.5">Analiza los ingresos percibidos del taller por rangos de fecha y métodos de pago.</p>
       </div>
 
