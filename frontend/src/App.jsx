@@ -21,6 +21,12 @@ import FacturasAvanzado from './features/admin/FacturasAvanzado';
 import GarantiasAvanzado from './features/admin/GarantiasAvanzado';
 import HistorialEquipo from './features/admin/HistorialEquipo';
 import HistorialRepuesto from './features/admin/HistorialRepuesto';
+import RepuestosAvanzado from './features/admin/RepuestosAvanzado';
+import ComprasAvanzado from './features/admin/ComprasAvanzado';
+import RendimientoTecnicos from './features/admin/RendimientoTecnicos';
+import OrdenesEstadoAvanzado from './features/admin/OrdenesEstadoAvanzado';
+import DiagnosticosEstadoAvanzado from './features/admin/DiagnosticosEstadoAvanzado';
+import ClientesAvanzado from './features/admin/ClientesAvanzado';
 
 // --- SECCIÓN SECRETARIA ---
 import SecretariaDashboard from './pages/Secretaria/SecretariaDashboard';
@@ -79,8 +85,14 @@ function App() {
               { path: 'admin/usuarios', element: <RequireAuth><UsuariosAvanzado /></RequireAuth> },
               { path: 'admin/equipos', element: <RequireAuth><EquiposAvanzado /></RequireAuth> },
               { path: 'admin/ordenes', element: <RequireAuth><OrdenesAvanzado /></RequireAuth> },
+              { path: 'admin/repuestos', element: <RequireAuth><RepuestosAvanzado /></RequireAuth> },
+              { path: 'admin/compras', element: <RequireAuth><ComprasAvanzado /></RequireAuth> },
+              { path: 'admin/tecnicos', element: <RequireAuth><RendimientoTecnicos /></RequireAuth> },
+              { path: 'admin/clientes', element: <RequireAuth><ClientesAvanzado /></RequireAuth> },
               { path: 'admin/inventario', element: <RequireAuth><InventarioAvanzado /></RequireAuth> },
               { path: 'admin/facturacion', element: <RequireAuth><FacturasAvanzado /></RequireAuth> },
+              { path: 'admin/ordenes-estado', element: <RequireAuth><OrdenesEstadoAvanzado /></RequireAuth> },
+              { path: 'admin/diagnosticos', element: <RequireAuth><DiagnosticosEstadoAvanzado /></RequireAuth> },
               { path: 'admin/garantias', element: <RequireAuth><GarantiasAvanzado /></RequireAuth> },
               { path: 'admin/historial-equipo', element: <RequireAuth><HistorialEquipo /></RequireAuth> },
               { path: 'admin/historial-repuesto', element: <RequireAuth><HistorialRepuesto /></RequireAuth> },

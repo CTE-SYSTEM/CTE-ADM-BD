@@ -4,64 +4,60 @@ import api from '../../services/api';
 import { downloadJsonCsv } from '../../utils/csvExport';
 
 const columns = [
-  { header: 'ID', accessor: 'id_factura' },
-  { header: 'Orden', accessor: 'id_orden' },
-  { header: 'Fecha', accessor: 'fecha_emision' },
-  { header: 'Cliente', accessor: 'cliente' },
-  { header: 'Equipo', accessor: 'equipo' },
-  { header: 'Técnico', accessor: 'tecnico' },
-  { header: 'Total', accessor: 'total' },
-  { header: 'Método de Pago', accessor: 'metodo_pago' },
+  { header: 'Compra', accessor: 'id_compra' },
+  { header: 'Fecha', accessor: 'fecha_obtencion' },
+  { header: 'Proveedor', accessor: 'proveedor' },
+  { header: 'Repuesto', accessor: 'repuesto' },
+  { header: 'Documento', accessor: 'documento' },
+  { header: 'Cantidad', accessor: 'cantidad' },
+  { header: 'Costo unitario', accessor: 'costo_unitario' },
+  { header: 'Costo total', accessor: 'costo_total' },
+  { header: 'Pago', accessor: 'metodo_pago' },
 ];
 
-export default function FacturasAvanzado() {
-  const [facturas, setFacturas] = useState([]);
+export default function ComprasAvanzado() {
+  const [compras, setCompras] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [downloading, setDownloading] = useState(false);
 
-  const fetchFacturas = async () => {
+  const fetchCompras = async () => {
     setLoading(true);
     setError('');
     try {
       const query = [];
       if (fromDate) query.push(`fecha_inicio=${fromDate}`);
       if (toDate) query.push(`fecha_fin=${toDate}`);
-      const url = `/admin_pro/reportes/facturacion${query.length ? `?${query.join('&')}` : ''}`;
+      const url = `/admin_pro/reportes/compras${query.length ? `?${query.join('&')}` : ''}`;
       const res = await api.get(url);
       const data = res.data?.data || [];
-      setFacturas(
-        data.map((f) => ({
-          id_factura: f.id_factura,
-          id_orden: f.id_orden,
-          fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '- ',
-          cliente: f.cliente || '-',
-          equipo: f.equipo || '-',
-          tecnico: f.tecnico || '-',
-          total: f.total ? `$ ${Number(f.total).toFixed(2)}` : '$ 0.00',
-          metodo_pago: f.metodo_pago || '-',
+      setCompras(
+        data.map((item) => ({
+          ...item,
+          fecha_obtencion: item.fecha_obtencion ? new Date(item.fecha_obtencion).toLocaleDateString() : '-',
+          costo_unitario: item.costo_unitario ? `$ ${Number(item.costo_unitario).toFixed(2)}` : '$ 0.00',
+          costo_total: item.costo_total ? `$ ${Number(item.costo_total).toFixed(2)}` : '$ 0.00',
         }))
       );
     } catch (err) {
-      setError('No se pudo cargar la información de facturas');
+      setError('No se pudo cargar las compras.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchFacturas();
+    fetchCompras();
   }, []);
 
-  const downloadFacturas = async () => {
+  const downloadCompras = async () => {
     setDownloading(true);
-    setError('');
     try {
-      downloadJsonCsv(facturas, columns, `facturacion_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
+      downloadJsonCsv(compras, columns, `compras_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
     } catch (err) {
-      setError('No se pudo descargar el reporte.');
+      setError('No se pudo descargar el reporte de compras.');
     } finally {
       setDownloading(false);
     }
@@ -70,15 +66,15 @@ export default function FacturasAvanzado() {
   return (
     <div className="p-4 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Facturación avanzada</h2>
-        <p className="text-gray-500 mt-1">Analiza facturación por orden y período, con exportación directa.</p>
+        <h2 className="text-2xl font-bold">Compras y proveedores</h2>
+        <p className="text-gray-500 mt-1">Monitorea compras de repuestos y los montos pagados a proveedores.</p>
       </div>
 
       <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end mb-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
           <div>
-            <h3 className="text-lg font-semibold">Filtro por periodo</h3>
-            <p className="text-sm text-gray-500">Filtra la facturación por fecha de emisión.</p>
+            <h3 className="text-lg font-semibold">Rango de búsqueda</h3>
+            <p className="text-sm text-gray-500">Filtra compras por fecha de obtención.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 w-full max-w-3xl">
             <label className="block">
@@ -102,14 +98,14 @@ export default function FacturasAvanzado() {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={fetchFacturas}
+                onClick={fetchCompras}
                 className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
               >
                 Consultar
               </button>
               <button
                 type="button"
-                onClick={downloadFacturas}
+                onClick={downloadCompras}
                 disabled={downloading}
                 className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
@@ -119,9 +115,9 @@ export default function FacturasAvanzado() {
           </div>
         </div>
 
-        {loading && <div className="text-gray-600">Cargando facturas...</div>}
+        {loading && <div className="text-gray-600">Cargando compras...</div>}
         {error && <div className="text-red-600">{error}</div>}
-        {!loading && !error && <Table columns={columns} data={facturas} />}
+        {!loading && !error && <Table columns={columns} data={compras} />}
       </section>
     </div>
   );

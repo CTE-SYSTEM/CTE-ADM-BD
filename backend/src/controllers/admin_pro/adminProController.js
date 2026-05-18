@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import prisma from '../../app/prismaClient.js';
+import { DIAGNOSTICO_ESTADOS } from '../../utils/domainValidation.js';
 
 // Historial de uso de un repuesto
 export const getHistorialRepuesto = async (req, res) => {
@@ -56,7 +57,33 @@ export const onlyAdminPro = (req, res, next) => {
 // 1. Monitoreo de equipos con historial y estado
 export const getEquiposAvanzado = async (req, res) => {
   try {
+    const search = req.query.search?.trim();
+    const where = {};
+
+    if (search) {
+      const isNumeric = /^\d+$/.test(search);
+      where.OR = [
+        ...(isNumeric ? [{ id_equipo: Number(search) }] : []),
+        { tipo: { contains: search, mode: 'insensitive' } },
+        { marca: { contains: search, mode: 'insensitive' } },
+        { modelo: { contains: search, mode: 'insensitive' } },
+        { numero_serie: { contains: search, mode: 'insensitive' } },
+        { cliente: { nombre: { contains: search, mode: 'insensitive' } } },
+        {
+          diagnosticos: {
+            some: {
+              estado_del_diagnostico: {
+                contains: search,
+                mode: 'insensitive'
+              }
+            }
+          }
+        }
+      ];
+    }
+
     const equipos = await prisma.equipos.findMany({
+      where,
       include: {
         cliente: true,
         diagnosticos: {
@@ -322,6 +349,319 @@ export const getMonitoreoGeneral = async (req, res) => {
     res.json({ data: { equipos, repuestos, ordenes, facturas, usuarios } });
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener monitoreo general', details: error.message });
+  }
+};
+
+export const getDashboardResumen = async (req, res) => {
+  try {
+    const hoy = new Date();
+    const limitePorVencer = new Date(hoy);
+    limitePorVencer.setDate(limitePorVencer.getDate() + 30);
+
+    const countsPromise = Promise.all([
+      prisma.equipos.count(),
+      prisma.repuestos.count(),
+      prisma.ordenes.count(),
+      prisma.facturas.count(),
+      prisma.usuarios.count(),
+      prisma.diagnosticos.count({ where: { estado_del_diagnostico: 'PENDIENTE' } }),
+      prisma.ordenes.count({ where: { estado: 'REPARACION' } }),
+    ]);
+
+    const latestOrdersPromise = prisma.ordenes.findMany({
+      take: 5,
+      orderBy: { fecha_ingreso: 'desc' },
+      include: {
+        diagnostico: {
+          include: {
+            equipo: { include: { cliente: true } },
+          },
+        },
+        tecnico: true,
+        facturas: true,
+      },
+    });
+
+    const upcomingGarantiasPromise = prisma.garantias.findMany({
+      where: { fecha_vencimiento: { lte: limitePorVencer } },
+      include: {
+        factura: {
+          include: {
+            orden: {
+              include: {
+                diagnostico: {
+                  include: {
+                    equipo: { include: { cliente: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { fecha_vencimiento: 'asc' },
+      take: 5,
+    });
+
+    const [
+      [equipos, repuestos, ordenes, facturas, usuarios, diagnosticosPendientes, ordenesEnReparacion],
+      latestOrders,
+      upcomingGarantias,
+    ] = await Promise.all([countsPromise, latestOrdersPromise, upcomingGarantiasPromise]);
+
+    res.json({
+      data: {
+        totals: {
+          equipos,
+          repuestos,
+          ordenes,
+          facturas,
+          usuarios,
+          diagnosticosPendientes,
+          ordenesEnReparacion,
+        },
+        latestOrders: latestOrders.map((orden) => ({
+          id_orden: orden.id_orden,
+          estado: orden.estado || 'N/A',
+          cliente: orden.diagnostico?.equipo?.cliente?.nombre || '-',
+          equipo: orden.diagnostico?.equipo?.modelo || '-',
+          prioridad: orden.prioridad || '-',
+          tecnico: orden.tecnico?.nombre || 'Sin asignar',
+          facturas: orden.facturas?.length || 0,
+          fecha_ingreso: orden.fecha_ingreso ? new Date(orden.fecha_ingreso).toLocaleDateString() : '-',
+        })),
+        upcomingGarantias: upcomingGarantias.map((garantia) => ({
+          id_garantia: garantia.id_garantia,
+          factura_id: garantia.factura_id,
+          orden_id: garantia.factura?.orden?.id_orden || '-',
+          cliente: garantia.factura?.orden?.diagnostico?.equipo?.cliente?.nombre || '-',
+          equipo: garantia.factura?.orden?.diagnostico?.equipo?.modelo || '-',
+          fecha_vencimiento: garantia.fecha_vencimiento ? new Date(garantia.fecha_vencimiento).toLocaleDateString() : '-',
+        })),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el resumen del dashboard', details: error.message });
+  }
+};
+
+export const updateOrdenAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado, tecnico_id, resultado_final, observacion_final } = req.body;
+
+    const data = {};
+    if (estado !== undefined) data.estado = String(estado);
+    if (tecnico_id !== undefined) data.tecnico_id = tecnico_id ? Number(tecnico_id) : null;
+    if (resultado_final !== undefined) data.resultado_final = resultado_final;
+    if (observacion_final !== undefined) data.observacion_final = observacion_final;
+    if (String(estado).toUpperCase() === 'FINALIZADO') {
+      data.fecha_cierre = new Date();
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'No se proporcionaron campos para actualizar' });
+    }
+
+    const orden = await prisma.ordenes.update({
+      where: { id_orden: Number(id) },
+      data,
+    });
+
+    res.json({ data: orden });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Orden no encontrada' });
+    }
+    res.status(500).json({ error: 'Error al actualizar la orden', details: error.message });
+  }
+};
+
+export const updateRepuestoAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, descripcion, costo_individual, porcentaje_de_ganacia, activo, descontinuada } = req.body;
+
+    const data = {};
+    if (nombre !== undefined) data.nombre = String(nombre);
+    if (descripcion !== undefined) data.descripcion = String(descripcion);
+    if (costo_individual !== undefined) data.costo_individual = Number(costo_individual);
+    if (porcentaje_de_ganacia !== undefined) data.porcentaje_de_ganacia = Number(porcentaje_de_ganacia);
+    if (activo !== undefined) data.activo = Boolean(activo);
+    if (descontinuada !== undefined) data.descontinuada = Boolean(descontinuada);
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'No se proporcionaron campos para actualizar' });
+    }
+
+    const repuesto = await prisma.repuestos.update({
+      where: { id_repuesto: Number(id) },
+      data,
+    });
+
+    res.json({ data: repuesto });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Repuesto no encontrado' });
+    }
+    res.status(500).json({ error: 'Error al actualizar el repuesto', details: error.message });
+  }
+};
+
+export const getEquipoUltimoDiagnostico = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const diagnostico = await prisma.diagnosticos.findFirst({
+      where: { equipo_id: Number(id) },
+      include: {
+        tecnico: true,
+        ordenes: true,
+      },
+      orderBy: { fecha_hora: 'desc' },
+    });
+
+    if (!diagnostico) {
+      return res.status(404).json({ error: 'No se encontró diagnóstico para este equipo' });
+    }
+
+    res.json({ data: diagnostico });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el diagnóstico del equipo', details: error.message });
+  }
+};
+
+export const updateDiagnosticoEstadoAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado_del_diagnostico } = req.body;
+
+    if (!estado_del_diagnostico || !DIAGNOSTICO_ESTADOS.includes(estado_del_diagnostico)) {
+      return res.status(400).json({
+        error: 'Estado de diagnóstico inválido',
+        estados_validos: DIAGNOSTICO_ESTADOS,
+      });
+    }
+
+    const diagnostico = await prisma.diagnosticos.update({
+      where: { id_diagnostico: Number(id) },
+      data: { estado_del_diagnostico },
+    });
+
+    res.json({ data: diagnostico });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Diagnóstico no encontrado' });
+    }
+    res.status(500).json({ error: 'Error al actualizar estado del diagnóstico', details: error.message });
+  }
+};
+
+export const getRepuestosPorOrdenAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const repuestos = await prisma.ordenes_Repuestos.findMany({
+      where: { orden_id: Number(id) },
+      include: {
+        repuesto: true,
+        orden: {
+          include: {
+            diagnostico: {
+              include: {
+                equipo: { include: { cliente: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { id_detalle_repuesto: 'asc' },
+    });
+
+    if (!repuestos.length) {
+      return res.status(404).json({ error: 'No se encontraron repuestos para esta orden' });
+    }
+
+    const data = repuestos.map((item) => ({
+      id_detalle_repuesto: item.id_detalle_repuesto,
+      orden_id: item.orden_id,
+      repuesto_id: item.repuesto_id,
+      nombre: item.repuesto?.nombre || '-',
+      categoria: item.repuesto?.categoria?.nombre_tipo || '-',
+      pieza_solicitada: item.pieza_solicitada || '-',
+      cantidad_usada: item.cantidad_usada ?? 0,
+      estado_aprobacion: item.estado_aprobacion || '-',
+      costo_unitario: item.repuesto?.costo_individual ?? 0,
+      cliente: item.orden?.diagnostico?.equipo?.cliente?.nombre || '-',
+      equipo: item.orden?.diagnostico?.equipo?.modelo || '-',
+    }));
+
+    res.json({ data });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener repuestos de la orden', details: error.message });
+  }
+};
+
+const escapeCsv = (value) => {
+  const text = value == null ? '' : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+export const downloadRepuestosPorOrdenAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const repuestos = await prisma.ordenes_Repuestos.findMany({
+      where: { orden_id: Number(id) },
+      include: {
+        repuesto: true,
+        orden: {
+          include: {
+            diagnostico: {
+              include: {
+                equipo: { include: { cliente: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { id_detalle_repuesto: 'asc' },
+    });
+
+    if (!repuestos.length) {
+      return res.status(404).json({ error: 'No se encontraron repuestos para esta orden' });
+    }
+
+    const headers = [
+      'Orden ID',
+      'Cliente',
+      'Equipo',
+      'Detalle ID',
+      'Repuesto',
+      'Categoría',
+      'Pieza solicitada',
+      'Cantidad usada',
+      'Estado aprobación',
+      'Costo unitario',
+    ];
+    const rows = repuestos.map((item) => [
+      item.orden_id,
+      item.orden?.diagnostico?.equipo?.cliente?.nombre || '-',
+      item.orden?.diagnostico?.equipo?.modelo || '-',
+      item.id_detalle_repuesto,
+      item.repuesto?.nombre || '-',
+      item.repuesto?.categoria?.nombre_tipo || '-',
+      item.pieza_solicitada || '-',
+      item.cantidad_usada ?? 0,
+      item.estado_aprobacion || '-',
+      item.repuesto?.costo_individual ?? 0,
+    ]);
+
+    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
+    const filename = `repuestos-orden-${id}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al generar reporte de repuestos', details: error.message });
   }
 };
 

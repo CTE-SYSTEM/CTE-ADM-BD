@@ -3,63 +3,57 @@ import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv } from '../../utils/csvExport';
 
+const formatDate = (date) => (date ? new Date(date).toLocaleDateString() : '-');
+
 const columns = [
-  { header: 'ID', accessor: 'id_factura' },
-  { header: 'Orden', accessor: 'id_orden' },
-  { header: 'Fecha', accessor: 'fecha_emision' },
-  { header: 'Cliente', accessor: 'cliente' },
-  { header: 'Equipo', accessor: 'equipo' },
-  { header: 'Técnico', accessor: 'tecnico' },
-  { header: 'Total', accessor: 'total' },
-  { header: 'Método de Pago', accessor: 'metodo_pago' },
+  { header: 'Repuesto', accessor: 'repuesto' },
+  { header: 'Categoría', accessor: 'categoria' },
+  { header: 'Cantidad total', accessor: 'cantidad_total' },
+  { header: 'Órdenes', accessor: 'ordenes_donde_se_uso' },
+  { header: 'Costo unitario', accessor: 'costo_unitario' },
+  { header: 'Costo estimado', accessor: 'costo_estimado_total' },
 ];
 
-export default function FacturasAvanzado() {
-  const [facturas, setFacturas] = useState([]);
+export default function RepuestosAvanzado() {
+  const [report, setReport] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [downloading, setDownloading] = useState(false);
 
-  const fetchFacturas = async () => {
+  const fetchReport = async () => {
     setLoading(true);
     setError('');
     try {
       const query = [];
       if (fromDate) query.push(`fecha_inicio=${fromDate}`);
       if (toDate) query.push(`fecha_fin=${toDate}`);
-      const url = `/admin_pro/reportes/facturacion${query.length ? `?${query.join('&')}` : ''}`;
+      const url = `/admin_pro/reportes/repuestos_usados${query.length ? `?${query.join('&')}` : ''}`;
       const res = await api.get(url);
       const data = res.data?.data || [];
-      setFacturas(
-        data.map((f) => ({
-          id_factura: f.id_factura,
-          id_orden: f.id_orden,
-          fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '- ',
-          cliente: f.cliente || '-',
-          equipo: f.equipo || '-',
-          tecnico: f.tecnico || '-',
-          total: f.total ? `$ ${Number(f.total).toFixed(2)}` : '$ 0.00',
-          metodo_pago: f.metodo_pago || '-',
+      setReport(
+        data.map((item) => ({
+          ...item,
+          costo_unitario: item.costo_unitario ? `$ ${Number(item.costo_unitario).toFixed(2)}` : '$ 0.00',
+          costo_estimado_total: item.costo_estimado_total ? `$ ${Number(item.costo_estimado_total).toFixed(2)}` : '$ 0.00',
         }))
       );
     } catch (err) {
-      setError('No se pudo cargar la información de facturas');
+      setError('No se pudo cargar el reporte de repuestos.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchFacturas();
+    fetchReport();
   }, []);
 
-  const downloadFacturas = async () => {
+  const downloadReport = async () => {
     setDownloading(true);
-    setError('');
     try {
-      downloadJsonCsv(facturas, columns, `facturacion_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
+      downloadJsonCsv(report, columns, `repuestos_usados_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
     } catch (err) {
       setError('No se pudo descargar el reporte.');
     } finally {
@@ -70,15 +64,15 @@ export default function FacturasAvanzado() {
   return (
     <div className="p-4 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Facturación avanzada</h2>
-        <p className="text-gray-500 mt-1">Analiza facturación por orden y período, con exportación directa.</p>
+        <h2 className="text-2xl font-bold">Repuestos usados - administración avanzada</h2>
+        <p className="text-gray-500 mt-1">Explora los repuestos más utilizados, sus costos y el impacto sobre las órdenes.</p>
       </div>
 
       <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end mb-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
           <div>
             <h3 className="text-lg font-semibold">Filtro por periodo</h3>
-            <p className="text-sm text-gray-500">Filtra la facturación por fecha de emisión.</p>
+            <p className="text-sm text-gray-500">Selecciona un rango de fechas para analizar repuestos aprobados.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 w-full max-w-3xl">
             <label className="block">
@@ -102,14 +96,14 @@ export default function FacturasAvanzado() {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={fetchFacturas}
+                onClick={fetchReport}
                 className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
               >
                 Consultar
               </button>
               <button
                 type="button"
-                onClick={downloadFacturas}
+                onClick={downloadReport}
                 disabled={downloading}
                 className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
@@ -119,9 +113,9 @@ export default function FacturasAvanzado() {
           </div>
         </div>
 
-        {loading && <div className="text-gray-600">Cargando facturas...</div>}
+        {loading && <div className="text-gray-600">Cargando reporte...</div>}
         {error && <div className="text-red-600">{error}</div>}
-        {!loading && !error && <Table columns={columns} data={facturas} />}
+        {!loading && !error && <Table columns={columns} data={report} />}
       </section>
     </div>
   );

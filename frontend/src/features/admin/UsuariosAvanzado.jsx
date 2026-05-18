@@ -12,18 +12,27 @@ const columns = [
     header: 'Acciones',
     accessor: 'acciones',
     render: (row) => (
-      <button
-        type="button"
-        onClick={() => row.onToggleActive?.()}
-        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${row.activo === 'Sí' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-green-600 text-white hover:bg-green-700'}`}
-      >
-        {row.activo === 'Sí' ? 'Desactivar' : 'Reactivar'}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={row.onToggleActive}
+          className={`rounded-full px-3 py-1 text-xs font-semibold transition ${row.activo === 'Sí' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-green-600 text-white hover:bg-green-700'}`}
+        >
+          {row.activo === 'Sí' ? 'Desactivar' : 'Reactivar'}
+        </button>
+        <button
+          type="button"
+          onClick={row.onEdit}
+          className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-white transition hover:bg-slate-900"
+        >
+          Editar
+        </button>
+      </div>
     ),
   },
 ];
 
-const fetchUsuarios = async (setUsuarios, setLoading, setError, onToggleActive) => {
+const fetchUsuarios = async (setUsuarios, setLoading, setError, onToggleActive, onEdit) => {
   setLoading(true);
   try {
     const response = await api.get('/admin_pro/usuarios');
@@ -37,6 +46,8 @@ const fetchUsuarios = async (setUsuarios, setLoading, setError, onToggleActive) 
           rol: u.rol,
           activo: u.activo ? 'Sí' : 'No',
           onToggleActive: onToggleActive ? () => onToggleActive(u.id_usuario, u.activo) : undefined,
+          onEdit: onEdit ? () => onEdit(u) : undefined,
+          raw: u,
         }))
       );
     } else {
@@ -55,6 +66,10 @@ export default function UsuariosAvanzado() {
   const [formError, setFormError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [creating, setCreating] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [selectedUsuario, setSelectedUsuario] = useState(null);
+  const [editMessage, setEditMessage] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
   const [formData, setFormData] = useState({
     nombre_usuario: '',
     correo_electronico: '',
@@ -78,14 +93,41 @@ export default function UsuariosAvanzado() {
         activo: !activo,
       });
       setSuccessMessage(`Usuario ${activo ? 'desactivado' : 'reactivado'} correctamente.`);
-      fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo);
+      fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario);
     } catch (error) {
       setError(error.response?.data?.error || `No se pudo ${action} al usuario`);
     }
   };
 
+  const handleEditUsuario = (usuario) => {
+    setSelectedUsuario(usuario);
+    setEditMessage('');
+  };
+
+  const handleUpdateUsuario = async (event) => {
+    event.preventDefault();
+    if (!selectedUsuario) return;
+
+    setEditLoading(true);
+    setEditMessage('');
+    try {
+      await api.put(`/admin_pro/usuarios/${selectedUsuario.id_usuario}`, {
+        nombre_usuario: selectedUsuario.nombre_usuario,
+        correo_electronico: selectedUsuario.correo_electronico === '-' ? null : selectedUsuario.correo_electronico,
+        rol: selectedUsuario.rol,
+        activo: selectedUsuario.activo === 'Sí',
+      });
+      setEditMessage('Usuario actualizado correctamente.');
+      fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario);
+    } catch (updateError) {
+      setEditMessage(updateError.response?.data?.error || 'No se pudo actualizar el usuario.');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo);
+    fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario);
   }, []);
 
   const handleInputChange = (event) => {
@@ -130,7 +172,7 @@ export default function UsuariosAvanzado() {
           horario: '',
           contacto: '',
         });
-        fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo);
+        fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario);
       } else {
         setFormError('No se pudo crear el usuario.');
       }
@@ -142,143 +184,229 @@ export default function UsuariosAvanzado() {
     }
   };
 
-  return (
-    <div className="p-4">
-      <h2 className="text-2xl font-bold mb-4">Gestión avanzada de usuarios</h2>
+  const filteredUsuarios = usuarios.filter((usuario) => {
+    const term = searchText.trim().toLowerCase();
+    if (!term) return true;
+    return [usuario.nombre_usuario, usuario.correo_electronico, usuario.rol, usuario.activo].some((field) => field?.toLowerCase().includes(term));
+  });
 
-      <section className="mb-8 bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">
-          <div>
-            <h3 className="text-xl font-semibold">Crear nuevo usuario</h3>
-            <p className="text-sm text-gray-500">Agrega usuarios y asigna el rol correcto para el acceso.</p>
+  return (
+    <div className="p-4 space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Gestión avanzada de usuarios</h2>
+          <p className="text-gray-500 mt-1">Crea, edita y administra los cuentas con permisos de administrador y acceso avanzado.</p>
+        </div>
+        <input
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Buscar usuario, rol o estado"
+          className="w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 sm:w-80"
+        />
+      </div>
+
+      <section className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-semibold">Crear nuevo usuario</h3>
+                <p className="text-sm text-gray-500">Agrega usuarios y asigna el rol correcto para el acceso.</p>
+              </div>
+              <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700">
+                Rol asignado: {formData.rol}
+              </span>
+            </div>
+
+            {formError && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>}
+            {successMessage && <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>}
+
+            <form onSubmit={handleCreateUsuario} className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">Nombre de usuario</span>
+                <input
+                  type="text"
+                  name="nombre_usuario"
+                  value={formData.nombre_usuario}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                  placeholder="ejemplo123"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">Correo electrónico</span>
+                <input
+                  type="email"
+                  name="correo_electronico"
+                  value={formData.correo_electronico}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                  placeholder="usuario@correo.com"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">Contraseña</span>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                  placeholder="********"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-gray-700">Rol</span>
+                <select
+                  name="rol"
+                  value={formData.rol}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                >
+                  <option value="Administrador">Administrador</option>
+                  <option value="Secretaria">Secretaria</option>
+                  <option value="TecnicoJefe">Tecnico Jefe</option>
+                  <option value="Tecnico">Tecnico</option>
+                  <option value="admin_pro">admin_pro</option>
+                </select>
+              </label>
+
+              {formData.rol === 'Tecnico' && (
+                <>
+                  <label className="block">
+                    <span className="text-sm font-medium text-gray-700">Especialidad</span>
+                    <input
+                      type="text"
+                      name="especialidad"
+                      value={formData.especialidad}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                      placeholder="Ej: Microelectrónica"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm font-medium text-gray-700">Horario</span>
+                    <input
+                      type="text"
+                      name="horario"
+                      value={formData.horario}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                      placeholder="Ej: L-V 08:00-17:00"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm font-medium text-gray-700">Contacto</span>
+                    <input
+                      type="text"
+                      name="contacto"
+                      value={formData.contacto}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                      placeholder="Teléfono o email"
+                    />
+                  </label>
+                </>
+              )}
+
+              <label className="flex items-center gap-3 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="activo"
+                  checked={formData.activo}
+                  onChange={handleInputChange}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>Activo</span>
+              </label>
+
+              <div className="md:col-span-2">
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition"
+                >
+                  {creating ? 'Creando usuario...' : 'Crear usuario'}
+                </button>
+              </div>
+            </form>
           </div>
-          <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700">
-            Rol asignado: {formData.rol}
-          </span>
+
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <h3 className="text-xl font-semibold mb-4">Listado de usuarios</h3>
+            <Table columns={columns} data={filteredUsuarios} />
+          </div>
         </div>
 
-        {formError && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>}
-        {successMessage && <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>}
-
-        <form onSubmit={handleCreateUsuario} className="grid gap-4 md:grid-cols-2">
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Nombre de usuario</span>
-            <input
-              type="text"
-              name="nombre_usuario"
-              value={formData.nombre_usuario}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-              placeholder="ejemplo123"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Correo electrónico</span>
-            <input
-              type="email"
-              name="correo_electronico"
-              value={formData.correo_electronico}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-              placeholder="usuario@correo.com"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Contraseña</span>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-              placeholder="********"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-gray-700">Rol</span>
-            <select
-              name="rol"
-              value={formData.rol}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-            >
-              <option value="Administrador">Administrador</option>
-              <option value="Secretaria">Secretaria</option>
-              <option value="TecnicoJefe">Tecnico Jefe</option>
-              <option value="Tecnico">Tecnico</option>
-              <option value="admin_pro">admin_pro</option>
-            </select>
-          </label>
-
-          {formData.rol === 'Tecnico' && (
-            <>
-              <label className="block">
-                <span className="text-sm font-medium text-gray-700">Especialidad</span>
-                <input
-                  type="text"
-                  name="especialidad"
-                  value={formData.especialidad}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                  placeholder="Ej: Microelectrónica"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-gray-700">Horario</span>
-                <input
-                  type="text"
-                  name="horario"
-                  value={formData.horario}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                  placeholder="Ej: L-V 08:00-17:00"
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-gray-700">Contacto</span>
-                <input
-                  type="text"
-                  name="contacto"
-                  value={formData.contacto}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                  placeholder="Teléfono o email"
-                />
-              </label>
-            </>
-          )}
-
-          <label className="flex items-center gap-3 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              name="activo"
-              checked={formData.activo}
-              onChange={handleInputChange}
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            Usuario activo
-          </label>
-
-          <div className="md:col-span-2 flex justify-end">
-            <button
-              type="submit"
-              disabled={creating}
-              className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
-            >
-              {creating ? 'Creando...' : 'Crear usuario'}
-            </button>
+        <div className="space-y-6">
+          <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
+            <h3 className="text-lg font-semibold">Modo administrador</h3>
+            <p className="mt-3 text-sm leading-7 text-slate-300">Edita roles, cambia el estado de cuentas y controla perfiles dentro del sistema de la empresa.</p>
           </div>
-        </form>
-      </section>
 
-      {loading && <div>Cargando...</div>}
-      {error && <div className="text-red-500">{error}</div>}
-      <Table columns={columns} data={usuarios} />
+          {selectedUsuario && (
+            <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
+              <h3 className="text-xl font-semibold mb-4">Editar usuario seleccionado</h3>
+              <form onSubmit={handleUpdateUsuario} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Nombre de usuario</label>
+                  <input
+                    type="text"
+                    value={selectedUsuario.nombre_usuario}
+                    onChange={(e) => setSelectedUsuario((prev) => ({ ...prev, nombre_usuario: e.target.value }))}
+                    className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Correo electrónico</label>
+                  <input
+                    type="email"
+                    value={selectedUsuario.correo_electronico === '-' ? '' : selectedUsuario.correo_electronico}
+                    onChange={(e) => setSelectedUsuario((prev) => ({ ...prev, correo_electronico: e.target.value }))}
+                    className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Rol</label>
+                  <select
+                    value={selectedUsuario.rol}
+                    onChange={(e) => setSelectedUsuario((prev) => ({ ...prev, rol: e.target.value }))}
+                    className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  >
+                    <option value="Administrador">Administrador</option>
+                    <option value="Secretaria">Secretaria</option>
+                    <option value="TecnicoJefe">Tecnico Jefe</option>
+                    <option value="Tecnico">Tecnico</option>
+                    <option value="admin_pro">admin_pro</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedUsuario.activo === 'Sí'}
+                    onChange={(e) => setSelectedUsuario((prev) => ({ ...prev, activo: e.target.checked ? 'Sí' : 'No' }))}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm text-slate-700">Activo</span>
+                </div>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition"
+                >
+                  {editLoading ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+                {editMessage && <div className="text-sm text-slate-600 mt-2">{editMessage}</div>}
+              </form>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

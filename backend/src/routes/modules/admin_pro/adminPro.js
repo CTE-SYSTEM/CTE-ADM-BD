@@ -14,6 +14,13 @@ import {
   updateUsuario,
   deleteUsuario,
   getMonitoreoGeneral,
+  getDashboardResumen,
+  updateOrdenAdmin,
+  updateRepuestoAdmin,
+  getRepuestosPorOrdenAdmin,
+  downloadRepuestosPorOrdenAdmin,
+  getEquipoUltimoDiagnostico,
+  updateDiagnosticoEstadoAdmin,
   getHistorialEquipo,
   getHistorialRepuesto,
   getReporteAdminPro
@@ -29,6 +36,18 @@ router.get('/equipos/:id/historial', getHistorialEquipo);
 router.get('/repuestos', getRepuestosAvanzado);
 router.get('/repuestos/:id/historial', getHistorialRepuesto);
 router.get('/ordenes', getOrdenesAvanzado);
+router.get('/ordenes/:id/repuestos', getRepuestosPorOrdenAdmin);
+router.get('/ordenes/:id/repuestos/reporte', downloadRepuestosPorOrdenAdmin);
+router.post('/ordenes/crear', async (req, res, next) => {
+  try {
+    const { createOrden } = await import('../../../controllers/Secretaria/NuevaOrdenControllers.js');
+    return createOrden(req, res);
+  } catch (error) {
+    next(error);
+  }
+});
+router.get('/equipos/:id/diagnostico', getEquipoUltimoDiagnostico);
+router.patch('/diagnosticos/:id/estado', updateDiagnosticoEstadoAdmin);
 router.get('/facturas', getFacturasAvanzado);
 router.get('/garantias', getGarantiasAdmin);
 router.post('/garantias', createGarantiaAdmin);
@@ -39,6 +58,9 @@ router.post('/usuarios', createUsuario);
 router.put('/usuarios/:id', updateUsuario);
 router.delete('/usuarios/:id', deleteUsuario);
 
+router.get('/dashboard', getDashboardResumen);
+router.put('/ordenes/:id', updateOrdenAdmin);
+router.put('/repuestos/:id', updateRepuestoAdmin);
 router.get('/monitoreo', getMonitoreoGeneral);
 router.get('/reportes/:tipo', getReporteAdminPro);
 
