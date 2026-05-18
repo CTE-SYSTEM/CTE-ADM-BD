@@ -31,19 +31,39 @@ const upcomingGarantiasColumns = [
   { header: 'Vence', accessor: 'fecha_vencimiento' },
 ];
 
+const equiposPreviewColumns = [
+  { header: 'ID', accessor: 'id_equipo' },
+  { header: 'Cliente', accessor: 'cliente' },
+  { header: 'Equipo', accessor: 'equipo' },
+  { header: 'Estado', accessor: 'estado' },
+];
+
 export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null);
+  const [equiposPreview, setEquiposPreview] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       setLoading(true);
       try {
-        const res = await api.get('/admin_pro/dashboard');
+        const [res, equiposRes] = await Promise.all([
+          api.get('/admin_pro/dashboard'),
+          api.get('/admin_pro/equipos'),
+        ]);
         const data = res.data;
         if (data.data) {
           setDashboard(data.data);
+          setEquiposPreview(
+            (equiposRes.data?.data || []).slice(0, 6).map((equipo) => ({
+              id_equipo: equipo.id_equipo,
+              cliente: equipo.cliente?.nombre || '-',
+              equipo: [equipo.marca, equipo.modelo].filter(Boolean).join(' ') || equipo.tipo || '-',
+              estado: equipo.diagnosticos?.[0]?.estado_del_diagnostico || '-',
+            }))
+          );
         } else {
           setError('No se pudo cargar el panel de administración');
         }
@@ -62,7 +82,14 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold">Panel avanzado de administración</h1>
           <p className="text-gray-500 mt-1">Accede rápidamente a los principales indicadores y gestiona la empresa desde aquí.</p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowHelp((prev) => !prev)}
+            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+          >
+            {showHelp ? 'Ocultar ayuda' : 'Ayuda'}
+          </button>
           <Link to="/admin/usuarios" className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition">Usuarios</Link>
           <Link to="/admin/equipos" className="rounded-full bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 transition">Equipos</Link>
           <Link to="/admin/ordenes" className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition">Órdenes</Link>
@@ -76,21 +103,41 @@ export default function AdminDashboard() {
       {loading && <div className="rounded-xl bg-white p-6 shadow-sm text-gray-600">Cargando datos del panel...</div>}
       {error && <div className="rounded-xl bg-red-50 p-6 text-red-700 shadow-sm">{error}</div>}
 
+      {showHelp && (
+        <section className="rounded-3xl bg-slate-50 p-6 shadow-sm border border-slate-200">
+          <h2 className="text-xl font-semibold">Cómo usar el panel Admin Pro</h2>
+          <p className="mt-3 text-sm text-slate-600 leading-7">
+            Este panel centraliza los principales indicadores de la administración. Usa los botones rápidos para navegar por las secciones de equipos,
+            órdenes, repuestos, compras y usuarios.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-white p-4 border border-slate-200">
+              <p className="text-sm font-semibold text-slate-800">Resumen</p>
+              <p className="mt-2 text-sm text-slate-600">Los bloques superiores muestran métricas clave de equipos, órdenes, garantías y usuarios.</p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 border border-slate-200">
+              <p className="text-sm font-semibold text-slate-800">Acciones rápidas</p>
+              <p className="mt-2 text-sm text-slate-600">En la sección inferior encontrarás accesos directos para revisar equipos, gestionar órdenes y controlar inventario.</p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {dashboard && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {summaryCards.map((card) => (
-              <div key={card.key} className="rounded-3xl bg-white p-5 shadow-sm border border-gray-100">
+              <div key={card.key} className="rounded-3xl bg-white p-5 shadow-sm border border-gray-100 min-h-[170px]">
                 <div className={`inline-flex rounded-full bg-gradient-to-r ${card.color} bg-opacity-10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-slate-700`}>{card.title}</div>
                 <div className="mt-6 flex items-end gap-3">
-                  <span className="text-4xl font-bold text-slate-900">{dashboard.totals[card.key] ?? '-'}</span>
+                  <span className="text-4xl font-bold text-slate-900">{dashboard.totals[card.key] ?? 0}</span>
                   <span className="text-sm text-gray-500">Resultados</span>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr_0.9fr]">
             <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
@@ -99,6 +146,22 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <Table columns={latestOrdersColumns} data={dashboard.latestOrders} />
+            </section>
+
+            <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Vista previa de equipos</h2>
+                  <p className="text-sm text-gray-500">Equipos registrados para revisar sin salir del panel.</p>
+                </div>
+                <Link
+                  to="/admin/equipos"
+                  className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Ver todos
+                </Link>
+              </div>
+              <Table columns={equiposPreviewColumns} data={equiposPreview} />
             </section>
 
             <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">

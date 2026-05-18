@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
-import { downloadJsonCsv } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 const columns = [
   { header: 'ID', accessor: 'id_repuesto' },
@@ -66,12 +66,23 @@ export default function InventarioAvanzado() {
     fetchInventario(setRepuestos, setLoading, setError);
   }, []);
 
-  const downloadInventory = async () => {
+  const downloadInventoryCsv = async () => {
     setDownloading(true);
     try {
       downloadJsonCsv(repuestos, columns, 'inventario_repuestos.csv');
     } catch (err) {
       setError('No se pudo descargar el reporte de inventario.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadInventoryPdf = async () => {
+    setDownloading(true);
+    try {
+      downloadJsonPdf(repuestos, columns, 'inventario_repuestos.pdf', 'Inventario de repuestos');
+    } catch (err) {
+      setError('No se pudo descargar el reporte de inventario en PDF.');
     } finally {
       setDownloading(false);
     }
@@ -138,11 +149,19 @@ export default function InventarioAvanzado() {
             />
             <button
               type="button"
-              onClick={downloadInventory}
+              onClick={downloadInventoryCsv}
               disabled={downloading}
               className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {downloading ? 'Descargando...' : 'Exportar inventario'}
+              {downloading ? 'Descargando...' : 'Exportar CSV'}
+            </button>
+            <button
+              type="button"
+              onClick={downloadInventoryPdf}
+              disabled={downloading}
+              className="inline-flex items-center justify-center rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              {downloading ? 'Descargando...' : 'Exportar PDF'}
             </button>
           </div>
         </div>

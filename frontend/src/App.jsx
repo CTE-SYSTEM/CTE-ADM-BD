@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { createBrowserRouter, RouterProvider, Outlet, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Outlet, Navigate, useLocation } from 'react-router-dom';
 
 // Componentes Globales
 import Sidebar from './components/Sidebar';
@@ -12,21 +12,21 @@ import { AuthProvider, AuthContext } from './context/AuthContext';
 import Login from './pages/Auth/Login';
 
 // --- SECCIÓN ADMINISTRADOR ---
-import AdminDashboard from './features/admin/AdminDashboard';
-import UsuariosAvanzado from './features/admin/UsuariosAvanzado';
-import EquiposAvanzado from './features/admin/EquiposAvanzado';
-import OrdenesAvanzado from './features/admin/OrdenesAvanzado';
-import InventarioAvanzado from './features/admin/InventarioAvanzado';
-import FacturasAvanzado from './features/admin/FacturasAvanzado';
-import GarantiasAvanzado from './features/admin/GarantiasAvanzado';
-import HistorialEquipo from './features/admin/HistorialEquipo';
-import HistorialRepuesto from './features/admin/HistorialRepuesto';
-import RepuestosAvanzado from './features/admin/RepuestosAvanzado';
-import ComprasAvanzado from './features/admin/ComprasAvanzado';
-import RendimientoTecnicos from './features/admin/RendimientoTecnicos';
-import OrdenesEstadoAvanzado from './features/admin/OrdenesEstadoAvanzado';
-import DiagnosticosEstadoAvanzado from './features/admin/DiagnosticosEstadoAvanzado';
-import ClientesAvanzado from './features/admin/ClientesAvanzado';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import UsuariosAvanzado from './pages/admin/UsuariosAvanzado';
+import EquiposAvanzado from './pages/admin/EquiposAvanzado';
+import OrdenesAvanzado from './pages/admin/OrdenesAvanzado';
+import InventarioAvanzado from './pages/admin/InventarioAvanzado';
+import FacturasAvanzado from './pages/admin/FacturasAvanzado';
+import GarantiasAvanzado from './pages/admin/GarantiasAvanzado';
+import HistorialEquipo from './pages/admin/HistorialEquipo';
+import HistorialRepuesto from './pages/admin/HistorialRepuesto';
+import RepuestosAvanzado from './pages/admin/RepuestosAvanzado';
+import ComprasAvanzado from './pages/admin/ComprasAvanzado';
+import RendimientoTecnicos from './pages/admin/RendimientoTecnicos';
+import OrdenesEstadoAvanzado from './pages/admin/OrdenesEstadoAvanzado';
+import DiagnosticosEstadoAvanzado from './pages/admin/DiagnosticosEstadoAvanzado';
+import ClientesAvanzado from './pages/admin/ClientesAvanzado';
 
 // --- SECCIÓN SECRETARIA ---
 import SecretariaDashboard from './pages/Secretaria/SecretariaDashboard';
@@ -51,17 +51,24 @@ function App() {
   const toggleSidebar = () => setSidebarOpen((s) => !s);
 
   // Layout estándar con Sidebar y Navbar (Admin, Secretaria, Técnico)
-  const MainLayout = () => (
-    <div className="flex h-screen bg-gray-50 text-gray-900">
-      <Sidebar open={sidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar onToggleSidebar={toggleSidebar} />
-        <main className="flex-1 overflow-auto p-6">
-          <Outlet />
-        </main>
+  const MainLayout = () => {
+    const location = useLocation();
+    const isAdminRoute = location.pathname === '/' || location.pathname.startsWith('/admin');
+
+    return (
+      <div className="flex h-screen bg-gray-50 text-gray-900">
+        <Sidebar open={sidebarOpen} />
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <Navbar onToggleSidebar={toggleSidebar} />
+          <main className={`flex-1 overflow-auto ${isAdminRoute ? 'admin-main' : 'p-6'}`}>
+            <div className={`mx-auto w-full ${isAdminRoute ? 'admin-content' : 'max-w-7xl'}`}>
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const router = createBrowserRouter(
     [

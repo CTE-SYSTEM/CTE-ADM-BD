@@ -125,6 +125,7 @@ export const getOrdenesAvanzado = async (req, res) => {
             equipo: true
           }
         },
+        tecnico: true,
         repuestos_usados: true,
         facturas: true
       }
@@ -253,6 +254,52 @@ export const updateGarantiaAdmin = async (req, res) => {
   }
 };
 
+export const renewGarantiaAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { duracion_meses, condiciones } = req.body;
+
+    const garantiaActual = await prisma.garantias.findUnique({
+      where: { id_garantia: Number(id) }
+    });
+
+    if (!garantiaActual) {
+      return res.status(404).json({ error: 'Garantía no encontrada' });
+    }
+
+    const duracion = duracion_meses !== undefined && duracion_meses !== null
+      ? parseInt(duracion_meses, 10)
+      : garantiaActual.duracion_meses ?? 3;
+
+    if (!Number.isInteger(duracion) || duracion < 1 || duracion > 36) {
+      return res.status(400).json({ error: 'Duración inválida. Debe ser entre 1 y 36 meses.' });
+    }
+
+    const fecha_inicio = new Date();
+    const fecha_vencimiento = new Date(fecha_inicio);
+    fecha_vencimiento.setMonth(fecha_vencimiento.getMonth() + duracion);
+
+    const garantia = await prisma.garantias.update({
+      where: { id_garantia: Number(id) },
+      data: {
+        duracion_meses: duracion,
+        condiciones: condiciones !== undefined ? condiciones : garantiaActual.condiciones,
+        fecha_inicio,
+        fecha_vencimiento
+      }
+    });
+
+    const vencidaAnteriormente = garantiaActual.fecha_vencimiento ? new Date(garantiaActual.fecha_vencimiento) < new Date() : true;
+    const mensaje = vencidaAnteriormente
+      ? 'Garantía vencida. Se ha renovado la vigencia para la misma factura.'
+      : 'Garantía revalidada correctamente.';
+
+    res.json({ message: mensaje, data: garantia });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al renovar garantía', details: error.message });
+  }
+};
+
 // 5. Gestión de usuarios y roles (solo admin_pro)
 export const getUsuarios = async (req, res) => {
   try {
@@ -320,6 +367,35 @@ export const updateUsuario = async (req, res) => {
     res.json({ data: usuario });
   } catch (error) {
     res.status(500).json({ error: 'Error al actualizar usuario', details: error.message });
+  }
+};
+
+export const updateUsuarioPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (req.user?.rol !== 'admin_pro') {
+      return res.status(403).json({ error: 'Solo admin_pro puede cambiar contrasenas de usuarios' });
+    }
+
+    if (!password || String(password).trim().length < 6) {
+      return res.status(400).json({ error: 'La nueva contrasena debe tener al menos 6 caracteres' });
+    }
+
+    const hash = await bcrypt.hash(String(password), 10);
+    const rows = await prisma.$queryRaw(
+      Prisma.sql`SELECT admin_pro.cambiar_password_usuario(${req.user.rol}, ${Number(id)}, ${hash}) AS result`
+    );
+    const result = rows?.[0]?.result;
+
+    if (result?.error) {
+      return res.status(result.error.includes('Solo admin_pro') ? 403 : 400).json({ error: result.error });
+    }
+
+    res.json({ message: result?.success || 'Contrasena actualizada correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al cambiar contrasena', details: error.message });
   }
 };
 

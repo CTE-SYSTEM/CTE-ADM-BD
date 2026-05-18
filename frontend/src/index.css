@@ -211,3 +211,125 @@ code {
 .text-muted { color: var(--text); }
 .table-fixed th { background: transparent; }
 
+/* Admin Pro layout normalisation */
+.admin-main {
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.admin-content {
+  max-width: 1600px;
+}
+
+.admin-content > div {
+  width: 100%;
+  max-width: 100%;
+  padding: 0 !important;
+}
+
+.admin-main *,
+.admin-main *::before,
+.admin-main *::after {
+  box-sizing: border-box;
+}
+
+.admin-main h1,
+.admin-main h2,
+.admin-main h3,
+.admin-main h4 {
+  margin: 0;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.admin-main h1 {
+  font-size: clamp(1.6rem, 1.1rem + 1vw, 2.15rem);
+  font-weight: 800;
+}
+
+.admin-main h2 {
+  font-size: clamp(1.25rem, 1rem + 0.45vw, 1.55rem);
+  font-weight: 800;
+}
+
+.admin-main h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.admin-main p {
+  line-height: 1.55;
+}
+
+.admin-main .grid,
+.admin-main .flex,
+.admin-main section,
+.admin-main form,
+.admin-main label,
+.admin-main input,
+.admin-main select,
+.admin-main textarea {
+  min-width: 0;
+}
+
+.admin-main input,
+.admin-main select,
+.admin-main textarea {
+  max-width: 100%;
+}
+
+.admin-main button,
+.admin-main a[href] {
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.admin-main button,
+.admin-main [role='button'],
+.admin-main a[href^='/admin'] {
+  border-radius: 0.625rem !important;
+}
+
+.admin-main [class*='rounded-3xl'],
+.admin-main [class*='rounded-2xl'] {
+  border-radius: 0.875rem !important;
+}
+
+.admin-main [class^='p-6'],
+.admin-main [class*=' p-6'] {
+  padding: 1rem !important;
+}
+
+.admin-main [class*='space-y-6'] > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1rem !important;
+}
+
+.admin-main .custom-scrollbar {
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .admin-main {
+    padding: 18px;
+  }
+
+  .admin-main [class^='p-6'],
+  .admin-main [class*=' p-6'] {
+    padding: 1.25rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-main {
+    padding: 10px;
+  }
+
+  .admin-main button,
+  .admin-main a[href^='/admin'] {
+    width: 100%;
+  }
+}
+

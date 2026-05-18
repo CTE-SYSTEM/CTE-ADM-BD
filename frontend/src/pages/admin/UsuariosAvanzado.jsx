@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import Table from '../../components/Table';
+import { AuthContext } from '../../context/AuthContext';
 
-const columns = [
+const buildColumns = (canResetPassword) => [
   { header: 'ID', accessor: 'id_usuario' },
   { header: 'Usuario', accessor: 'nombre_usuario' },
   { header: 'Correo', accessor: 'correo_electronico' },
@@ -27,12 +28,21 @@ const columns = [
         >
           Editar
         </button>
+        {canResetPassword && (
+          <button
+            type="button"
+            onClick={row.onPassword}
+            className="rounded-full bg-amber-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-amber-700"
+          >
+            Contrasena
+          </button>
+        )}
       </div>
     ),
   },
 ];
 
-const fetchUsuarios = async (setUsuarios, setLoading, setError, onToggleActive, onEdit) => {
+const fetchUsuarios = async (setUsuarios, setLoading, setError, onToggleActive, onEdit, onPassword) => {
   setLoading(true);
   try {
     const response = await api.get('/admin_pro/usuarios');
@@ -47,6 +57,7 @@ const fetchUsuarios = async (setUsuarios, setLoading, setError, onToggleActive, 
           activo: u.activo ? 'Sí' : 'No',
           onToggleActive: onToggleActive ? () => onToggleActive(u.id_usuario, u.activo) : undefined,
           onEdit: onEdit ? () => onEdit(u) : undefined,
+          onPassword: onPassword ? () => onPassword(u) : undefined,
           raw: u,
         }))
       );
@@ -60,6 +71,7 @@ const fetchUsuarios = async (setUsuarios, setLoading, setError, onToggleActive, 
 };
 
 export default function UsuariosAvanzado() {
+  const { user } = useContext(AuthContext);
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -68,6 +80,10 @@ export default function UsuariosAvanzado() {
   const [creating, setCreating] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedUsuario, setSelectedUsuario] = useState(null);
+  const [passwordUsuario, setPasswordUsuario] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [editMessage, setEditMessage] = useState('');
   const [editLoading, setEditLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -80,6 +96,8 @@ export default function UsuariosAvanzado() {
     horario: '',
     contacto: '',
   });
+  const canResetPassword = user?.rol === 'admin_pro';
+  const columns = useMemo(() => buildColumns(canResetPassword), [canResetPassword]);
 
   const handleToggleUsuarioActivo = async (id_usuario, activo) => {
     const action = activo ? 'desactivar' : 'reactivar';
@@ -93,7 +111,7 @@ export default function UsuariosAvanzado() {
         activo: !activo,
       });
       setSuccessMessage(`Usuario ${activo ? 'desactivado' : 'reactivado'} correctamente.`);
-      fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario);
+      fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario, handlePasswordUsuario);
     } catch (error) {
       setError(error.response?.data?.error || `No se pudo ${action} al usuario`);
     }
@@ -102,6 +120,12 @@ export default function UsuariosAvanzado() {
   const handleEditUsuario = (usuario) => {
     setSelectedUsuario(usuario);
     setEditMessage('');
+  };
+
+  const handlePasswordUsuario = (usuario) => {
+    setPasswordUsuario(usuario);
+    setNewPassword('');
+    setPasswordMessage('');
   };
 
   const handleUpdateUsuario = async (event) => {
@@ -118,7 +142,7 @@ export default function UsuariosAvanzado() {
         activo: selectedUsuario.activo === 'Sí',
       });
       setEditMessage('Usuario actualizado correctamente.');
-      fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario);
+      fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario, handlePasswordUsuario);
     } catch (updateError) {
       setEditMessage(updateError.response?.data?.error || 'No se pudo actualizar el usuario.');
     } finally {
@@ -126,8 +150,32 @@ export default function UsuariosAvanzado() {
     }
   };
 
+  const handleUpdatePassword = async (event) => {
+    event.preventDefault();
+    if (!passwordUsuario) return;
+
+    if (!newPassword.trim() || newPassword.trim().length < 6) {
+      setPasswordMessage('La nueva contrasena debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordMessage('');
+    try {
+      const response = await api.put(`/admin_pro/usuarios/${passwordUsuario.id_usuario}/password`, {
+        password: newPassword.trim(),
+      });
+      setPasswordMessage(response.data?.message || 'Contrasena actualizada correctamente.');
+      setNewPassword('');
+    } catch (passwordError) {
+      setPasswordMessage(passwordError.response?.data?.error || 'No se pudo actualizar la contrasena.');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario);
+    fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario, handlePasswordUsuario);
   }, []);
 
   const handleInputChange = (event) => {
@@ -172,7 +220,7 @@ export default function UsuariosAvanzado() {
           horario: '',
           contacto: '',
         });
-        fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario);
+        fetchUsuarios(setUsuarios, setLoading, setError, handleToggleUsuarioActivo, handleEditUsuario, handlePasswordUsuario);
       } else {
         setFormError('No se pudo crear el usuario.');
       }
@@ -346,8 +394,38 @@ export default function UsuariosAvanzado() {
         <div className="space-y-6">
           <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
             <h3 className="text-lg font-semibold">Modo administrador</h3>
-            <p className="mt-3 text-sm leading-7 text-slate-300">Edita roles, cambia el estado de cuentas y controla perfiles dentro del sistema de la empresa.</p>
+            <p className="mt-3 text-sm leading-7 text-slate-300">
+              Edita roles, cambia el estado de cuentas y controla perfiles dentro del sistema de la empresa.
+              {canResetPassword ? ' Como admin_pro tambien puedes reasignar contrasenas.' : ''}
+            </p>
           </div>
+
+          {canResetPassword && passwordUsuario && (
+            <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
+              <h3 className="text-xl font-semibold mb-2">Cambiar contrasena</h3>
+              <p className="mb-4 text-sm text-gray-500">Usuario: {passwordUsuario.nombre_usuario}</p>
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Nueva contrasena</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    placeholder="Minimo 6 caracteres"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="rounded-2xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-slate-400 transition"
+                >
+                  {passwordLoading ? 'Actualizando...' : 'Asignar nueva contrasena'}
+                </button>
+                {passwordMessage && <div className="text-sm text-slate-600 mt-2">{passwordMessage}</div>}
+              </form>
+            </div>
+          )}
 
           {selectedUsuario && (
             <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">

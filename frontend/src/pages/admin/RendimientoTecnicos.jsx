@@ -1,63 +1,69 @@
 import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
-import { downloadJsonCsv } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 const columns = [
-  { header: 'Compra', accessor: 'id_compra' },
-  { header: 'Fecha', accessor: 'fecha_obtencion' },
-  { header: 'Proveedor', accessor: 'proveedor' },
-  { header: 'Repuesto', accessor: 'repuesto' },
-  { header: 'Documento', accessor: 'documento' },
-  { header: 'Cantidad', accessor: 'cantidad' },
-  { header: 'Costo unitario', accessor: 'costo_unitario' },
-  { header: 'Costo total', accessor: 'costo_total' },
-  { header: 'Pago', accessor: 'metodo_pago' },
+  { header: 'Técnico', accessor: 'tecnico' },
+  { header: 'Diagnósticos asignados', accessor: 'diagnosticos_asignados' },
+  { header: 'Diagnósticos completados', accessor: 'diagnosticos_completados' },
+  { header: 'Órdenes asignadas', accessor: 'ordenes_asignadas' },
+  { header: 'Órdenes finalizadas', accessor: 'ordenes_finalizadas' },
+  { header: 'Total facturado', accessor: 'total_facturado' },
 ];
 
-export default function ComprasAvanzado() {
-  const [compras, setCompras] = useState([]);
+export default function RendimientoTecnicos() {
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [downloading, setDownloading] = useState(false);
 
-  const fetchCompras = async () => {
+  const fetchReport = async () => {
     setLoading(true);
     setError('');
     try {
       const query = [];
       if (fromDate) query.push(`fecha_inicio=${fromDate}`);
       if (toDate) query.push(`fecha_fin=${toDate}`);
-      const url = `/admin_pro/reportes/compras${query.length ? `?${query.join('&')}` : ''}`;
+      const url = `/admin_pro/reportes/tecnicos${query.length ? `?${query.join('&')}` : ''}`;
       const res = await api.get(url);
       const data = res.data?.data || [];
-      setCompras(
+      setData(
         data.map((item) => ({
           ...item,
-          fecha_obtencion: item.fecha_obtencion ? new Date(item.fecha_obtencion).toLocaleDateString() : '-',
-          costo_unitario: item.costo_unitario ? `$ ${Number(item.costo_unitario).toFixed(2)}` : '$ 0.00',
-          costo_total: item.costo_total ? `$ ${Number(item.costo_total).toFixed(2)}` : '$ 0.00',
+          total_facturado: item.total_facturado ? `$ ${Number(item.total_facturado).toFixed(2)}` : '$ 0.00',
         }))
       );
     } catch (err) {
-      setError('No se pudo cargar las compras.');
+      setError('No se pudo cargar el rendimiento de técnicos.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCompras();
+    fetchReport();
   }, []);
 
-  const downloadCompras = async () => {
+  const downloadReportCsv = async () => {
     setDownloading(true);
     try {
-      downloadJsonCsv(compras, columns, `compras_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
+      downloadJsonCsv(data, columns, `rendimiento_tecnicos_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
     } catch (err) {
-      setError('No se pudo descargar el reporte de compras.');
+      setError('No se pudo descargar el reporte.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadReportPdf = async () => {
+    setDownloading(true);
+    try {
+      downloadJsonPdf(data, columns, `rendimiento_tecnicos_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Rendimiento de técnicos');
+    } catch (err) {
+      setError('No se pudo descargar el reporte en PDF.');
     } finally {
       setDownloading(false);
     }
@@ -66,15 +72,15 @@ export default function ComprasAvanzado() {
   return (
     <div className="p-4 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Compras y proveedores</h2>
-        <p className="text-gray-500 mt-1">Monitorea compras de repuestos y los montos pagados a proveedores.</p>
+        <h2 className="text-2xl font-bold">Rendimiento de técnicos</h2>
+        <p className="text-gray-500 mt-1">Evalúa la productividad y facturación por técnico en el periodo seleccionado.</p>
       </div>
 
       <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
           <div>
-            <h3 className="text-lg font-semibold">Rango de búsqueda</h3>
-            <p className="text-sm text-gray-500">Filtra compras por fecha de obtención.</p>
+            <h3 className="text-lg font-semibold">Filtrar por periodo</h3>
+            <p className="text-sm text-gray-500">Consulta el rendimiento por intervalo de fechas.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 w-full max-w-3xl">
             <label className="block">
@@ -98,26 +104,34 @@ export default function ComprasAvanzado() {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={fetchCompras}
+                onClick={fetchReport}
                 className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
               >
                 Consultar
               </button>
               <button
                 type="button"
-                onClick={downloadCompras}
+                onClick={downloadReportCsv}
                 disabled={downloading}
                 className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
               >
                 {downloading ? 'Descargando...' : 'Exportar CSV'}
               </button>
+              <button
+                type="button"
+                onClick={downloadReportPdf}
+                disabled={downloading}
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
+              >
+                {downloading ? 'Descargando...' : 'Exportar PDF'}
+              </button>
             </div>
           </div>
         </div>
 
-        {loading && <div className="text-gray-600">Cargando compras...</div>}
+        {loading && <div className="text-gray-600">Cargando datos...</div>}
         {error && <div className="text-red-600">{error}</div>}
-        {!loading && !error && <Table columns={columns} data={compras} />}
+        {!loading && !error && <Table columns={columns} data={data} />}
       </section>
     </div>
   );

@@ -61,6 +61,7 @@ export default function EquiposAvanzado() {
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [searchError, setSearchError] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
   const [selectedEquipo, setSelectedEquipo] = useState(null);
   const [historial, setHistorial] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -249,15 +250,46 @@ export default function EquiposAvanzado() {
     ...equipo,
     onViewHistory: () => handleViewHistory(equipo),
   }));
+  const filtrosActivos = Boolean(searchText.trim() || filterType || filterStatus);
+  const historialSeleccionado = selectedEquipo ? selectedEquipo.modelo || `Equipo #${selectedEquipo.id_equipo}` : 'Ninguno';
 
   return (
     <div className="p-4 space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Gestión avanzada de equipos</h2>
-        <p className="text-gray-500 mt-1">Busca equipos, revisa su estado actual y consulta su historial de movimientos.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Gestión avanzada de equipos</h2>
+          <p className="text-gray-500 mt-1">Busca equipos, revisa su estado actual y consulta su historial de movimientos.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowHelp((prev) => !prev)}
+          className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+        >
+          {showHelp ? 'Ocultar ayuda' : 'Ayuda'}
+        </button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+      {showHelp && (
+        <section className="rounded-3xl bg-slate-50 p-6 shadow-sm border border-slate-200">
+          <h3 className="text-lg font-semibold">Cómo usar el panel de equipos</h3>
+          <p className="mt-2 text-sm text-slate-600 leading-7">
+            Usa la búsqueda para encontrar equipos por ID, cliente, tipo, marca, modelo, serie o estado. Filtra por tipo y estado
+            para ver sólo los equipos relevantes.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-white p-4 border border-slate-200">
+              <p className="text-sm font-semibold text-slate-800">Ver historial</p>
+              <p className="mt-2 text-sm text-slate-600">Haz clic en "Ver historial" para revisar los movimientos y el diagnóstico más reciente.</p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 border border-slate-200">
+              <p className="text-sm font-semibold text-slate-800">Acciones rápidas</p>
+              <p className="mt-2 text-sm text-slate-600">Actualiza el estado del diagnóstico y crea órdenes directamente sin cambiar de pantalla.</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <div className="space-y-4">
         <div className="space-y-4">
           <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -265,7 +297,7 @@ export default function EquiposAvanzado() {
                 <h3 className="text-lg font-semibold">Equipos en servicio</h3>
                 <p className="text-sm text-gray-500">Consulta equipos, filtra por tipo, estado o ID, y revisa su historial de servicio.</p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(240px,1fr)_minmax(180px,1fr)] xl:grid-cols-[minmax(260px,1fr)_minmax(180px,1fr)_auto]">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1.2fr)_minmax(160px,0.7fr)_minmax(160px,0.7fr)_auto]">
                 <input
                   value={searchText}
                   onChange={handleSearchChange}
@@ -301,13 +333,59 @@ export default function EquiposAvanzado() {
                 </button>
               </div>
             </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                <p className="text-sm text-gray-500">Total encontrados</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">{equiposWithActions.length}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                <p className="text-sm text-gray-500">Filtros activos</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">{filtrosActivos ? 'Si' : 'No'}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                <p className="text-sm text-gray-500">Historial seleccionado</p>
+                <p className="mt-2 text-xl font-semibold text-slate-900 break-words">{historialSeleccionado}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                <p className="text-sm text-gray-500">Estado del equipo</p>
+                <p className="mt-2 text-xl font-semibold text-slate-900 break-words">{selectedEquipo ? selectedEquipo.estado : 'Ninguno'}</p>
+              </div>
+            </div>
             {searchError && <div className="mt-4 text-sm text-red-600">{searchError}</div>}
             {loading && <div className="mt-4 text-gray-600">Cargando equipos...</div>}
             {error && <div className="mt-4 text-red-600">{error}</div>}
             {!loading && !error && (
               <>
                 {filteredEquipos.length === 0 ? (
-                  <div className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">No se encontró ningún equipo con esos criterios. Prueba con otro ID, marca o estado.</div>
+                  <div className="mt-6 grid gap-4 rounded-2xl border border-amber-100 bg-amber-50 p-5 text-amber-900 lg:grid-cols-[1fr_auto] lg:items-center">
+                    <div>
+                      <h4 className="text-base font-semibold">No hay equipos con esos criterios</h4>
+                      <p className="mt-2 text-sm leading-6">
+                        Ajusta el ID, cliente, tipo, marca, modelo, serie o estado. Tambien puedes limpiar filtros para volver a la vista completa.
+                      </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-xl bg-white/80 p-3">
+                          <p className="text-xs font-semibold uppercase text-amber-700">Busqueda</p>
+                          <p className="mt-1 text-sm">{searchText || 'Sin texto'}</p>
+                        </div>
+                        <div className="rounded-xl bg-white/80 p-3">
+                          <p className="text-xs font-semibold uppercase text-amber-700">Tipo</p>
+                          <p className="mt-1 text-sm">{filterType || 'Todos'}</p>
+                        </div>
+                        <div className="rounded-xl bg-white/80 p-3">
+                          <p className="text-xs font-semibold uppercase text-amber-700">Estado</p>
+                          <p className="mt-1 text-sm">{filterStatus || 'Todos'}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex items-center justify-center rounded-2xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700"
+                    >
+                      Limpiar busqueda
+                    </button>
+                  </div>
                 ) : (
                   <Table columns={columns} data={equiposWithActions} />
                 )}
@@ -427,14 +505,24 @@ export default function EquiposAvanzado() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-sm">
+          <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-sm min-h-[220px]">
             <h3 className="text-lg font-semibold">Visión administrativa</h3>
             <p className="mt-3 text-sm leading-7 text-slate-300">
               Desde aquí puedes buscar equipos por cliente, tipo o estado, y consultar su flujo de trabajo completo.
               Esta información es útil para supervisar reparaciones, prevenir retrasos y priorizar órdenes críticas.
             </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-slate-800 p-4">
+                <p className="text-sm text-slate-300">Total encontrados</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{equiposWithActions.length}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-800 p-4">
+                <p className="text-sm text-slate-300">Filtros activos</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{filterType || filterStatus ? 'Sí' : 'No'}</p>
+              </div>
+            </div>
           </div>
-          <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
+          <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100 min-h-[160px]">
             <h3 className="text-lg font-semibold">Indicadores rápidos</h3>
             <div className="mt-4 grid gap-3">
               <div className="rounded-2xl bg-slate-50 p-4">
@@ -444,6 +532,10 @@ export default function EquiposAvanzado() {
               <div className="rounded-2xl bg-slate-50 p-4">
                 <p className="text-sm text-gray-500">Historial seleccionado</p>
                 <p className="mt-2 text-2xl font-semibold text-slate-900">{selectedEquipo ? selectedEquipo.modelo : 'Ninguno'}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm text-gray-500">Estado del equipo</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-900">{selectedEquipo ? selectedEquipo.estado : 'Ninguno'}</p>
               </div>
             </div>
           </div>

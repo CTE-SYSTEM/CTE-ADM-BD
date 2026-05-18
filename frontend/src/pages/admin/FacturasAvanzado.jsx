@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
-import { downloadJsonCsv } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 const columns = [
   { header: 'ID', accessor: 'id_factura' },
@@ -55,13 +55,25 @@ export default function FacturasAvanzado() {
     fetchFacturas();
   }, []);
 
-  const downloadFacturas = async () => {
+  const downloadFacturasCsv = async () => {
     setDownloading(true);
     setError('');
     try {
       downloadJsonCsv(facturas, columns, `facturacion_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
     } catch (err) {
       setError('No se pudo descargar el reporte.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadFacturasPdf = async () => {
+    setDownloading(true);
+    setError('');
+    try {
+      downloadJsonPdf(facturas, columns, `facturacion_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Reporte de Facturación');
+    } catch (err) {
+      setError('No se pudo descargar el reporte en PDF.');
     } finally {
       setDownloading(false);
     }
@@ -99,21 +111,29 @@ export default function FacturasAvanzado() {
                 className="mt-1 w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
               />
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex w-full flex-col items-center justify-center gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={fetchFacturas}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 sm:w-auto"
               >
                 Consultar
               </button>
               <button
                 type="button"
-                onClick={downloadFacturas}
+                onClick={downloadFacturasCsv}
                 disabled={downloading}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
               >
                 {downloading ? 'Descargando...' : 'Exportar CSV'}
+              </button>
+              <button
+                type="button"
+                onClick={downloadFacturasPdf}
+                disabled={downloading}
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
+              >
+                {downloading ? 'Descargando...' : 'Exportar PDF'}
               </button>
             </div>
           </div>

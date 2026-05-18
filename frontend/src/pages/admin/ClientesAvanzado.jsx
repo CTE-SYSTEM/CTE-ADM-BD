@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
-import { downloadJsonCsv } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 const columns = [
   { header: 'Cliente', accessor: 'cliente' },
@@ -41,12 +41,23 @@ export default function ClientesAvanzado() {
     fetchClientes();
   }, []);
 
-  const downloadClientes = async () => {
+  const downloadClientesCsv = async () => {
     setDownloading(true);
     try {
       downloadJsonCsv(clientes, columns, 'clientes_equipos.csv');
     } catch (err) {
       setError('No se pudo descargar el reporte.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadClientesPdf = async () => {
+    setDownloading(true);
+    try {
+      downloadJsonPdf(clientes, columns, 'clientes_equipos.pdf', 'Clientes y equipos');
+    } catch (err) {
+      setError('No se pudo descargar el reporte en PDF.');
     } finally {
       setDownloading(false);
     }
@@ -60,19 +71,29 @@ export default function ClientesAvanzado() {
       </div>
 
       <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
             <h3 className="text-lg font-semibold">Resumen de clientes</h3>
             <p className="text-sm text-gray-500">Lista de clientes con equipos, diagnósticos y órdenes registradas.</p>
           </div>
-          <button
-            type="button"
-            onClick={downloadClientes}
-            disabled={downloading}
-            className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-          >
-            {downloading ? 'Descargando...' : 'Exportar CSV'}
-          </button>
+          <div className="flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
+            <button
+              type="button"
+              onClick={downloadClientesCsv}
+              disabled={downloading}
+              className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
+            >
+              {downloading ? 'Descargando...' : 'Exportar CSV'}
+            </button>
+            <button
+              type="button"
+              onClick={downloadClientesPdf}
+              disabled={downloading}
+              className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-800 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
+            >
+              {downloading ? 'Descargando...' : 'Exportar PDF'}
+            </button>
+          </div>
         </div>
 
         {loading && <div className="text-gray-600">Cargando clientes...</div>}

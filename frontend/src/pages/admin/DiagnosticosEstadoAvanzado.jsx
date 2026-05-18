@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
-import { downloadJsonCsv } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 const columns = [
-  { header: 'Técnico', accessor: 'tecnico' },
-  { header: 'Diagnósticos asignados', accessor: 'diagnosticos_asignados' },
-  { header: 'Diagnósticos completados', accessor: 'diagnosticos_completados' },
-  { header: 'Órdenes asignadas', accessor: 'ordenes_asignadas' },
-  { header: 'Órdenes finalizadas', accessor: 'ordenes_finalizadas' },
-  { header: 'Total facturado', accessor: 'total_facturado' },
+  { header: 'Estado', accessor: 'estado' },
+  { header: 'Aprobación', accessor: 'aprobacion' },
+  { header: 'Cantidad', accessor: 'cantidad' },
+  { header: 'Presupuesto total', accessor: 'presupuesto_total' },
+  { header: 'Promedio', accessor: 'presupuesto_promedio' },
 ];
 
-export default function RendimientoTecnicos() {
+export default function DiagnosticosEstadoAvanzado() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,17 +26,18 @@ export default function RendimientoTecnicos() {
       const query = [];
       if (fromDate) query.push(`fecha_inicio=${fromDate}`);
       if (toDate) query.push(`fecha_fin=${toDate}`);
-      const url = `/admin_pro/reportes/tecnicos${query.length ? `?${query.join('&')}` : ''}`;
+      const url = `/admin_pro/reportes/diagnosticos_estado${query.length ? `?${query.join('&')}` : ''}`;
       const res = await api.get(url);
       const data = res.data?.data || [];
       setData(
         data.map((item) => ({
           ...item,
-          total_facturado: item.total_facturado ? `$ ${Number(item.total_facturado).toFixed(2)}` : '$ 0.00',
+          presupuesto_total: item.presupuesto_total ? `$ ${Number(item.presupuesto_total).toFixed(2)}` : '$ 0.00',
+          presupuesto_promedio: item.presupuesto_promedio ? `$ ${Number(item.presupuesto_promedio).toFixed(2)}` : '$ 0.00',
         }))
       );
     } catch (err) {
-      setError('No se pudo cargar el rendimiento de técnicos.');
+      setError('No se pudo cargar el reporte de diagnósticos.');
     } finally {
       setLoading(false);
     }
@@ -47,12 +47,23 @@ export default function RendimientoTecnicos() {
     fetchReport();
   }, []);
 
-  const downloadReport = async () => {
+  const downloadReportCsv = async () => {
     setDownloading(true);
     try {
-      downloadJsonCsv(data, columns, `rendimiento_tecnicos_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
+      downloadJsonCsv(data, columns, `diagnosticos_estado_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
     } catch (err) {
       setError('No se pudo descargar el reporte.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadReportPdf = async () => {
+    setDownloading(true);
+    try {
+      downloadJsonPdf(data, columns, `diagnosticos_estado_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Diagnósticos por estado');
+    } catch (err) {
+      setError('No se pudo descargar el reporte en PDF.');
     } finally {
       setDownloading(false);
     }
@@ -61,15 +72,15 @@ export default function RendimientoTecnicos() {
   return (
     <div className="p-4 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Rendimiento de técnicos</h2>
-        <p className="text-gray-500 mt-1">Evalúa la productividad y facturación por técnico en el periodo seleccionado.</p>
+        <h2 className="text-2xl font-bold">Diagnósticos por estado</h2>
+        <p className="text-gray-500 mt-1">Supervisa el avance de diagnósticos y el presupuesto estimado por estado.</p>
       </div>
 
       <section className="rounded-3xl bg-white p-6 shadow-sm border border-gray-100">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
           <div>
             <h3 className="text-lg font-semibold">Filtrar por periodo</h3>
-            <p className="text-sm text-gray-500">Consulta el rendimiento por intervalo de fechas.</p>
+            <p className="text-sm text-gray-500">Selecciona el rango para ver las métricas de diagnóstico.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 w-full max-w-3xl">
             <label className="block">
@@ -90,27 +101,35 @@ export default function RendimientoTecnicos() {
                 className="mt-1 w-full rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
               />
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex w-full flex-col items-center justify-center gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
                 onClick={fetchReport}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 sm:w-auto"
               >
                 Consultar
               </button>
               <button
                 type="button"
-                onClick={downloadReport}
+                onClick={downloadReportCsv}
                 disabled={downloading}
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
               >
                 {downloading ? 'Descargando...' : 'Exportar CSV'}
+              </button>
+              <button
+                type="button"
+                onClick={downloadReportPdf}
+                disabled={downloading}
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-auto"
+              >
+                {downloading ? 'Descargando...' : 'Exportar PDF'}
               </button>
             </div>
           </div>
         </div>
 
-        {loading && <div className="text-gray-600">Cargando datos...</div>}
+        {loading && <div className="text-gray-600">Cargando reporte...</div>}
         {error && <div className="text-red-600">{error}</div>}
         {!loading && !error && <Table columns={columns} data={data} />}
       </section>

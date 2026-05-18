@@ -9,9 +9,11 @@ import {
   getGarantiasAdmin,
   createGarantiaAdmin,
   updateGarantiaAdmin,
+  renewGarantiaAdmin,
   getUsuarios,
   createUsuario,
   updateUsuario,
+  updateUsuarioPassword,
   deleteUsuario,
   getMonitoreoGeneral,
   getDashboardResumen,
@@ -52,10 +54,12 @@ router.get('/facturas', getFacturasAvanzado);
 router.get('/garantias', getGarantiasAdmin);
 router.post('/garantias', createGarantiaAdmin);
 router.put('/garantias/:id', updateGarantiaAdmin);
+router.post('/garantias/:id/renovar', renewGarantiaAdmin);
 
 router.get('/usuarios', getUsuarios);
 router.post('/usuarios', createUsuario);
 router.put('/usuarios/:id', updateUsuario);
+router.put('/usuarios/:id/password', updateUsuarioPassword);
 router.delete('/usuarios/:id', deleteUsuario);
 
 router.get('/dashboard', getDashboardResumen);

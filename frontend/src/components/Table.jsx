@@ -1,11 +1,11 @@
 import React from 'react';
 
-const defaultContentClassName = 'max-w-[280px] whitespace-normal break-words leading-relaxed';
+const defaultContentClassName = 'max-w-[220px] whitespace-normal break-words leading-relaxed';
 
 const Table = ({ columns, data }) => {
   return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-100 overflow-auto custom-scrollbar max-h-[70vh]">
-      <table className="min-w-max w-full table-auto border-collapse">
+    <div className="w-full min-w-0 overflow-auto rounded-xl border border-gray-200 bg-white shadow-sm custom-scrollbar max-h-[calc(100vh-260px)]">
+      <table className="w-full min-w-max table-auto border-collapse">
         <thead className="sticky top-0 z-10 bg-white">
           <tr className="border-b border-gray-100 bg-gray-50/50">
             {columns.map((c) => (
@@ -35,7 +35,7 @@ const Table = ({ columns, data }) => {
                        "align-top" hace que si una celda crece, 
                        el resto del contenido de la fila se quede arriba. 
                     */
-                    className={`px-3 py-3 text-sm text-gray-600 align-top sm:px-6 sm:py-4 ${c.cellClassName || ''}`}
+                    className={`min-w-0 px-3 py-3 text-sm text-gray-600 align-top sm:px-5 sm:py-3.5 ${c.cellClassName || ''}`}
                   >
                     {/* 
                         Este div controla el comportamiento global:
