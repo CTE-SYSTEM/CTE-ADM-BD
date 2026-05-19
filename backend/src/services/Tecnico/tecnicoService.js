@@ -1,6 +1,19 @@
 import prisma from '../../app/prismaClient.js';
 import { ORDEN_ESTADOS, RESULTADOS_ORDEN, assertInList } from '../../utils/domainValidation.js';
 
+const repuestoSafeSelect = {
+  id_repuesto: true,
+  tipo_repuesto_id: true,
+  proveedor_id: true,
+  nombre: true,
+  descripcion: true,
+  costo_individual: true,
+  porcentaje_de_ganacia: true,
+  ganancia_cordobas: true,
+  activo: true,
+  descontinuada: true,
+};
+
 const ordenInclude = {
   tecnico: true,
   diagnostico: {
@@ -10,7 +23,7 @@ const ordenInclude = {
     },
   },
   repuestos_usados: {
-    include: { repuesto: true },
+    include: { repuesto: { select: repuestoSafeSelect } },
     orderBy: { id_detalle_repuesto: 'desc' },
   },
 };
@@ -161,6 +174,7 @@ export const solicitarRepuesto = async (ordenId, payload) => {
   const { repuesto_id, repuesto, cantidad } = payload;
   const cantidadUsada = Math.max(Number(cantidad) || 1, 1);
   let nombreSolicitado = String(repuesto || '').trim();
+  const repuestoId = Number(repuesto_id) || null;
 
   const orden = await prisma.ordenes.findUnique({ where: { id_orden: Number(ordenId) } });
   if (!orden) {
@@ -169,24 +183,45 @@ export const solicitarRepuesto = async (ordenId, payload) => {
     throw error;
   }
 
-  if (!nombreSolicitado && !Number(repuesto_id)) {
+  if (!nombreSolicitado && !repuestoId) {
     const error = new Error('Indique que pieza necesita solicitar');
     error.statusCode = 400;
     throw error;
   }
 
-  if (!nombreSolicitado && Number(repuesto_id)) {
-    const repuestoEncontrado = await prisma.repuestos.findUnique({
-      where: { id_repuesto: Number(repuesto_id) },
+  if (repuestoId) {
+    const repuestoEncontrado = await prisma.repuestos.findFirst({
+      where: {
+        id_repuesto: repuestoId,
+        descontinuada: false,
+      },
       select: { nombre: true },
     });
-    nombreSolicitado = repuestoEncontrado?.nombre || '';
+
+    if (!repuestoEncontrado) {
+      const error = new Error('El repuesto seleccionado no existe o esta descontinuado');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    nombreSolicitado = repuestoEncontrado.nombre || nombreSolicitado;
   }
 
-  const piezaSolicitada = nombreSolicitado || String(repuesto_id);
-  const rows = await prisma.$queryRaw`
-    SELECT data FROM solicitar_pieza_orden_tecnico_proc(${Number(ordenId)}, ${piezaSolicitada}, ${cantidadUsada})
-  `;
+  const solicitud = await prisma.ordenes_Repuestos.create({
+    data: {
+      orden_id: Number(ordenId),
+      repuesto_id: repuestoId,
+      pieza_solicitada: nombreSolicitado || String(repuestoId),
+      cantidad_usada: cantidadUsada,
+      estado_aprobacion: 'PENDIENTE',
+    },
+    include: { repuesto: { select: repuestoSafeSelect } },
+  });
 
-  return rows[0]?.data;
+  await prisma.ordenes.update({
+    where: { id_orden: Number(ordenId) },
+    data: { estado: 'ESPERANDO_PIEZA' },
+  });
+
+  return solicitud;
 };

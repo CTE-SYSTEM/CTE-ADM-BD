@@ -3,6 +3,20 @@ import { METODOS_PAGO, assertInList } from '../../utils/domainValidation.js';
 
 const normalizeText = (value = '') => String(value).trim().replace(/\s+/g, ' ');
 const sameMoney = (left, right) => Number(left || 0) === Number(right || 0);
+const repuestoSafeSelect = {
+  id_repuesto: true,
+  tipo_repuesto_id: true,
+  proveedor_id: true,
+  nombre: true,
+  descripcion: true,
+  costo_individual: true,
+  porcentaje_de_ganacia: true,
+  ganancia_cordobas: true,
+  activo: true,
+  descontinuada: true,
+  proveedor: true,
+  categoria: true,
+};
 
 const buildRepuestoVariantWhere = (repuesto, proveedorId, costoNumber) => ({
   descontinuada: false,
@@ -26,7 +40,7 @@ export const getCompras = async (req, res) => {
     const compras = await prisma.compras.findMany({
       include: {
         proveedor: true,
-        repuesto: { include: { proveedor: true, categoria: true } },
+        repuesto: { select: repuestoSafeSelect },
       },
       orderBy: { id_compra: 'desc' },
     });
@@ -133,7 +147,7 @@ export const createCompra = async (req, res) => {
         },
         include: {
           proveedor: true,
-          repuesto: { include: { proveedor: true, categoria: true } },
+          repuesto: { select: repuestoSafeSelect },
         },
       });
 

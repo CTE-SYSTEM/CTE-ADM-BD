@@ -59,8 +59,21 @@ const ordenInclude = {
   },
 };
 
+const repuestoSafeSelect = {
+  id_repuesto: true,
+  tipo_repuesto_id: true,
+  proveedor_id: true,
+  nombre: true,
+  descripcion: true,
+  costo_individual: true,
+  porcentaje_de_ganacia: true,
+  ganancia_cordobas: true,
+  activo: true,
+  descontinuada: true,
+};
+
 const repuestoSolicitudInclude = {
-  repuesto: true,
+  repuesto: { select: repuestoSafeSelect },
   orden: {
     include: {
       tecnico: true,
@@ -352,7 +365,7 @@ export const getRepuestosPendientesAprobacion = async (req, res) => {
     const solicitudes = await prisma.ordenes_Repuestos.findMany({
       where: { estado_aprobacion: 'PENDIENTE' },
       include: {
-        repuesto: true,
+        repuesto: { select: repuestoSafeSelect },
         orden: {
           include: {
             tecnico: true,
@@ -393,7 +406,7 @@ const actualizarEstadoSolicitudRepuesto = async (req, res, estado_aprobacion) =>
       where: { id_detalle_repuesto: Number(req.params.id) },
       data: { estado_aprobacion },
       include: {
-        repuesto: true,
+        repuesto: { select: repuestoSafeSelect },
         orden: {
           include: {
             tecnico: true,
@@ -416,6 +429,9 @@ const actualizarEstadoSolicitudRepuesto = async (req, res, estado_aprobacion) =>
 
     res.json({ message: `Estado actualizado a ${estado_aprobacion}`, data: solicitud });
   } catch (error) {
+    if (String(error.message || '').includes('Stock insuficiente')) {
+      return res.status(409).json({ error: 'Stock insuficiente para aprobar la salida' });
+    }
     res.status(500).json({ error: 'Error al actualizar solicitud', details: error.message });
   }
 };
@@ -444,7 +460,8 @@ export const getTecnicos = async (req, res) => {
 export const getRepuestos = async (req, res) => {
   try {
     const repuestos = await prisma.repuestos.findMany({
-      where: { descontinuada: false },
+      where: { descontinuada: false, stock_actual: { gt: 0 } },
+      select: repuestoSafeSelect,
       orderBy: { nombre: 'asc' }
     });
     res.json({ data: repuestos });

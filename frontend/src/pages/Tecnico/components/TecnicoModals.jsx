@@ -1,23 +1,79 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { EstadoBadge } from './TecnicoBadges';
 
+const normalizeText = (value = '') =>
+  String(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const electronicAliases = {
+  celular: ['celular', 'telefono', 'movil', 'smartphone'],
+  telefono: ['celular', 'telefono', 'movil', 'smartphone'],
+  movil: ['celular', 'telefono', 'movil', 'smartphone'],
+  laptop: ['laptop', 'notebook', 'portatil'],
+  notebook: ['laptop', 'notebook', 'portatil'],
+  pc: ['pc', 'computadora', 'desktop', 'escritorio'],
+  computadora: ['pc', 'computadora', 'desktop', 'escritorio'],
+  tablet: ['tablet'],
+  monitor: ['monitor'],
+  consola: ['consola', 'playstation', 'xbox', 'nintendo'],
+  impresora: ['impresora', 'printer'],
+  proyector: ['proyector'],
+};
+
+const getCompatibleRepuestos = (repuestos, equipoTipo) => {
+  const tipo = normalizeText(equipoTipo);
+  if (!tipo) return repuestos;
+
+  const aliases = electronicAliases[tipo] || [tipo];
+  return repuestos.filter((item) => {
+    const electronico = normalizeText(item.categoria?.electronico);
+    if (!electronico) return true;
+    return aliases.some((alias) => electronico.includes(alias));
+  });
+};
+
 export const SolicitarRepuestoModal = ({ orden, repuestos, onClose, onSubmit }) => {
   const [repuesto, setRepuesto] = useState('');
-  const [repuestoId, setRepuestoId] = useState('');
   const [cantidad, setCantidad] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const repuestosCompatibles = useMemo(
+    () => getCompatibleRepuestos(repuestos, orden.equipoTipo),
+    [orden.equipoTipo, repuestos],
+  );
+  const repuestoOptions = useMemo(
+    () => repuestosCompatibles.map((item) => ({
+      ...item,
+      autocompleteLabel: `${item.nombre || 'Sin nombre'} - ${item.proveedor?.nombre || 'Sin proveedor'} - C$ ${Number(item.costo_individual || 0).toFixed(2)}`,
+    })),
+    [repuestosCompatibles],
+  );
+
+  const repuestoSeleccionado = useMemo(
+    () => repuestoOptions.find((item) => normalizeText(item.autocompleteLabel) === normalizeText(repuesto)),
+    [repuesto, repuestoOptions],
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const repuestoSeleccionado = repuestos.find((item) => String(item.id_repuesto) === String(repuestoId));
+      const piezaSolicitada = repuestoSeleccionado?.nombre || repuesto.trim();
+      if (!piezaSolicitada) {
+        setError('Indique que pieza necesita solicitar.');
+        setLoading(false);
+        return;
+      }
+
       await onSubmit(orden.id, {
-        repuesto_id: repuestoId ? Number(repuestoId) : undefined,
-        repuesto: repuestoSeleccionado?.nombre || repuesto,
+        repuesto_id: repuestoSeleccionado ? Number(repuestoSeleccionado.id_repuesto) : undefined,
+        repuesto: piezaSolicitada,
         cantidad,
       });
       onClose();
@@ -41,35 +97,27 @@ export const SolicitarRepuestoModal = ({ orden, repuestos, onClose, onSubmit }) 
             <p className="font-bold text-slate-800">{orden.equipo}</p>
           </div>
           <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Pieza existente</label>
-            <select
+            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Pieza solicitada</label>
+            <input
+              required
+              list={`repuestos-compatibles-${orden.id}`}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900"
-              value={repuestoId}
-              onChange={(event) => {
-                setRepuestoId(event.target.value);
-                if (event.target.value) setRepuesto('');
-              }}
-            >
-              <option value="">No esta en inventario / escribir manualmente</option>
-              {repuestos.map((item) => (
-                <option key={item.id_repuesto} value={item.id_repuesto}>
-                  {item.nombre || 'Sin nombre'} - {item.proveedor?.nombre || 'Sin proveedor'} - C$ {Number(item.costo_individual || 0).toFixed(2)}
-                </option>
+              value={repuesto}
+              onChange={(event) => setRepuesto(event.target.value)}
+              placeholder="Escriba y seleccione una pieza compatible"
+              autoComplete="off"
+            />
+            <datalist id={`repuestos-compatibles-${orden.id}`}>
+              {repuestoOptions.map((item) => (
+                <option key={item.id_repuesto} value={item.autocompleteLabel} />
               ))}
-            </select>
+            </datalist>
+            {repuestoOptions.length === 0 && (
+              <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                No hay repuestos compatibles disponibles para {orden.equipoTipo || 'este equipo'}.
+              </p>
+            )}
           </div>
-          {!repuestoId && (
-            <div>
-              <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Pieza solicitada</label>
-              <input
-                required
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
-                value={repuesto}
-                onChange={(event) => setRepuesto(event.target.value)}
-                placeholder="Escriba la pieza si aun no existe"
-              />
-            </div>
-          )}
           <div>
             <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Cantidad</label>
             <input

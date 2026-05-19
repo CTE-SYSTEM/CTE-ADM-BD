@@ -7,6 +7,7 @@
 \i scripts/modules/Secretaria/Garantias.sql
 \i scripts/modules/Secretaria/Proveedores.sql
 \i scripts/modules/Secretaria/Repuesto.sql
+\i scripts/modules/Secretaria/InventarioStock.sql
 \i scripts/modules/JefeTecnico/Diagnostico.sql
 \i scripts/modules/Tecnico/01_consultas.sql
 \i scripts/modules/Tecnico/02_acciones.sql

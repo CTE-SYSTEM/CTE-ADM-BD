@@ -3,6 +3,22 @@ import prisma from '../../app/prismaClient.js';
 
 const normalizeNumber = (value) => Number(value) || 0;
 const normalizeText = (value = '') => String(value).trim().replace(/\s+/g, ' ');
+const normalizeRole = (role) =>
+  String(role || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_-]/g, '')
+    .toLowerCase();
+
+const canViewStock = (user) => {
+  const role = normalizeRole(user?.rol);
+  return role === 'adminpro' || role === 'administrador' || user?.username === 'admin_pro';
+};
+
+const hideStock = (repuesto) => {
+  const { stock_actual, ...safeRepuesto } = repuesto;
+  return safeRepuesto;
+};
 
 const getCategoriaId = async ({ tipo_repuesto_id, categoria_nombre, electronico }) => {
   const id = Number(tipo_repuesto_id);
@@ -49,12 +65,16 @@ const normalizeRepuestoInput = async (body) => {
 
 export const getRepuestos = async (req, res) => {
   try {
+    const soloDisponibles = ['1', 'true', 'si', 'yes'].includes(String(req.query.disponibles || '').toLowerCase());
     const repuestos = await prisma.repuestos.findMany({
-      where: { descontinuada: false },
+      where: {
+        descontinuada: false,
+        ...(soloDisponibles ? { stock_actual: { gt: 0 } } : {}),
+      },
       include: { categoria: true, proveedor: true },
       orderBy: { id_repuesto: 'desc' },
     });
-    res.json({ success: true, data: repuestos });
+    res.json({ success: true, data: canViewStock(req.user) ? repuestos : repuestos.map(hideStock) });
   } catch (error) {
     console.error('Error en getRepuestos:', error.message);
     console.error('Stack:', error.stack);
@@ -78,7 +98,7 @@ export const createRepuesto = async (req, res) => {
       include: { categoria: true, proveedor: true },
     });
 
-    res.status(201).json({ success: true, data: repuesto });
+    res.status(201).json({ success: true, data: canViewStock(req.user) ? repuesto : hideStock(repuesto) });
   } catch (error) {
     console.error('Error en createRepuesto:', error.message);
     console.error('Stack:', error.stack);
@@ -101,7 +121,7 @@ export const updateRepuesto = async (req, res) => {
       include: { categoria: true, proveedor: true },
     });
 
-    res.json({ success: true, data: repuesto });
+    res.json({ success: true, data: canViewStock(req.user) ? repuesto : hideStock(repuesto) });
   } catch (error) {
     console.error('Error en updateRepuesto:', error.message);
     console.error('Stack:', error.stack);

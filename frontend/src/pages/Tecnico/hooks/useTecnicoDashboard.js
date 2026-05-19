@@ -22,7 +22,7 @@ export const useTecnicoDashboard = (user) => {
       const [diagnosticosRes, ordenesRes, repuestosRes] = await Promise.all([
         api.get(`/tecnicos/mis-diagnosticos/${username}`),
         api.get(`/tecnicos/mis-ordenes/${username}`),
-        api.get('/repuestos'),
+        api.get('/repuestos', { params: { disponibles: 1 } }),
       ]);
 
       setDiagnosticos((diagnosticosRes.data.data || []).map(mapDiagnostico));

@@ -60,8 +60,8 @@ BEGIN
     -- Llamamos a nuestra otra función interna
     v_cat_id := upsert_categoria(p_cat_nombre, p_electro);
 
-    INSERT INTO "Repuestos" (nombre, descripcion, costo_individual, porcentaje_de_ganacia, tipo_repuesto_id, activo)
-    VALUES (p_nombre, p_desc, p_costo, p_ganancia, v_cat_id, true)
+    INSERT INTO "Repuestos" (nombre, descripcion, costo_individual, porcentaje_de_ganacia, tipo_repuesto_id, activo, stock_actual)
+    VALUES (p_nombre, p_desc, p_costo, p_ganancia, v_cat_id, true, 0)
     RETURNING id_repuesto INTO v_id;
 
     RETURN QUERY SELECT r.data FROM get_repuestos_detalle_por_id(v_id) r;

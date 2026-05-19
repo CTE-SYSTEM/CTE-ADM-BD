@@ -37,6 +37,7 @@ BEGIN
     SELECT id_repuesto INTO v_repuesto_id
     FROM "Repuestos"
     WHERE descontinuada = FALSE
+      AND stock_actual > 0
       AND nombre ILIKE TRIM(p_pieza_solicitada)
     LIMIT 1;
 

@@ -21,9 +21,22 @@ const facturaInclude = {
   },
 };
 
+const repuestoSafeSelect = {
+  id_repuesto: true,
+  tipo_repuesto_id: true,
+  proveedor_id: true,
+  nombre: true,
+  descripcion: true,
+  costo_individual: true,
+  porcentaje_de_ganacia: true,
+  ganancia_cordobas: true,
+  activo: true,
+  descontinuada: true,
+};
+
 const repuestosUsadosInclude = {
   repuestos_usados: {
-    include: { repuesto: true },
+    include: { repuesto: { select: repuestoSafeSelect } },
   },
 };
 
@@ -185,7 +198,7 @@ export const getDetalleFacturacion = async (req, res) => {
           },
         },
         repuestos_usados: {
-          include: { repuesto: true },
+          include: { repuesto: { select: repuestoSafeSelect } },
         },
       },
     });

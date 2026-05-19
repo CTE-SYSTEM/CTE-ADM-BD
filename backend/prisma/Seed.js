@@ -17,6 +17,7 @@ async function main() {
     'scripts/modules/Secretaria/Nuevaorden.sql',
     'scripts/modules/Secretaria/Proveedores.sql',
     'scripts/modules/Secretaria/Repuesto.sql',
+    'scripts/modules/Secretaria/InventarioStock.sql',
     'scripts/modules/JefeTecnico/Diagnostico.sql'
   ];
 

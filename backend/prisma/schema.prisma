@@ -140,6 +140,7 @@ model Repuestos {
   costo_individual Decimal?             @db.Decimal(18, 2) // Se actualiza con la última compra se necesita un trigger
   porcentaje_de_ganacia     Decimal?             @db.Decimal(18, 2) // Campo legado: conservar para no perder datos existentes
   ganancia_cordobas Decimal?             @db.Decimal(18, 2)
+  stock_actual     Int                  @default(0)
   activo           Boolean              @default(true) // Campo legado: conservar para compatibilidad con datos/scripts existentes
   descontinuada     Boolean              @default(false)
 
