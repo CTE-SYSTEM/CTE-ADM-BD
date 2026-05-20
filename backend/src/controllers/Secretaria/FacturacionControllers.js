@@ -137,6 +137,9 @@ export const createFactura = async (req, res) => {
     res.status(201).json({ data: factura });
   } catch (error) {
     console.error('Error al crear factura:', error);
+    if (String(error.message || '').includes('Stock insuficiente')) {
+      return res.status(409).json({ error: 'Stock insuficiente para facturar los repuestos de la orden' });
+    }
     if (error.message?.includes('debe ser') || error.message?.includes('no es valido')) {
       return res.status(400).json({ error: error.message });
     }

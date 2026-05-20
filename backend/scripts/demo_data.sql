@@ -1,16 +1,37 @@
 -- backend/scripts/demo_data.sql
--- Datos de prueba realistas para validar el flujo actual:
--- Secretaria: clientes, equipos, diagnosticos, proveedores, categorias, repuestos y compras.
--- Jefe tecnico: diagnosticos pendientes/asignados y ordenes listas para asignar.
+-- Datos de prueba para validar nuevas funcionalidades:
+-- - Inventario con stock_actual calculado desde compras y salidas aprobadas facturadas.
+-- - Repuestos con proveedor principal, ganancia fija y variantes por compra.
+-- - Diagnosticos con prioridad, aprobacion/rechazo y presupuestos.
+-- - Ordenes en estados operativos: aprobada, en reparacion, esperando pieza,
+--   finalizada, irreparable y entregada.
+-- - Solicitudes de repuestos pendientes, aprobadas y denegadas.
+-- - Facturas unicas por orden y garantias proximas a vencer.
 -- Rango reservado para demo: IDs 9000-9999.
 
 BEGIN;
 
 ALTER TABLE "Diagnosticos"
-ADD COLUMN IF NOT EXISTS presupuesto_estimado DECIMAL(18, 2);
+  ADD COLUMN IF NOT EXISTS presupuesto_estimado DECIMAL(18, 2),
+  ADD COLUMN IF NOT EXISTS prioridad TEXT DEFAULT 'Normal';
+
+ALTER TABLE "Repuestos"
+  ADD COLUMN IF NOT EXISTS proveedor_id INT,
+  ADD COLUMN IF NOT EXISTS ganancia_cordobas DECIMAL(18, 2),
+  ADD COLUMN IF NOT EXISTS stock_actual INT NOT NULL DEFAULT 0;
+
+ALTER TABLE "Ordenes"
+  ADD COLUMN IF NOT EXISTS resultado_final TEXT,
+  ADD COLUMN IF NOT EXISTS enciende_salida BOOLEAN,
+  ADD COLUMN IF NOT EXISTS usa_corriente_ac_salida BOOLEAN,
+  ADD COLUMN IF NOT EXISTS observacion_final TEXT,
+  ADD COLUMN IF NOT EXISTS fecha_cierre TIMESTAMP;
+
+ALTER TABLE "Ordenes_Repuestos"
+  ADD COLUMN IF NOT EXISTS pieza_solicitada TEXT;
 
 -- Limpiar solo datos demo. No toca datos reales fuera del rango 9000-9999.
-DELETE FROM "Garantias" WHERE id_garantia BETWEEN 9000 AND 9999;
+DELETE FROM "Garantias" WHERE id_garantia BETWEEN 9000 AND 9999 OR factura_id BETWEEN 9000 AND 9999;
 DELETE FROM "Facturas" WHERE id_factura BETWEEN 9000 AND 9999;
 DELETE FROM "Ordenes_Repuestos" WHERE id_detalle_repuesto BETWEEN 9000 AND 9999;
 DELETE FROM "Ordenes" WHERE id_orden BETWEEN 9000 AND 9999;
@@ -25,166 +46,219 @@ DELETE FROM "Tecnicos" WHERE id_tecnico BETWEEN 9000 AND 9999;
 DELETE FROM "Usuarios" WHERE id_usuario BETWEEN 9000 AND 9999;
 
 INSERT INTO "Usuarios" (id_usuario, nombre_usuario, contrasena_hash, correo_electronico, rol, activo, fecha_creacion) VALUES
-(9001, 'tecnico_demo_marcos', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'marcos.demo@cte.com', 'Tecnico', true, '2026-05-01 08:00:00'),
-(9002, 'tecnico_demo_elena', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'elena.demo@cte.com', 'Tecnico', true, '2026-05-01 08:00:00'),
-(9003, 'tecnico_demo_roberto', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'roberto.demo@cte.com', 'Tecnico', true, '2026-05-01 08:00:00'),
-(9004, 'tecnico_demo_juan', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'juan.demo@cte.com', 'Tecnico', true, '2026-05-01 08:00:00');
+(9001, 'tecnico_demo_luis', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'luis.demo@cte.com', 'Tecnico', true, '2026-05-01 08:00:00'),
+(9002, 'tecnico_demo_marta', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'marta.demo@cte.com', 'Tecnico', true, '2026-05-01 08:00:00'),
+(9003, 'tecnico_demo_brayan', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'brayan.demo@cte.com', 'Tecnico', true, '2026-05-01 08:00:00'),
+(9004, 'tecnico_demo_sofia', '$2b$10$/7IaHp89gi.hRq5HyXQFfu90wgJtVAqjCG.c45nBctOBT6YFZmf9K', 'sofia.demo@cte.com', 'Tecnico', true, '2026-05-01 08:00:00');
 
 INSERT INTO "Tecnicos" (id_tecnico, usuario_id, nombre, especialidad, horario, contacto, activo) VALUES
-(9001, 9001, 'Marcos Galindo', 'Microelectronica y soldadura SMD', 'L-V 08:00-17:00', '+505 8888-1101', true),
-(9002, 9002, 'Elena Rodriguez', 'Laptops y ultrabooks', 'L-V 09:00-18:00', '+505 8888-1102', true),
-(9003, 9003, 'Roberto Sosa', 'Consolas, monitores y perifericos', 'L-S 08:00-14:00', '+505 8888-1103', true),
-(9004, 9004, 'Juan Perez', 'Celulares y tablets', 'L-V 08:00-17:00', '+505 8888-1104', true);
+(9001, 9001, 'Luis Aragon', 'Diagnostico de laptops y estaciones de trabajo', 'L-V 08:00-17:00', '+505 8888-2101', true),
+(9002, 9002, 'Marta Castillo', 'Celulares, tablets y micro soldadura', 'L-V 09:00-18:00', '+505 8888-2102', true),
+(9003, 9003, 'Brayan Morales', 'Impresoras, monitores y proyectores', 'L-S 08:00-14:00', '+505 8888-2103', true),
+(9004, 9004, 'Sofia Duarte', 'Consolas, GPU y equipos gamer', 'L-V 10:00-19:00', '+505 8888-2104', true);
 
 INSERT INTO "Clientes" (id_cliente, nombre, telefono, direccion, correo, contacto_secundario, activo) VALUES
-(9001, 'Carlos Mendoza', '+505 8123-4501', 'Reparto San Juan, Managua', 'carlos.mendoza@mail.com', '+505 8788-1201', true),
-(9002, 'Maria Fernanda Lopez', '+505 8123-4502', 'Villa Fontana, Managua', 'maria.lopez@mail.com', NULL, true),
-(9003, 'Tecnologia Rivera S.A.', '+505 8123-4503', 'Carretera a Masaya km 8.5', 'soporte@rivera.com.ni', '+505 2255-1030', true),
-(9004, 'Jorge Salinas', '+505 8123-4504', 'Residencial Las Colinas', 'jorge.salinas@mail.com', NULL, true),
-(9005, 'Clinica Santa Elena', '+505 8123-4505', 'Bolonia, Managua', 'admin@santaelena.com.ni', '+505 2222-8820', true),
-(9006, 'Ana Patricia Cruz', '+505 8123-4506', 'Ciudad Sandino zona 6', 'ana.cruz@mail.com', NULL, true),
-(9007, 'Hotel Camino Norte', '+505 8123-4507', 'Carretera Norte km 6', 'recepcion@caminonorte.com', '+505 2244-4400', true),
-(9008, 'Luis Alberto Mairena', '+505 8123-4508', 'Altamira, Managua', 'luis.mairena@mail.com', NULL, true),
-(9009, 'Universidad San Gabriel', '+505 8123-4509', 'Los Robles, Managua', 'it@sangabriel.edu.ni', '+505 2277-7711', true),
-(9010, 'Karla Gutierrez', '+505 8123-4510', 'Masaya centro', 'karla.gutierrez@mail.com', NULL, true),
-(9011, 'Distribuidora El Punto', '+505 8123-4511', 'Mercado Oriental modulo B-12', 'compras@elpunto.com', '+505 8766-5011', true),
-(9012, 'Oscar Molina', '+505 8123-4512', 'Tipitapa, barrio San Jose', 'oscar.molina@mail.com', NULL, true);
+(9001, 'Agroexportadora Las Brisas', '+505 8124-9001', 'Carretera a Leon km 12, Managua', 'soporte@lasbrisas.example', '+505 2266-9010', true),
+(9002, 'Daniela Vargas', '+505 8124-9002', 'Villa Libertad, Managua', 'daniela.vargas@mail.com', NULL, true),
+(9003, 'Colegio Monte Sinai', '+505 8124-9003', 'Ciudad Jardin, Managua', 'admin@montesinai.edu.ni', '+505 2270-5511', true),
+(9004, 'RentaCar Pacifico', '+505 8124-9004', 'Carretera Norte km 5', 'operaciones@rentapacifico.example', '+505 2248-1100', true),
+(9005, 'Gabriel Oporta', '+505 8124-9005', 'Masaya, barrio San Miguel', 'gabriel.oporta@mail.com', NULL, true),
+(9006, 'Clinica Los Robles', '+505 8124-9006', 'Los Robles, Managua', 'it@clinicalosrobles.example', '+505 2225-7730', true),
+(9007, 'Paola Duarte', '+505 8124-9007', 'Altamira, Managua', 'paola.duarte@mail.com', NULL, true),
+(9008, 'Ferreteria El Martillo', '+505 8124-9008', 'Mercado Mayoreo modulo C-18', 'compras@elmartillo.example', '+505 8760-3312', true),
+(9009, 'Universidad Tecnica Central', '+505 8124-9009', 'Rotonda Universitaria 2c abajo', 'mesa.ayuda@utc.edu.ni', '+505 2278-4444', true),
+(9010, 'Roberto Cardenas', '+505 8124-9010', 'Tipitapa, barrio Roberto Vargas', 'roberto.cardenas@mail.com', NULL, true);
 
 INSERT INTO "Equipos" (id_equipo, cliente_id, tipo, marca, modelo, numero_serie) VALUES
-(9001, 9001, 'Laptop', 'HP', 'Victus 15-fa1093dx', '5CD3428LQ1'),
-(9002, 9001, 'Celular', 'Samsung', 'Galaxy A54', 'R58W42K9L2P'),
-(9003, 9002, 'Laptop', 'Lenovo', 'IdeaPad 3 15ALC6', 'PF3K91XA'),
-(9004, 9003, 'Pc Escritorio', 'Dell', 'OptiPlex 7090', 'DL-7090-0217'),
-(9005, 9003, 'Monitor', 'AOC', '24B2XH', 'AOC24-8831'),
-(9006, 9004, 'Consola', 'Sony', 'PlayStation 5', 'S01-F3249902'),
-(9007, 9005, 'Impresora', 'Epson', 'EcoTank L3250', 'X8R2039181'),
-(9008, 9006, 'Tablet', 'Apple', 'iPad 9th Gen', 'GG7YQ4N0Q1'),
-(9009, 9007, 'Laptop', 'Dell', 'Latitude 5420', 'LAT5420-77KQ'),
-(9010, 9008, 'Celular', 'Xiaomi', 'Redmi Note 12', 'XM-RN12-8810'),
-(9011, 9009, 'Laptop', 'Asus', 'TUF Gaming F15', 'AS-F15-5521'),
-(9012, 9009, 'Proyector', 'BenQ', 'MS550', 'BQ-MS550-0902'),
-(9013, 9010, 'Laptop', 'Acer', 'Aspire 5', 'NXA55-2091'),
-(9014, 9011, 'Impresora', 'HP', 'LaserJet Pro M404dn', 'HP-M404-6682'),
-(9015, 9012, 'Celular', 'Motorola', 'Moto G Power', 'MOT-GP-4410'),
-(9016, 9012, 'Monitor', 'LG', 'UltraGear 27GN750', 'LG27-5019');
-
-INSERT INTO "Categorias_Repuestos" (id_tipo_repuesto, nombre_tipo, electronico) VALUES
-(9001, 'Pantallas', 'Laptop/Celular/Tablet'),
-(9002, 'Alimentacion', 'Laptop/PC/Monitor'),
-(9003, 'Almacenamiento', 'Laptop/PC'),
-(9004, 'Memoria RAM', 'Laptop/PC'),
-(9005, 'Teclados y flex', 'Laptop/Celular'),
-(9006, 'Enfriamiento', 'Laptop/Consola/PC'),
-(9007, 'Impresion', 'Impresora'),
-(9008, 'Conectores', 'Celular/Tablet/Laptop'),
-(9009, 'Tarjetas electronicas', 'Monitor/Consola/Impresora'),
-(9010, 'Baterias', 'Laptop/Celular/Tablet');
-
-INSERT INTO "Repuestos" (
-  id_repuesto, tipo_repuesto_id, nombre, descripcion, costo_individual,
-  porcentaje_de_ganacia, activo, descontinuada
-) VALUES
-(9001, 9001, 'Pantalla 15.6 IPS FHD 30 pines', 'Panel compatible para laptops HP, Dell y Lenovo', 68.00, 0.35, true, false),
-(9002, 9001, 'Display Samsung A54 OLED', 'Modulo de pantalla completo con tactil', 92.50, 0.30, true, false),
-(9003, 9002, 'Cargador laptop USB-C 65W', 'Adaptador universal PD con puntas USB-C', 24.00, 0.40, true, false),
-(9004, 9002, 'Fuente ATX 500W 80 Plus', 'Fuente para PC de escritorio', 38.00, 0.32, true, false),
-(9005, 9003, 'SSD NVMe 500GB Kingston', 'Unidad M.2 PCIe 3.0', 43.00, 0.28, true, false),
-(9006, 9003, 'SSD SATA 480GB Crucial', 'Unidad 2.5 pulgadas', 39.00, 0.28, true, false),
-(9007, 9004, 'RAM DDR4 8GB 3200 SODIMM', 'Memoria para laptop', 22.00, 0.35, true, false),
-(9008, 9004, 'RAM DDR4 16GB 3200 DIMM', 'Memoria para PC de escritorio', 41.00, 0.30, true, false),
-(9009, 9005, 'Teclado Lenovo IdeaPad 3', 'Teclado latinoamericano con flex', 26.00, 0.38, true, false),
-(9010, 9005, 'Flex de carga Redmi Note 12', 'Sub board con conector USB-C y microfono', 13.50, 0.45, true, false),
-(9011, 9006, 'Ventilador HP Victus 15', 'Fan izquierdo compatible serie 15-fa', 18.00, 0.40, true, false),
-(9012, 9006, 'Kit pasta termica MX-4', 'Pasta termica para CPU/GPU', 7.00, 0.55, true, false),
-(9013, 9007, 'Kit almohadillas Epson L3250', 'Almohadillas de absorcion de tinta', 9.50, 0.50, true, false),
-(9014, 9007, 'Rodillo HP LaserJet M404', 'Pickup roller compatible', 11.00, 0.45, true, false),
-(9015, 9008, 'Puerto HDMI PS5', 'Conector HDMI para consola PlayStation 5', 5.50, 0.70, true, false),
-(9016, 9008, 'Jack DC Acer Aspire 5', 'Conector de carga con cable', 8.75, 0.55, true, false),
-(9017, 9009, 'Main board monitor LG 27GN750', 'Tarjeta controladora usada certificada', 58.00, 0.28, true, false),
-(9018, 9009, 'Power board AOC 24B2XH', 'Tarjeta de alimentacion para monitor AOC', 31.00, 0.35, true, false),
-(9019, 9010, 'Bateria iPad 9th Gen', 'Bateria compatible alta capacidad', 36.00, 0.38, true, false),
-(9020, 9010, 'Bateria Motorola G Power', 'Bateria compatible modelo XT', 18.50, 0.45, true, false);
+(9001, 9001, 'Laptop', 'Dell', 'Precision 3561', 'DP3561-AB91'),
+(9002, 9001, 'Pc Escritorio', 'HP', 'EliteDesk 800 G6', 'HP800G6-2210'),
+(9003, 9002, 'Celular', 'Apple', 'iPhone 13', 'F17H9QLYQ05D'),
+(9004, 9003, 'Proyector', 'Epson', 'PowerLite X49', 'EPX49-7742'),
+(9005, 9004, 'Laptop', 'Lenovo', 'ThinkPad T14 Gen 2', 'PF4R0N9A'),
+(9006, 9005, 'Consola', 'Microsoft', 'Xbox Series S', 'XSS-92014'),
+(9007, 9006, 'Impresora', 'Brother', 'HL-L6200DW', 'BR6200-6501'),
+(9008, 9006, 'Monitor', 'Samsung', 'Odyssey G5 27', 'SG5-27190'),
+(9009, 9007, 'Tablet', 'Samsung', 'Galaxy Tab S7 FE', 'R52T90AA11'),
+(9010, 9008, 'Impresora', 'Canon', 'G3110', 'CN-G3110-3319'),
+(9011, 9009, 'Laptop', 'Asus', 'ZenBook 14 OLED', 'ASZ14-6023'),
+(9012, 9009, 'Laptop', 'Acer', 'Nitro 5 AN515', 'NHQF8-1788'),
+(9013, 9010, 'Celular', 'Xiaomi', 'Poco X5 Pro', 'XM-PX5-4432'),
+(9014, 9010, 'Monitor', 'LG', '27MP400', 'LG27MP-8790');
 
 INSERT INTO "Proveedores" (id_proveedor, nombre, telefono, direccion, correo, web, notas, descontinuada) VALUES
-(9001, 'CompuPartes Nicaragua', '+505 2255-9001', 'Plaza Espana, Managua', 'ventas@compupartes.com.ni', 'https://compupartes.example', 'Buen stock de SSD, RAM y cargadores. Entrega el mismo dia.', false),
-(9002, 'Movil Repuestos Mayoreo', '+505 2255-9002', 'Mercado Oriental, Managua', 'pedidos@movilrepuestos.example', NULL, 'Pantallas y flex para celulares. Revisar calidad antes de instalar.', false),
-(9003, 'TecnoImport Centroamerica', '+505 2255-9003', 'Carretera a Masaya km 10', 'compras@tecnoimport.example', 'https://tecnoimport.example', 'Trae repuestos bajo pedido en 5 a 7 dias.', false),
-(9004, 'Electronica Bolonia', '+505 2255-9004', 'Bolonia, Managua', 'contacto@electronicabolonia.example', NULL, 'Conectores, soldadura, flux y componentes SMD.', false),
-(9005, 'Printer Service Parts', '+505 2255-9005', 'Los Robles, Managua', 'ventas@printerparts.example', NULL, 'Rodillos, almohadillas y kits de mantenimiento.', false),
-(9006, 'GameFix Supply', '+505 2255-9006', 'Altamira, Managua', 'supply@gamefix.example', NULL, 'Especialistas en consolas y controles.', false),
-(9007, 'Monitores y Boards SA', '+505 2255-9007', 'Ciudad Jardin, Managua', 'ventas@boards.example', NULL, 'Tarjetas de monitores usadas probadas.', false),
-(9008, 'Energia Digital', '+505 2255-9008', 'Masaya', 'ventas@energiadigital.example', NULL, 'Fuentes, cargadores y baterias.', false);
+(9001, 'Central Parts NI', '+505 2255-9101', 'Plaza Espana, Managua', 'ventas@centralparts.example', 'https://centralparts.example', 'Proveedor principal para SSD, RAM, fuentes y cargadores.', false),
+(9002, 'MovilLab Mayoreo', '+505 2255-9102', 'Mercado Oriental, Managua', 'pedidos@movillab.example', NULL, 'Pantallas, baterias y flex de celulares. Validar calidad de tactil.', false),
+(9003, 'Importadora MicroFix', '+505 2255-9103', 'Carretera a Masaya km 9.8', 'compras@microfix.example', 'https://microfix.example', 'Repuestos bajo pedido y componentes de micro soldadura.', false),
+(9004, 'Printer Hub Nicaragua', '+505 2255-9104', 'Los Robles, Managua', 'ventas@printerhub.example', NULL, 'Rodillos, fusores, almohadillas y tintas.', false),
+(9005, 'GameBoard Supply', '+505 2255-9105', 'Altamira, Managua', 'supply@gameboard.example', NULL, 'Consolas, puertos HDMI, retimers y controles.', false),
+(9006, 'Display Boards Centroamerica', '+505 2255-9106', 'Ciudad Jardin, Managua', 'ventas@displayboards.example', NULL, 'Tarjetas main board y power board usadas certificadas.', false),
+(9007, 'Energia y Baterias Digitales', '+505 2255-9107', 'Masaya centro', 'ventas@energiadigital.example', NULL, 'Baterias, cargadores USB-C y fuentes de poder.', false),
+(9008, 'Proveedor Legacy Suspendido', '+505 2255-9199', 'Managua', 'legacy@suspendido.example', NULL, 'Proveedor descontinuado para validar filtros.', true);
+
+INSERT INTO "Categorias_Repuestos" (id_tipo_repuesto, nombre_tipo, electronico) VALUES
+(9001, 'Pantallas y displays', 'Laptop/Celular/Tablet/Monitor'),
+(9002, 'Energia y carga', 'Laptop/PC/Celular/Tablet'),
+(9003, 'Almacenamiento', 'Laptop/PC'),
+(9004, 'Memoria RAM', 'Laptop/PC'),
+(9005, 'Conectores y flex', 'Celular/Tablet/Laptop/Consola'),
+(9006, 'Enfriamiento', 'Laptop/Consola/PC'),
+(9007, 'Impresion', 'Impresora'),
+(9008, 'Tarjetas electronicas', 'Monitor/Consola/Proyector'),
+(9009, 'Baterias', 'Laptop/Celular/Tablet'),
+(9010, 'Perifericos internos', 'Laptop/PC');
+
+INSERT INTO "Repuestos" (
+  id_repuesto, tipo_repuesto_id, proveedor_id, nombre, descripcion, costo_individual,
+  porcentaje_de_ganacia, ganancia_cordobas, stock_actual, activo, descontinuada
+) VALUES
+(9001, 9003, 9001, 'SSD NVMe 1TB Kingston NV2', 'Unidad M.2 PCIe para laptops y estaciones de trabajo', 68.00, 0.25, 850.00, 0, true, false),
+(9002, 9004, 9001, 'RAM DDR4 16GB 3200 SODIMM', 'Memoria para laptop empresarial', 42.00, 0.30, 520.00, 0, true, false),
+(9003, 9002, 9007, 'Cargador USB-C 90W PD', 'Adaptador para laptop con proteccion de voltaje', 31.50, 0.35, 410.00, 0, true, false),
+(9004, 9002, 9001, 'Fuente ATX 650W 80 Plus Bronze', 'Fuente para PC de escritorio', 58.00, 0.28, 760.00, 0, true, false),
+(9005, 9005, 9002, 'Flex de carga iPhone 13', 'Sub board con puerto Lightning y microfono', 18.75, 0.45, 360.00, 0, true, false),
+(9006, 9009, 9002, 'Bateria iPhone 13', 'Bateria compatible alta capacidad', 29.00, 0.40, 480.00, 0, true, false),
+(9007, 9008, 9006, 'Power board Samsung Odyssey G5', 'Tarjeta de alimentacion probada para monitor G5', 49.00, 0.30, 700.00, 0, true, false),
+(9008, 9008, 9006, 'Main board Epson PowerLite X49', 'Tarjeta logica usada certificada', 86.00, 0.24, 1100.00, 0, true, false),
+(9009, 9007, 9004, 'Fusor Brother HL-L6200DW', 'Unidad fusora compatible', 74.00, 0.26, 900.00, 0, true, false),
+(9010, 9007, 9004, 'Rodillo alimentacion Canon G3110', 'Kit de rodillos para bandeja principal', 12.00, 0.50, 220.00, 0, true, false),
+(9011, 9005, 9005, 'Puerto HDMI Xbox Series S', 'Conector HDMI para placa de consola', 6.50, 0.70, 180.00, 0, true, false),
+(9012, 9006, 9005, 'Retimer HDMI Xbox Series S', 'Circuito retimer compatible', 22.00, 0.45, 390.00, 0, true, false),
+(9013, 9006, 9001, 'Ventilador Acer Nitro 5 AN515', 'Fan CPU/GPU compatible', 19.50, 0.40, 330.00, 0, true, false),
+(9014, 9006, 9001, 'Kit pasta termica premium', 'Pasta termica y pads para CPU/GPU', 8.00, 0.55, 160.00, 0, true, false),
+(9015, 9001, 9002, 'Pantalla Poco X5 Pro AMOLED', 'Modulo completo con tactil', 96.00, 0.32, 980.00, 0, true, false),
+(9016, 9005, 9003, 'Jack DC Asus ZenBook 14', 'Conector de carga con cable flexible', 11.50, 0.48, 260.00, 0, true, false),
+(9017, 9009, 9007, 'Bateria Galaxy Tab S7 FE', 'Bateria compatible para tablet Samsung', 44.00, 0.36, 620.00, 0, true, false),
+(9018, 9010, 9001, 'Teclado ThinkPad T14 LA', 'Teclado latinoamericano retroiluminado', 34.00, 0.35, 520.00, 0, true, false),
+(9019, 9008, 9008, 'Main board LG 27MP400 legacy', 'Tarjeta usada de proveedor suspendido', 39.00, 0.20, 400.00, 0, false, true),
+(9020, 9002, 9007, 'Cargador propietario Lenovo 65W', 'Adaptador rectangular slim tip', 23.50, 0.34, 320.00, 0, true, false);
 
 INSERT INTO "Compras" (
   id_compra, repuesto_id, proveedor_id, documento, fecha_obtencion,
   cantidad, costo_unitario, metodo_pago
 ) VALUES
-(9001, 9001, 9003, 'FAC-TI-2026-0142', '2026-04-22 09:30:00', 6, 68.00, 'Transferencia'),
-(9002, 9002, 9002, 'REC-MOV-5581', '2026-04-23 11:15:00', 4, 92.50, 'Efectivo'),
-(9003, 9003, 9008, 'FAC-ED-3320', '2026-04-24 14:20:00', 10, 24.00, 'Transferencia'),
-(9004, 9005, 9001, 'FAC-CP-8820', '2026-04-25 10:05:00', 12, 43.00, 'Tarjeta'),
-(9005, 9007, 9001, 'FAC-CP-8821', '2026-04-25 10:08:00', 10, 22.00, 'Tarjeta'),
-(9006, 9010, 9002, 'REC-MOV-5594', '2026-04-26 15:40:00', 8, 13.50, 'Efectivo'),
-(9007, 9011, 9003, 'FAC-TI-2026-0155', '2026-04-27 08:50:00', 3, 18.00, 'Transferencia'),
-(9008, 9013, 9005, 'FAC-PSP-2120', '2026-04-28 13:10:00', 5, 9.50, 'Efectivo'),
-(9009, 9015, 9006, 'FAC-GF-0710', '2026-04-29 16:25:00', 6, 5.50, 'Efectivo'),
-(9010, 9018, 9007, 'FAC-MB-1245', '2026-04-30 09:00:00', 2, 31.00, 'Transferencia'),
-(9011, 9019, 9008, 'FAC-ED-3342', '2026-05-01 10:30:00', 3, 36.00, 'Transferencia'),
-(9012, 9020, 9008, 'FAC-ED-3343', '2026-05-01 10:35:00', 5, 18.50, 'Transferencia'),
-(9013, 9014, 9005, 'FAC-PSP-2144', '2026-05-03 12:20:00', 4, 11.00, 'Efectivo'),
-(9014, 9016, 9004, 'REC-EB-9022', '2026-05-04 15:10:00', 8, 8.75, 'Efectivo');
+(9001, 9001, 9001, 'FAC-CPN-2026-0801', '2026-05-02 09:10:00', 8, 68.00, 'Transferencia'),
+(9002, 9002, 9001, 'FAC-CPN-2026-0802', '2026-05-02 09:15:00', 10, 42.00, 'Transferencia'),
+(9003, 9003, 9007, 'FAC-EBD-4410', '2026-05-03 11:40:00', 6, 31.50, 'Tarjeta'),
+(9004, 9004, 9001, 'FAC-CPN-2026-0815', '2026-05-04 10:20:00', 4, 58.00, 'Transferencia'),
+(9005, 9005, 9002, 'REC-MLM-9102', '2026-05-04 15:30:00', 7, 18.75, 'Efectivo'),
+(9006, 9006, 9002, 'REC-MLM-9103', '2026-05-04 15:35:00', 5, 29.00, 'Efectivo'),
+(9007, 9007, 9006, 'FAC-DBC-3310', '2026-05-05 08:55:00', 2, 49.00, 'Transferencia'),
+(9008, 9008, 9006, 'FAC-DBC-3311', '2026-05-05 09:00:00', 1, 86.00, 'Transferencia'),
+(9009, 9009, 9004, 'FAC-PHN-7150', '2026-05-06 13:20:00', 2, 74.00, 'Tarjeta'),
+(9010, 9010, 9004, 'FAC-PHN-7151', '2026-05-06 13:25:00', 6, 12.00, 'Tarjeta'),
+(9011, 9011, 9005, 'FAC-GBS-2217', '2026-05-07 10:10:00', 8, 6.50, 'Efectivo'),
+(9012, 9012, 9005, 'FAC-GBS-2218', '2026-05-07 10:12:00', 4, 22.00, 'Efectivo'),
+(9013, 9013, 9001, 'FAC-CPN-2026-0830', '2026-05-08 09:40:00', 4, 19.50, 'Transferencia'),
+(9014, 9014, 9001, 'FAC-CPN-2026-0831', '2026-05-08 09:42:00', 12, 8.00, 'Transferencia'),
+(9015, 9015, 9002, 'REC-MLM-9140', '2026-05-09 16:05:00', 3, 96.00, 'Efectivo'),
+(9016, 9016, 9003, 'FAC-MFX-5201', '2026-05-10 12:00:00', 5, 11.50, 'Transferencia'),
+(9017, 9017, 9007, 'FAC-EBD-4452', '2026-05-10 12:30:00', 3, 44.00, 'Tarjeta'),
+(9018, 9018, 9001, 'FAC-CPN-2026-0840', '2026-05-11 09:50:00', 3, 34.00, 'Transferencia'),
+(9019, 9020, 9007, 'FAC-EBD-4460', '2026-05-11 15:10:00', 5, 23.50, 'Transferencia'),
+(9020, 9001, 9003, 'FAC-MFX-5240', '2026-05-15 10:00:00', 2, 66.00, 'Transferencia');
 
 INSERT INTO "Diagnosticos" (
   id_diagnostico, equipo_id, tecnico_id, falla_reportada, diagnostico_real,
-  presupuesto_estimado, fecha_hora, fecha_asignacion, estado_del_diagnostico, "Estado_aprobacion",
+  presupuesto_estimado, prioridad, fecha_hora, fecha_asignacion, estado_del_diagnostico, "Estado_aprobacion",
   deja_cargador, enciende, usa_corriente_ac
 ) VALUES
-(9001, 9001, NULL, 'No da imagen despues de encender, ventiladores giran fuerte.', NULL, NULL, '2026-05-05 08:30:00', NULL, 'PENDIENTE', 'Pendiente', true, true, true),
-(9002, 9002, NULL, 'Pantalla quebrada, tactil responde por zonas.', NULL, NULL, '2026-05-05 09:20:00', NULL, 'PENDIENTE', 'Pendiente', false, true, false),
-(9003, 9003, 9002, 'Equipo muy lento y se congela al abrir navegador.', 'Disco mecanico con sectores reasignados; se recomienda SSD y limpieza de sistema.', 2450.00, '2026-05-04 10:15:00', '2026-05-04 11:00:00', 'DIAGNOSTICADO', 'Pendiente', true, true, true),
-(9004, 9004, 9001, 'No enciende despues de apagon electrico.', 'Fuente ATX danada; placa madre sin corto aparente.', 1850.00, '2026-05-03 13:45:00', '2026-05-03 14:05:00', 'DIAGNOSTICADO', 'Aprobado', false, false, true),
-(9005, 9005, 9003, 'Monitor prende y se apaga a los segundos.', 'Tarjeta de alimentacion con capacitores inflados.', 1600.00, '2026-05-02 16:30:00', '2026-05-02 17:00:00', 'EN_REVISION', 'Pendiente', false, true, true),
-(9006, 9006, NULL, 'Puerto HDMI flojo; no hay senal en TV.', NULL, NULL, '2026-05-06 08:10:00', NULL, 'PENDIENTE', 'Pendiente', true, true, true),
-(9007, 9007, 9004, 'Impresion con lineas y mensaje de almohadillas agotadas.', 'Contador de almohadillas al limite; requiere kit de mantenimiento y limpieza.', 1450.00, '2026-05-01 11:40:00', '2026-05-01 12:05:00', 'COMPLETADO', 'Aprobado', false, true, true),
-(9008, 9008, 9004, 'Bateria se descarga en menos de una hora.', 'Bateria degradada al 58%; se recomienda reemplazo.', 3200.00, '2026-05-01 15:00:00', '2026-05-01 15:25:00', 'DIAGNOSTICADO', 'Pendiente', true, true, true),
-(9009, 9009, 9002, 'No carga por USB-C, solo enciende con base docking.', 'Puerto USB-C con pines levantados; requiere reemplazo de jack/sub board.', 1950.00, '2026-04-30 09:35:00', '2026-04-30 10:00:00', 'EN_REVISION', 'Pendiente', true, true, true),
-(9010, 9010, NULL, 'No reconoce cargador, se descarga aun conectado.', NULL, NULL, '2026-05-06 12:20:00', NULL, 'PENDIENTE', 'Pendiente', false, false, true),
-(9011, 9011, 9002, 'Se apaga al entrar a juegos y sube mucho la temperatura.', 'Sistema de enfriamiento obstruido; requiere limpieza profunda y pasta termica.', 2300.00, '2026-04-29 10:20:00', '2026-04-29 11:10:00', 'COMPLETADO', 'Aprobado', true, true, true),
-(9012, 9014, 9003, 'Atasco frecuente de papel en bandeja 1.', 'Rodillo de arrastre gastado; requiere reemplazo.', 980.00, '2026-05-02 08:15:00', '2026-05-02 09:00:00', 'DIAGNOSTICADO', 'Pendiente', false, true, true);
+(9001, 9001, 9001, 'Equipo tarda demasiado en iniciar y muestra errores SMART.', 'SSD degradado; se recomienda cambio a NVMe 1TB y migracion de datos.', 3850.00, 'Alta', '2026-05-12 08:30:00', '2026-05-12 09:00:00', 'DIAGNOSTICADO', 'Aprobado', true, true, true),
+(9002, 9002, 9001, 'No enciende despues de variacion electrica.', 'Fuente ATX sin salida estable; placa madre responde con fuente de prueba.', 2950.00, 'Urgente', '2026-05-12 10:20:00', '2026-05-12 10:45:00', 'DIAGNOSTICADO', 'Aprobado', false, false, true),
+(9003, 9003, 9002, 'No carga y reinicia al mover el cable.', 'Flex de carga con sulfato; bateria aun funcional.', 1850.00, 'Normal', '2026-05-13 09:10:00', '2026-05-13 09:40:00', 'EN_REVISION', 'Pendiente', false, true, false),
+(9004, 9004, 9003, 'Proyector prende pero no muestra imagen por HDMI.', 'Main board con falla en entrada HDMI; requiere tarjeta bajo pedido.', 5200.00, 'Alta', '2026-05-13 11:25:00', '2026-05-13 12:00:00', 'DIAGNOSTICADO', 'Pendiente', true, true, true),
+(9005, 9005, NULL, 'Teclado escribe teclas repetidas y algunas no responden.', NULL, NULL, 'Normal', '2026-05-14 08:50:00', NULL, 'PENDIENTE', 'Pendiente', true, true, true),
+(9006, 9006, 9004, 'No da senal HDMI y puerto se ve flojo.', 'Puerto HDMI danado y retimer con lectura inestable.', 2700.00, 'Urgente', '2026-05-14 10:15:00', '2026-05-14 10:40:00', 'DIAGNOSTICADO', 'Aprobado', true, true, true),
+(9007, 9007, 9003, 'Impresora mancha hojas y marca error de temperatura.', 'Fusor con pelicula desgastada; requiere reemplazo.', 4100.00, 'Alta', '2026-05-15 09:30:00', '2026-05-15 10:00:00', 'COMPLETADO', 'Aprobado', false, true, true),
+(9008, 9008, 9003, 'Monitor se apaga despues de unos minutos.', 'Power board inestable bajo carga termica.', 2550.00, 'Normal', '2026-05-15 12:10:00', '2026-05-15 12:30:00', 'DIAGNOSTICADO', 'Rechazado', false, true, true),
+(9009, 9009, 9002, 'Bateria dura menos de una hora y se hincho la tapa.', 'Bateria degradada con abultamiento; no se recomienda uso hasta reemplazo.', 3400.00, 'Urgente', '2026-05-16 08:25:00', '2026-05-16 09:00:00', 'DIAGNOSTICADO', 'Aprobado', true, true, true),
+(9010, 9010, 9003, 'Atasco frecuente en bandeja y arrastre doble.', 'Rodillos gastados; limpieza general pendiente.', 1350.00, 'Normal', '2026-05-16 11:00:00', '2026-05-16 11:30:00', 'COMPLETADO', 'Aprobado', false, true, true),
+(9011, 9011, NULL, 'No carga con cargador original ni universal.', NULL, NULL, 'Alta', '2026-05-17 09:45:00', NULL, 'PENDIENTE', 'Pendiente', true, false, true),
+(9012, 9012, 9004, 'Se apaga durante juegos y tiene olor a quemado.', 'VRM de GPU con corto; reparacion no viable por costo y riesgo.', 0.00, 'Urgente', '2026-05-17 13:20:00', '2026-05-17 13:50:00', 'COMPLETADO', 'Rechazado', true, false, true),
+(9013, 9013, 9002, 'Pantalla quebrada y no responde tactil.', 'Modulo AMOLED quebrado; requiere pantalla completa.', 4600.00, 'Alta', '2026-05-18 10:05:00', '2026-05-18 10:30:00', 'DIAGNOSTICADO', 'Pendiente', false, true, false),
+(9014, 9014, NULL, 'No da imagen y LED parpadea.', NULL, NULL, 'Normal', '2026-05-18 14:15:00', NULL, 'PENDIENTE', 'Pendiente', false, true, true);
 
 INSERT INTO "Ordenes" (
-  id_orden, diagnostico_id, tecnico_id, prioridad, estado, fecha_ingreso
+  id_orden, diagnostico_id, tecnico_id, prioridad, estado, fecha_ingreso,
+  resultado_final, enciende_salida, usa_corriente_ac_salida, observacion_final, fecha_cierre
 ) VALUES
-(9001, 9004, NULL, 'Urgente', 'PENDIENTE', '2026-05-03 15:00:00'),
-(9002, 9007, 9004, 'Normal', 'FINALIZADO', '2026-05-01 13:00:00'),
-(9003, 9011, 9002, 'Alta', 'FINALIZADO', '2026-04-29 12:00:00'),
-(9004, 9003, NULL, 'Normal', 'PENDIENTE', '2026-05-04 12:00:00'),
-(9005, 9008, NULL, 'Normal', 'PENDIENTE', '2026-05-01 16:10:00');
+(9001, 9001, 9001, 'Alta', 'EN_REPARACION', '2026-05-12 14:00:00', NULL, NULL, NULL, NULL, NULL),
+(9002, 9002, 9001, 'Urgente', 'APROBADO', '2026-05-12 15:10:00', NULL, NULL, NULL, NULL, NULL),
+(9003, 9004, NULL, 'Alta', 'ESPERANDO_PIEZA', '2026-05-13 15:20:00', NULL, NULL, NULL, 'Pendiente aprobacion de tarjeta main board bajo pedido.', NULL),
+(9004, 9006, 9004, 'Urgente', 'EN_REPARACION', '2026-05-14 12:00:00', NULL, NULL, NULL, NULL, NULL),
+(9005, 9007, 9003, 'Alta', 'FINALIZADO', '2026-05-15 11:00:00', 'REPARADO', true, true, 'Fusor reemplazado, limpieza interna y pruebas de 50 paginas correctas.', '2026-05-17 16:30:00'),
+(9006, 9010, 9003, 'Normal', 'ENTREGADO', '2026-05-16 13:00:00', 'REPARADO', true, true, 'Equipo entregado con prueba de impresion y limpieza de bandeja.', '2026-05-18 10:20:00'),
+(9007, 9012, 9004, 'Urgente', 'IRREPARABLE', '2026-05-17 15:00:00', 'IRREPARABLE', false, true, 'Corto en VRM de GPU; cliente no autoriza cambio de placa por costo.', '2026-05-18 09:00:00'),
+(9008, 9009, 9002, 'Urgente', 'ESPERANDO_PIEZA', '2026-05-16 10:30:00', NULL, NULL, NULL, 'Bateria aprobada, pendiente llegada de lote adicional.', NULL),
+(9009, 9013, NULL, 'Alta', 'PENDIENTE', '2026-05-18 12:00:00', NULL, NULL, NULL, NULL, NULL);
 
 INSERT INTO "Ordenes_Repuestos" (
-  id_detalle_repuesto, orden_id, repuesto_id, cantidad_usada, estado_aprobacion
+  id_detalle_repuesto, orden_id, repuesto_id, pieza_solicitada, cantidad_usada, estado_aprobacion
 ) VALUES
-(9001, 9001, 9004, 1, 'APROBADO'),
-(9002, 9002, 9013, 1, 'APROBADO'),
-(9003, 9003, 9012, 1, 'APROBADO'),
-(9004, 9003, 9011, 1, 'APROBADO'),
-(9005, 9004, 9005, 1, 'PENDIENTE'),
-(9006, 9004, 9007, 1, 'PENDIENTE'),
-(9007, 9005, 9019, 1, 'PENDIENTE'),
-(9008, 9001, 9004, 1, 'PENDIENTE');
+(9001, 9001, 9001, 'SSD NVMe 1TB para migracion', 1, 'APROBADO'),
+(9002, 9001, 9002, 'RAM DDR4 16GB para ampliacion solicitada por cliente', 1, 'PENDIENTE'),
+(9003, 9002, 9004, 'Fuente ATX 650W certificada', 1, 'APROBADO'),
+(9004, 9003, 9008, 'Main board Epson PowerLite X49', 1, 'PENDIENTE'),
+(9005, 9004, 9011, 'Puerto HDMI Xbox Series S', 1, 'APROBADO'),
+(9006, 9004, 9012, 'Retimer HDMI Xbox Series S', 1, 'APROBADO'),
+(9007, 9005, 9009, 'Fusor Brother HL-L6200DW', 1, 'APROBADO'),
+(9008, 9006, 9010, 'Rodillo alimentacion Canon G3110', 1, 'APROBADO'),
+(9009, 9007, NULL, 'Placa madre Acer Nitro 5 AN515 usada', 1, 'DENEGADO'),
+(9010, 9008, 9017, 'Bateria Galaxy Tab S7 FE', 2, 'PENDIENTE'),
+(9011, 9009, 9015, 'Pantalla Poco X5 Pro AMOLED', 1, 'PENDIENTE'),
+(9012, 9003, NULL, 'Cable flex HDMI alternativo para proyector', 1, 'DENEGADO');
+
+-- El trigger de facturas crea garantias automaticamente; reserva IDs demo para esas filas.
+SELECT setval(
+  pg_get_serial_sequence('"Garantias"', 'id_garantia'),
+  GREATEST(
+    COALESCE((SELECT max(id_garantia) FROM "Garantias" WHERE id_garantia NOT BETWEEN 9000 AND 9999), 0),
+    9000
+  )
+);
 
 INSERT INTO "Facturas" (
   id_factura, orden_id, fecha_emision, monto_repuestos, mano_obra,
   subtotal, impuestos, total, metodo_pago
 ) VALUES
-(9001, 9002, '2026-05-02 10:30:00', 14.25, 22.00, 36.25, 5.44, 41.69, 'Efectivo'),
-(9002, 9003, '2026-05-01 17:45:00', 35.00, 45.00, 80.00, 12.00, 92.00, 'Transferencia');
+(9001, 9005, '2026-05-17 17:00:00', 974.00, 1200.00, 2174.00, 326.10, 2500.10, 'Transferencia'),
+(9002, 9006, '2026-05-18 10:30:00', 400.00, 850.00, 1250.00, 187.50, 1437.50, 'Efectivo'),
+(9003, 9007, '2026-05-18 09:15:00', 0.00, 650.00, 650.00, 97.50, 747.50, 'Tarjeta');
 
 INSERT INTO "Garantias" (
-  id_garantia, factura_id, condiciones, duracion_meses, fecha_inicio, fecha_vencimiento
+  factura_id, condiciones, duracion_meses, fecha_inicio, fecha_vencimiento
 ) VALUES
-(9001, 9001, 'Garantia sobre mantenimiento y repuesto instalado. No cubre danos por derrame o golpe.', 2, '2026-05-02 10:30:00', '2026-07-02 10:30:00'),
-(9002, 9002, 'Garantia de limpieza termica y ventilador instalado. No cubre manipulacion externa.', 3, '2026-05-01 17:45:00', '2026-08-01 17:45:00');
+(9001, 'Garantia sobre fusor instalado y limpieza interna. No cubre toner de baja calidad ni humedad.', 3, '2026-05-17 17:00:00', '2026-08-17 17:00:00'),
+(9002, 'Garantia sobre rodillos y ajuste de bandeja. No cubre papel humedo o fuera de especificacion.', 2, '2026-05-18 10:30:00', '2026-07-18 10:30:00'),
+(9003, 'Servicio de diagnostico sin garantia de reparacion por equipo declarado irreparable.', 1, '2026-05-18 09:15:00', '2026-06-18 09:15:00')
+ON CONFLICT (factura_id) DO UPDATE
+SET condiciones = EXCLUDED.condiciones,
+    duracion_meses = EXCLUDED.duracion_meses,
+    fecha_inicio = EXCLUDED.fecha_inicio,
+    fecha_vencimiento = EXCLUDED.fecha_vencimiento;
+
+-- Deja stock_actual consistente incluso si los triggers aun no estaban cargados.
+UPDATE "Repuestos" r
+SET stock_actual = GREATEST(
+  COALESCE(entradas.total_entradas, 0) - COALESCE(salidas.total_salidas, 0),
+  0
+)
+FROM (
+  SELECT id_repuesto FROM "Repuestos"
+) base
+LEFT JOIN (
+  SELECT repuesto_id, COALESCE(SUM(cantidad), 0)::INT AS total_entradas
+  FROM "Compras"
+  GROUP BY repuesto_id
+) entradas ON entradas.repuesto_id = base.id_repuesto
+LEFT JOIN (
+  SELECT repuesto_id, COALESCE(SUM(cantidad_usada), 0)::INT AS total_salidas
+  FROM "Ordenes_Repuestos" orp
+  INNER JOIN "Facturas" f ON f.orden_id = orp.orden_id
+  WHERE orp.estado_aprobacion = 'APROBADO'
+    AND orp.repuesto_id IS NOT NULL
+  GROUP BY orp.repuesto_id
+) salidas ON salidas.repuesto_id = base.id_repuesto
+WHERE r.id_repuesto = base.id_repuesto;
 
 SELECT setval(pg_get_serial_sequence('"Usuarios"', 'id_usuario'), GREATEST((SELECT max(id_usuario) FROM "Usuarios"), 1));
 SELECT setval(pg_get_serial_sequence('"Tecnicos"', 'id_tecnico'), GREATEST((SELECT max(id_tecnico) FROM "Tecnicos"), 1));

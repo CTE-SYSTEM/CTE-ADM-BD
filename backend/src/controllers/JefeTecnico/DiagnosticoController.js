@@ -87,6 +87,30 @@ const repuestoSolicitudInclude = {
   },
 };
 
+const assertStockDisponible = async (repuestoId, cantidad) => {
+  if (!repuestoId) return;
+
+  const repuesto = await prisma.repuestos.findFirst({
+    where: {
+      id_repuesto: Number(repuestoId),
+      descontinuada: false,
+    },
+    select: { stock_actual: true },
+  });
+
+  if (!repuesto) {
+    const error = new Error('El repuesto seleccionado no existe o esta descontinuado');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (Number(repuesto.stock_actual || 0) < Number(cantidad || 1)) {
+    const error = new Error('Stock insuficiente para aprobar el repuesto');
+    error.statusCode = 409;
+    throw error;
+  }
+};
+
 export const getCorreccionesJefeTecnico = async (req, res) => {
   try {
     const [diagnosticos, ordenes, repuestos] = await Promise.all([
@@ -195,13 +219,34 @@ export const corregirRepuestoJefeTecnico = async (req, res) => {
       return res.status(400).json({ error: 'La cantidad debe ser un entero mayor a cero' });
     }
 
+    const solicitudActual = await prisma.ordenes_Repuestos.findUnique({
+      where: { id_detalle_repuesto: Number(req.params.id) },
+      select: {
+        repuesto_id: true,
+        cantidad_usada: true,
+        estado_aprobacion: true,
+      },
+    });
+
+    if (!solicitudActual) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    const estadoFinal = estado_aprobacion
+      ? assertInList(estado_aprobacion, REPUESTO_ESTADOS, 'Estado del repuesto')
+      : solicitudActual.estado_aprobacion;
+    const repuestoFinal = repuesto_id === undefined ? solicitudActual.repuesto_id : repuestoId;
+    const cantidadFinal = cantidad === undefined ? solicitudActual.cantidad_usada || 1 : cantidad;
+
+    if (estadoFinal === 'APROBADO') {
+      await assertStockDisponible(repuestoFinal, cantidadFinal);
+    }
+
     const solicitud = await prisma.ordenes_Repuestos.update({
       where: { id_detalle_repuesto: Number(req.params.id) },
       data: {
         repuesto_id: repuesto_id === undefined ? undefined : repuestoId,
         pieza_solicitada: pieza_solicitada === undefined ? undefined : String(pieza_solicitada || '').trim() || null,
         cantidad_usada: cantidad,
-        estado_aprobacion: estado_aprobacion ? assertInList(estado_aprobacion, REPUESTO_ESTADOS, 'Estado del repuesto') : undefined,
+        estado_aprobacion: estado_aprobacion ? estadoFinal : undefined,
       },
       include: repuestoSolicitudInclude,
     });
@@ -209,6 +254,10 @@ export const corregirRepuestoJefeTecnico = async (req, res) => {
     res.json({ message: 'Solicitud de repuesto corregida correctamente', data: solicitud });
   } catch (error) {
     if (error.code === 'P2025') return res.status(404).json({ error: 'Solicitud no encontrada' });
+    if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+    if (String(error.message || '').includes('Stock insuficiente')) {
+      return res.status(409).json({ error: 'Stock insuficiente para corregir el repuesto facturado' });
+    }
     if (error.message?.includes('no es valido')) return res.status(400).json({ error: error.message });
     res.status(500).json({ error: 'Error al corregir repuesto', details: error.message });
   }
@@ -402,6 +451,10 @@ const actualizarEstadoSolicitudRepuesto = async (req, res, estado_aprobacion) =>
       return res.status(403).json({ error: 'No se puede modificar la aprobación: el tiempo límite de 30 min ha expirado' });
     }
 
+    if (estado_aprobacion === 'APROBADO') {
+      await assertStockDisponible(solicitudPrevia.repuesto_id, solicitudPrevia.cantidad_usada || 1);
+    }
+
     const solicitud = await prisma.ordenes_Repuestos.update({
       where: { id_detalle_repuesto: Number(req.params.id) },
       data: { estado_aprobacion },
@@ -429,8 +482,9 @@ const actualizarEstadoSolicitudRepuesto = async (req, res, estado_aprobacion) =>
 
     res.json({ message: `Estado actualizado a ${estado_aprobacion}`, data: solicitud });
   } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
     if (String(error.message || '').includes('Stock insuficiente')) {
-      return res.status(409).json({ error: 'Stock insuficiente para aprobar la salida' });
+      return res.status(409).json({ error: 'Stock insuficiente para aprobar el repuesto' });
     }
     res.status(500).json({ error: 'Error al actualizar solicitud', details: error.message });
   }

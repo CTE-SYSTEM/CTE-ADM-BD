@@ -195,12 +195,18 @@ export const solicitarRepuesto = async (ordenId, payload) => {
         id_repuesto: repuestoId,
         descontinuada: false,
       },
-      select: { nombre: true },
+      select: { nombre: true, stock_actual: true },
     });
 
     if (!repuestoEncontrado) {
       const error = new Error('El repuesto seleccionado no existe o esta descontinuado');
       error.statusCode = 400;
+      throw error;
+    }
+
+    if (Number(repuestoEncontrado.stock_actual || 0) < cantidadUsada) {
+      const error = new Error('El repuesto seleccionado no tiene stock suficiente');
+      error.statusCode = 409;
       throw error;
     }
 
