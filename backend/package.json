@@ -16,6 +16,7 @@
     "db:functions": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/load_functions.ps1",
     "db:seed:container": "psql \"$SQL_DATABASE_URL\" -f scripts/Seed_data.sql",
     "db:functions:container": "psql \"$SQL_DATABASE_URL\" -f scripts/load_functions.sql",
+    "db:deploy": "prisma generate && prisma db push && npm run db:functions:container",
     "db:seed:local": "psql -U User_admin -d Centro_Tecnico_Electronico -f scripts/Seed_data.sql",
     "db:check:users": "docker exec postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"SELECT id_usuario, nombre_usuario, rol, activo FROM \\\"Usuarios\\\" ORDER BY id_usuario;\"",
     "db:check:clientes": "docker exec postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c \"SELECT * FROM \\\"Clientes\\\";\"",

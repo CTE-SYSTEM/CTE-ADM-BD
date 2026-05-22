@@ -2,11 +2,10 @@
 import prisma from '../../app/prismaClient.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { env } from '../../config/env.js';
 
 export const login = async (req, res) => {
   try {
-    console.log('Login request body:', req.body);
-
     const { username, password } = req.body ?? {};
 
     if (!username || !password) {
@@ -37,7 +36,7 @@ export const login = async (req, res) => {
     // 4. Generar Token JWT
     const token = jwt.sign(
       { id: usuario.id_usuario, username: usuario.nombre_usuario, rol: usuario.rol },
-      process.env.JWT_SECRET || 'tu_secreto_super_seguro',
+      env.jwtSecret,
       { expiresIn: '8h' }
     );
 

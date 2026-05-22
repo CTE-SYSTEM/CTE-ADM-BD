@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $files = @(
+  "scripts/modules/Auditoria.sql",
   "scripts/modules/Secretaria/Clientes.sql",
   "scripts/modules/Secretaria/Equipo.sql",
   "scripts/modules/Secretaria/Diagnostico.sql",

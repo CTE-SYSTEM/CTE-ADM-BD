@@ -4,51 +4,82 @@ services:
     container_name: postgres_cte
     restart: always
     environment:
-      - POSTGRES_USER=User_admin
-      - POSTGRES_PASSWORD=TuPasswordSeguro123!
-      - POSTGRES_DB=Centro_Tecnico_Electronico
+      POSTGRES_USER: User_admin
+      POSTGRES_PASSWORD: TuPasswordSeguro123!
+      POSTGRES_DB: Centro_Tecnico_Electronico
     ports:
       - "5432:5432"
     volumes:
-      - ./postgres_data:/var/lib/postgresql/data # <--- Tus datos se guardarán aquí
+      - ./postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U User_admin -d Centro_Tecnico_Electronico"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  backend:
-    build: ./backend
-    container_name: backend_cte
-    command: sh -c "npx prisma generate && npx prisma db push && npm run db:functions:container && npm run db:seed:container && sleep 5 && npm run dev"
-    # command: sh -c "npx prisma generate && npm run dev"
+  db-setup:
+    build:
+      context: ./backend
+      target: dev
+    image: cte-backend:dev
+    container_name: backend_cte_setup
+    command: sh -c "npx prisma generate && npx prisma db push && npm run db:functions:container && npm run db:seed:container"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico?schema=public
-      - SQL_DATABASE_URL=postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico
-      - FRONTEND_URL=http://localhost:5173
-      - CORS_ORIGIN=http://localhost:5173
-      - JWT_SECRET=tu_secreto_super_seguro
-      - NODE_ENV=development
+      DATABASE_URL: postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico?schema=public
+      SQL_DATABASE_URL: postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    image: cte-backend:dev
+    container_name: backend_cte
+    command: npm run dev
+    depends_on:
+      db:
+        condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico?schema=public
+      SQL_DATABASE_URL: postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico
+      FRONTEND_URL: http://localhost:5173
+      CORS_ORIGIN: http://localhost:5173
+      JWT_SECRET: tu_secreto_super_seguro
+      NODE_ENV: development
     ports:
       - "5000:5000"
       - "5555:5555"
     volumes:
       - ./backend:/app
       - /app/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:5000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: dev
+    image: cte-frontend:dev
     container_name: frontend_cte
-    command: sh -c "sleep 5 && npm install && npm run dev -- --host 0.0.0.0"
+    command: npm run dev -- --host 0.0.0.0
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
-      - VITE_PROXY_TARGET=http://backend:5000
+      VITE_PROXY_TARGET: http://backend:5000
     ports:
       - "5173:5173"
     volumes:
@@ -60,9 +91,10 @@ services:
     container_name: pgadmin_cte
     restart: always
     environment:
-      - PGADMIN_DEFAULT_EMAIL=sadiel@admin.com
-      - PGADMIN_DEFAULT_PASSWORD=admin
+      PGADMIN_DEFAULT_EMAIL: sadiel@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "8080:80" # Entrarás por localhost:8080
+      - "8080:80"
     depends_on:
-      - db
+      db:
+        condition: service_healthy

@@ -1,16 +1,9 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'tu_secreto_super_seguro';
+import { env } from '../config/env.js';
+import { normalizeRole } from '../utils/roles.js';
 
 let io = null;
-
-const normalizeRole = (role) =>
-  String(role || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[\s_-]/g, '')
-    .toLowerCase();
 
 export const initializeNotifications = (server, allowedOrigins) => {
   io = new Server(server, {
@@ -25,7 +18,7 @@ export const initializeNotifications = (server, allowedOrigins) => {
       const token = socket.handshake.auth?.token;
       if (!token) return next(new Error('No token proporcionado'));
 
-      const payload = jwt.verify(token, JWT_SECRET);
+      const payload = jwt.verify(token, env.jwtSecret);
       socket.user = {
         id: payload.id,
         username: payload.username,

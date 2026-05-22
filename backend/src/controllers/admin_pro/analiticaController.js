@@ -44,13 +44,14 @@ export const getGananciasAdmin = async (req, res) => {
     const now = new Date();
     const fechaInicio = req.query.fecha_inicio || `${now.getFullYear()}-01-01`;
     const fechaFin = req.query.fecha_fin || `${now.getFullYear()}-12-31`;
+    const detalleLimite = Math.min(Math.max(toNumber(req.query.detalle_limite, 12), 5), 100);
 
     const [monthlyRows, detalleRows] = await Promise.all([
       prisma.$queryRaw(
         Prisma.sql`SELECT * FROM admin_pro.ganancias_mensuales(CAST(${fechaInicio} AS DATE), CAST(${fechaFin} AS DATE))`
       ),
       prisma.$queryRaw(
-        Prisma.sql`SELECT * FROM admin_pro.ganancias_detalle(CAST(${fechaInicio} AS DATE), CAST(${fechaFin} AS DATE), 12)`
+        Prisma.sql`SELECT * FROM admin_pro.ganancias_detalle(CAST(${fechaInicio} AS DATE), CAST(${fechaFin} AS DATE), CAST(${detalleLimite} AS INT))`
       ),
     ]);
 
@@ -81,6 +82,7 @@ export const getGananciasAdmin = async (req, res) => {
       data: {
         fechaInicio,
         fechaFin,
+        detalleLimite,
         totals,
         monthly,
         detail: normalizeRows(detalleRows),

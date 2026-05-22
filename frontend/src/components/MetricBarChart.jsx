@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 
 const DEFAULT_COLORS = ['#4f46e5', '#059669', '#dc2626'];
 
@@ -9,15 +9,27 @@ const formatShort = (value) => {
   return `${number}`;
 };
 
-function MetricBarChart({ data = [], labelKey = 'label', series = [], height = 260, formatValue = formatShort }) {
+function MetricBarChart({
+  data = [],
+  labelKey = 'label',
+  series = [],
+  height = 260,
+  formatValue = formatShort,
+  interactive = false,
+  showGrid = true,
+}) {
+  const [hovered, setHovered] = useState(null);
   const width = 920;
   const padding = { top: 24, right: 24, bottom: 58, left: 52 };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
-  const normalizedSeries = series.map((item, index) => ({
-    color: DEFAULT_COLORS[index % DEFAULT_COLORS.length],
-    ...item,
-  }));
+  const normalizedSeries = useMemo(
+    () => series.map((item, index) => ({
+      color: DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+      ...item,
+    })),
+    [series],
+  );
 
   const values = data.flatMap((item) => normalizedSeries.map((serie) => Number(item[serie.key]) || 0));
   const maxValue = Math.max(1, ...values, 0);
@@ -49,12 +61,12 @@ function MetricBarChart({ data = [], labelKey = 'label', series = [], height = 2
   });
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="relative w-full overflow-x-auto">
       <svg className="min-w-[760px] overflow-visible" viewBox={`0 0 ${width} ${height}`} role="img">
         <rect x="0" y="0" width={width} height={height} rx="18" fill="transparent" />
 
-        {gridLines.map((line) => (
-          <g key={line.value}>
+          {showGrid && gridLines.map((line) => (
+            <g key={line.value}>
             <line
               x1={padding.left}
               x2={width - padding.right}
@@ -82,19 +94,36 @@ function MetricBarChart({ data = [], labelKey = 'label', series = [], height = 2
                 const rectHeight = Math.max(2, Math.abs(zeroY - valueY));
                 const x = groupX + serieIndex * (barWidth + 3);
 
+                const isHovered = hovered?.itemIndex === index && hovered?.serieKey === serie.key;
+                const tooltip = `${item[labelKey]} - ${serie.label}: ${formatValue(value)}`;
+
                 return (
-                  <rect
-                    key={serie.key}
-                    x={x}
-                    y={y}
-                    width={barWidth}
-                    height={rectHeight}
-                    rx="5"
-                    fill={serie.color}
-                    opacity="0.92"
-                  >
-                    <title>{`${serie.label}: ${formatValue(value)}`}</title>
-                  </rect>
+                  <g key={serie.key}>
+                    <rect
+                      x={x}
+                      y={y}
+                      width={barWidth}
+                      height={rectHeight}
+                      rx="5"
+                      fill={serie.color}
+                      opacity={interactive && hovered && !isHovered ? '0.48' : '0.92'}
+                      className={interactive ? 'cursor-pointer transition-opacity' : ''}
+                      onMouseEnter={() => interactive && setHovered({ itemIndex: index, serieKey: serie.key, x, y, value, label: tooltip, color: serie.color })}
+                      onMouseLeave={() => interactive && setHovered(null)}
+                    >
+                      <title>{tooltip}</title>
+                    </rect>
+                    {isHovered && (
+                      <circle
+                        cx={x + barWidth / 2}
+                        cy={y}
+                        r="4"
+                        fill="#111827"
+                        stroke="#ffffff"
+                        strokeWidth="2"
+                      />
+                    )}
+                  </g>
                 );
               })}
               <text
@@ -109,6 +138,19 @@ function MetricBarChart({ data = [], labelKey = 'label', series = [], height = 2
           );
         })}
       </svg>
+
+      {interactive && hovered && (
+        <div
+          className="pointer-events-none absolute rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-lg"
+          style={{
+            left: `min(calc(${(hovered.x / width) * 100}% + 28px), calc(100% - 220px))`,
+            top: Math.max(8, hovered.y - 34),
+          }}
+        >
+          <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ background: hovered.color }} />
+          {hovered.label}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-3">
         {normalizedSeries.map((serie) => (

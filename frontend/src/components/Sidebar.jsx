@@ -1,65 +1,70 @@
 import React, { useContext } from 'react';
 import { NavLink } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
-import BrandLogo from './BrandLogo';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Wrench, 
-  Monitor, 
-  ClipboardList, 
-  Package, 
+import {
+  BarChart3,
+  ClipboardCheck,
+  ClipboardList,
+  ContactRound,
+  Cpu,
+  FileCheck,
+  FileText,
+  History,
+  Laptop,
+  LayoutDashboard,
+  Monitor,
+  Package,
   Receipt,
   ShieldCheck,
-  Stethoscope, 
-  FileCheck, 
-  Truck, 
   ShoppingCart,
-  HardDrive,
+  Stethoscope,
   Tags,
-  TrendingUp
+  TrendingUp,
+  Truck,
+  UserCog,
+  Users,
+  WalletCards,
 } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
+import BrandLogo from './BrandLogo';
+
+const adminRoles = ['Administrador', 'admin_pro'];
+
+const allMenuItems = [
+  { name: 'Dashboard', to: '/admin', roles: adminRoles, icon: LayoutDashboard },
+  { name: 'Usuarios', to: '/admin/usuarios', roles: adminRoles, icon: UserCog },
+  { name: 'Clientes', to: '/admin/clientes', roles: adminRoles, icon: ContactRound },
+  { name: 'Equipos', to: '/admin/equipos', roles: adminRoles, icon: Laptop },
+  { name: 'Diagnosticos', to: '/admin/diagnosticos', roles: adminRoles, icon: ClipboardCheck },
+  { name: 'Tecnicos', to: '/admin/tecnicos', roles: adminRoles, icon: Stethoscope },
+  { name: 'Ordenes', to: '/admin/ordenes', roles: adminRoles, icon: ClipboardList },
+  { name: 'Ordenes estado', to: '/admin/ordenes-estado', roles: adminRoles, icon: BarChart3 },
+  { name: 'Facturas', to: '/admin/visualizacion-control-facturas', roles: adminRoles, icon: FileText },
+  { name: 'Garantias', to: '/admin/garantias', roles: adminRoles, icon: ShieldCheck },
+  { name: 'Inventario', to: '/admin/inventario', roles: adminRoles, icon: Package },
+  { name: 'Repuestos', to: '/admin/repuestos', roles: adminRoles, icon: Cpu },
+  { name: 'Compras', to: '/admin/compras', roles: adminRoles, icon: ShoppingCart },
+  { name: 'Ganancias', to: '/admin/ganancias', roles: adminRoles, icon: WalletCards },
+  { name: 'Historial Equipo', to: '/admin/historial-equipo', roles: adminRoles, icon: History },
+  { name: 'Historial Repuesto', to: '/admin/historial-repuesto', roles: adminRoles, icon: TrendingUp },
+
+  { name: 'Dashboard', to: '/secretaria', roles: ['Secretaria'], icon: LayoutDashboard },
+  { name: 'Clientes', to: '/secretaria/clientes', roles: ['Secretaria'], icon: Users },
+  { name: 'Equipos', to: '/secretaria/equipos', roles: ['Secretaria'], icon: Monitor },
+  { name: 'Diagnostico', to: '/secretaria/diagnostico', roles: ['Secretaria'], icon: Stethoscope },
+  { name: 'Nueva Orden', to: '/secretaria/nueva-orden', roles: ['Secretaria'], icon: FileCheck },
+  { name: 'Repuestos', to: '/secretaria/repuestos', roles: ['Secretaria'], icon: Cpu },
+  { name: 'Tipos Repuesto', to: '/secretaria/tipos-repuesto', roles: ['Secretaria'], icon: Tags },
+  { name: 'Compras', to: '/secretaria/compras', roles: ['Secretaria'], icon: ShoppingCart },
+  { name: 'Proveedores', to: '/secretaria/proveedores', roles: ['Secretaria'], icon: Truck },
+  { name: 'Facturacion', to: '/secretaria/facturacion', roles: ['Secretaria'], icon: Receipt },
+
+  { name: 'Dashboard', to: '/tecnico-jefe', roles: ['TecnicoJefe'], icon: LayoutDashboard },
+  { name: 'Dashboard', to: '/tecnico', roles: ['Tecnico'], icon: LayoutDashboard },
+];
 
 const Sidebar = ({ open = true }) => {
   const { user } = useContext(AuthContext);
-
-  const allMenuItems = [
-    // --- ROL: ADMINISTRADOR ---
-    { name: 'Dashboard', to: '/admin', roles: ['Administrador', 'admin_pro'], icon: LayoutDashboard },
-    { name: 'Usuarios', to: '/admin/usuarios', roles: ['Administrador', 'admin_pro'], icon: Users },
-    { name: 'Clientes', to: '/admin/clientes', roles: ['Administrador', 'admin_pro'], icon: Users },
-    { name: 'Equipos', to: '/admin/equipos', roles: ['Administrador', 'admin_pro'], icon: Wrench },
-    { name: 'Diagnósticos', to: '/admin/diagnosticos', roles: ['Administrador', 'admin_pro'], icon: ClipboardList },
-    { name: 'Técnicos', to: '/admin/tecnicos', roles: ['Administrador', 'admin_pro'], icon: Stethoscope },
-    { name: 'Órdenes', to: '/admin/ordenes', roles: ['Administrador', 'admin_pro'], icon: Receipt },
-    { name: 'Órdenes estado', to: '/admin/ordenes-estado', roles: ['Administrador', 'admin_pro'], icon: Receipt },
-    { name: 'Facturas', to: '/admin/visualizacion-control-facturas', roles: ['Administrador', 'admin_pro'], icon: Receipt },
-    { name: 'Garantías', to: '/admin/garantias', roles: ['Administrador', 'admin_pro'], icon: ShieldCheck },
-    { name: 'Inventario', to: '/admin/inventario', roles: ['Administrador', 'admin_pro'], icon: Package },
-    { name: 'Repuestos', to: '/admin/repuestos', roles: ['Administrador', 'admin_pro'], icon: HardDrive },
-    { name: 'Compras', to: '/admin/compras', roles: ['Administrador', 'admin_pro'], icon: ShoppingCart },
-    { name: 'Ganancias', to: '/admin/ganancias', roles: ['Administrador', 'admin_pro'], icon: TrendingUp },
-    { name: 'Historial Equipo', to: '/admin/historial-equipo', roles: ['Administrador', 'admin_pro'], icon: Monitor },
-    { name: 'Historial Repuesto', to: '/admin/historial-repuesto', roles: ['Administrador', 'admin_pro'], icon: ClipboardList },
-
-    // --- ROL: SECRETARIA (Orden Personalizado) ---
-    { name: 'Dashboard', to: '/secretaria', roles: ['Secretaria'], icon: LayoutDashboard },
-    { name: 'Clientes', to: '/secretaria/clientes', roles: ['Secretaria'], icon: Users },
-    { name: 'Equipos', to: '/secretaria/equipos', roles: ['Secretaria'], icon: Monitor },
-    { name: 'Diagnóstico', to: '/secretaria/diagnostico', roles: ['Secretaria'], icon: Stethoscope }, 
-    { name: 'Nueva Orden', to: '/secretaria/nueva-orden', roles: ['Secretaria'], icon: FileCheck },
-    { name: 'Repuestos', to: '/secretaria/repuestos', roles: ['Secretaria'], icon: HardDrive },
-    { name: 'Tipos Repuesto', to: '/secretaria/tipos-repuesto', roles: ['Secretaria'], icon: Tags },
-    { name: 'Compras', to: '/secretaria/compras', roles: ['Secretaria'], icon: ShoppingCart },
-    { name: 'Proveedores', to: '/secretaria/proveedores', roles: ['Secretaria'], icon: Truck },
-    { name: 'Facturación', to: '/secretaria/facturacion', roles: ['Secretaria'], icon: Receipt },
-
-    // --- OTROS ROLES ---
-    { name: 'Dashboard', to: '/tecnico-jefe', roles: ['TecnicoJefe'], icon: LayoutDashboard },
-    { name: 'Dashboard', to: '/tecnico', roles: ['Tecnico'], icon: LayoutDashboard },
-  ];
-
-  const menuItems = allMenuItems.filter(item => item.roles.includes(user?.rol));
+  const menuItems = allMenuItems.filter((item) => item.roles.includes(user?.rol));
 
   return (
     <aside className={`app-sidebar ${open ? 'flex' : 'hidden lg:flex'} flex-col w-20 lg:w-64 bg-[#0f1724] text-white h-screen sticky top-0 transition-all duration-300`}>
@@ -77,12 +82,11 @@ const Sidebar = ({ open = true }) => {
             <li key={item.to + item.name} className="w-full">
               <NavLink
                 to={item.to}
-                // El atributo 'end' evita que el Dashboard se quede azul cuando visitas sub-rutas
-                end={item.to === '/secretaria' || item.to === '/'} 
+                end={item.to === '/admin' || item.to === '/secretaria'}
                 className={({ isActive }) =>
                   `flex w-full min-w-0 items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
-                  ${isActive 
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
+                  ${isActive
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                     : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'}`
                 }
               >
@@ -98,7 +102,7 @@ const Sidebar = ({ open = true }) => {
 
       <div className="p-4 border-t border-gray-800 hidden lg:block bg-[#0b111a]">
         <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">
-          Sistema de Gestión
+          Sistema de Gestion
         </div>
         <div className="text-[10px] text-gray-600 flex justify-between items-center">
           <span>v0.1 Beta</span>

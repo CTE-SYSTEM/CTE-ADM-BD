@@ -9,10 +9,13 @@
     "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
     "db:setup": "npm run db:up && npx wait-on tcp:5432 && npm run db:sync --prefix backend && npm run db:generate --prefix backend && npm run db:functions --prefix backend && npm run db:seed --prefix backend",
     "build": "npm run build --prefix frontend",
-    "db:up": "docker-compose up -d db",
-    "db:down": "docker-compose down db",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up --build",
+    "docker:logs": "docker compose logs -f",
+    "docker:ps": "docker compose ps",
+    "docker:down": "docker compose down"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

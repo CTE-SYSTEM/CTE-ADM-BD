@@ -1,16 +1,21 @@
-FROM node:20-alpine
+FROM node:20-alpine AS base
 WORKDIR /app
-
-# Copia dependencias
 RUN apk add --no-cache openssl libc6-compat postgresql-client
+
+FROM base AS dev
 COPY package*.json ./
 RUN npm install
-
-# Copia el código y el archivo de Prisma
 COPY . .
-
-# Genera el cliente de Prisma para SQL Server
 RUN npx prisma generate
-
 EXPOSE 5000
 CMD ["npm", "run", "dev"]
+
+FROM base AS production
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npx prisma generate
+RUN npm prune --omit=dev
+EXPOSE 5000
+CMD ["npm", "start"]
