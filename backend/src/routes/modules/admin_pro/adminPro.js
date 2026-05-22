@@ -27,6 +27,7 @@ import { getMonitoreoGeneral, getDashboardResumen } from '../../../controllers/a
 import { updateDiagnosticoEstadoAdmin } from '../../../controllers/admin_pro/diagnosticosController.js';
 import { getHistorialEquipo, getHistorialRepuesto } from '../../../controllers/admin_pro/historialController.js';
 import { getReporteAdminPro } from '../../../controllers/admin_pro/reportesController.js';
+import { getGananciasAdmin, getProductividadAdmin } from '../../../controllers/admin_pro/analiticaController.js';
 
 const router = Router();
 
@@ -64,6 +65,8 @@ router.put('/usuarios/:id/password', updateUsuarioPassword);
 router.delete('/usuarios/:id', deleteUsuario);
 
 router.get('/dashboard', getDashboardResumen);
+router.get('/analitica/productividad', getProductividadAdmin);
+router.get('/analitica/ganancias', getGananciasAdmin);
 router.put('/ordenes/:id', updateOrdenAdmin);
 router.put('/repuestos/:id', updateRepuestoAdmin);
 router.get('/monitoreo', getMonitoreoGeneral);

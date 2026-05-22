@@ -16,7 +16,8 @@ import {
   Truck, 
   ShoppingCart,
   HardDrive,
-  Tags
+  Tags,
+  TrendingUp
 } from 'lucide-react';
 
 const Sidebar = ({ open = true }) => {
@@ -37,6 +38,7 @@ const Sidebar = ({ open = true }) => {
     { name: 'Inventario', to: '/admin/inventario', roles: ['Administrador', 'admin_pro'], icon: Package },
     { name: 'Repuestos', to: '/admin/repuestos', roles: ['Administrador', 'admin_pro'], icon: HardDrive },
     { name: 'Compras', to: '/admin/compras', roles: ['Administrador', 'admin_pro'], icon: ShoppingCart },
+    { name: 'Ganancias', to: '/admin/ganancias', roles: ['Administrador', 'admin_pro'], icon: TrendingUp },
     { name: 'Historial Equipo', to: '/admin/historial-equipo', roles: ['Administrador', 'admin_pro'], icon: Monitor },
     { name: 'Historial Repuesto', to: '/admin/historial-repuesto', roles: ['Administrador', 'admin_pro'], icon: ClipboardList },
 

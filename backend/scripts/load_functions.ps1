@@ -13,7 +13,9 @@ $files = @(
   "scripts/modules/JefeTecnico/Diagnostico.sql",
   "scripts/modules/Tecnico/01_consultas.sql",
   "scripts/modules/Tecnico/02_acciones.sql",
-  "scripts/modules/admin_pro/AdminPro.sql"
+  "scripts/modules/admin_pro/00_schema.sql",
+  "scripts/modules/admin_pro/01_reportes.sql",
+  "scripts/modules/admin_pro/02_editar.sql"
 )
 
 $sql = ($files | ForEach-Object { Get-Content $_ -Raw }) -join "`n"

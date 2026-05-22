@@ -486,3 +486,222 @@ BEGIN
   ORDER BY stock_estimado ASC, repuesto ASC;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION admin_pro.productividad_mensual(
+  p_anio INT DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::INT
+)
+RETURNS TABLE (
+  mes INT,
+  etiqueta TEXT,
+  diagnosticos INT,
+  ordenes_finalizadas INT,
+  facturas INT,
+  total_facturado NUMERIC
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH meses AS (
+    SELECT generate_series(1, 12) AS mes
+  )
+  SELECT
+    m.mes::INT AS mes,
+    TO_CHAR(MAKE_DATE(p_anio, m.mes::INT, 1), 'Mon')::TEXT AS etiqueta,
+    (
+      SELECT COUNT(*)::INT
+      FROM "Diagnosticos" d
+      WHERE d.fecha_hora IS NOT NULL
+        AND EXTRACT(YEAR FROM d.fecha_hora)::INT = p_anio
+        AND EXTRACT(MONTH FROM d.fecha_hora)::INT = m.mes
+    ) AS diagnosticos,
+    (
+      SELECT COUNT(*)::INT
+      FROM "Ordenes" o
+      WHERE UPPER(COALESCE(o.estado, '')) IN ('FINALIZADO', 'ENTREGADO')
+        AND COALESCE(o.fecha_cierre, o.fecha_ingreso) IS NOT NULL
+        AND EXTRACT(YEAR FROM COALESCE(o.fecha_cierre, o.fecha_ingreso))::INT = p_anio
+        AND EXTRACT(MONTH FROM COALESCE(o.fecha_cierre, o.fecha_ingreso))::INT = m.mes
+    ) AS ordenes_finalizadas,
+    (
+      SELECT COUNT(*)::INT
+      FROM "Facturas" f
+      WHERE f.fecha_emision IS NOT NULL
+        AND EXTRACT(YEAR FROM f.fecha_emision)::INT = p_anio
+        AND EXTRACT(MONTH FROM f.fecha_emision)::INT = m.mes
+    ) AS facturas,
+    (
+      SELECT COALESCE(SUM(COALESCE(f.total, 0)), 0)
+      FROM "Facturas" f
+      WHERE f.fecha_emision IS NOT NULL
+        AND EXTRACT(YEAR FROM f.fecha_emision)::INT = p_anio
+        AND EXTRACT(MONTH FROM f.fecha_emision)::INT = m.mes
+    ) AS total_facturado
+  FROM meses m
+  ORDER BY m.mes ASC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION admin_pro.productividad_anual(
+  p_anio_fin INT DEFAULT EXTRACT(YEAR FROM CURRENT_DATE)::INT,
+  p_anios_atras INT DEFAULT 4
+)
+RETURNS TABLE (
+  anio INT,
+  diagnosticos INT,
+  ordenes_finalizadas INT,
+  total_facturado NUMERIC
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_anio_inicio INT;
+BEGIN
+  v_anio_inicio := p_anio_fin - GREATEST(COALESCE(p_anios_atras, 4), 1);
+
+  RETURN QUERY
+  WITH anios AS (
+    SELECT generate_series(v_anio_inicio, p_anio_fin) AS anio
+  )
+  SELECT
+    a.anio::INT AS anio,
+    (
+      SELECT COUNT(*)::INT
+      FROM "Diagnosticos" d
+      WHERE d.fecha_hora IS NOT NULL
+        AND EXTRACT(YEAR FROM d.fecha_hora)::INT = a.anio
+    ) AS diagnosticos,
+    (
+      SELECT COUNT(*)::INT
+      FROM "Ordenes" o
+      WHERE UPPER(COALESCE(o.estado, '')) IN ('FINALIZADO', 'ENTREGADO')
+        AND COALESCE(o.fecha_cierre, o.fecha_ingreso) IS NOT NULL
+        AND EXTRACT(YEAR FROM COALESCE(o.fecha_cierre, o.fecha_ingreso))::INT = a.anio
+    ) AS ordenes_finalizadas,
+    (
+      SELECT COALESCE(SUM(COALESCE(f.total, 0)), 0)
+      FROM "Facturas" f
+      WHERE f.fecha_emision IS NOT NULL
+        AND EXTRACT(YEAR FROM f.fecha_emision)::INT = a.anio
+    ) AS total_facturado
+  FROM anios a
+  ORDER BY a.anio ASC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION admin_pro.ganancias_mensuales(
+  p_fecha_inicio DATE DEFAULT DATE_TRUNC('year', CURRENT_DATE)::DATE,
+  p_fecha_fin DATE DEFAULT (DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '1 year' - INTERVAL '1 day')::DATE
+)
+RETURNS TABLE (
+  periodo TEXT,
+  etiqueta TEXT,
+  ingresos NUMERIC,
+  gastos NUMERIC,
+  costo_repuestos_usados NUMERIC,
+  ganancia_neta NUMERIC,
+  margen_servicio NUMERIC,
+  facturas INT,
+  compras INT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH limites AS (
+    SELECT
+      DATE_TRUNC('month', p_fecha_inicio)::DATE AS inicio,
+      DATE_TRUNC('month', p_fecha_fin)::DATE AS fin
+  ),
+  meses AS (
+    SELECT generate_series(l.inicio, l.fin, INTERVAL '1 month')::DATE AS mes
+    FROM limites l
+  ),
+  ingresos AS (
+    SELECT
+      DATE_TRUNC('month', f.fecha_emision)::DATE AS mes,
+      COALESCE(SUM(COALESCE(f.total, 0)), 0) AS ingresos,
+      COUNT(*)::INT AS facturas
+    FROM "Facturas" f
+    WHERE f.fecha_emision::DATE BETWEEN p_fecha_inicio AND p_fecha_fin
+    GROUP BY DATE_TRUNC('month', f.fecha_emision)::DATE
+  ),
+  gastos AS (
+    SELECT
+      DATE_TRUNC('month', c.fecha_obtencion)::DATE AS mes,
+      COALESCE(SUM(COALESCE(c.cantidad, 0) * COALESCE(c.costo_unitario, 0)), 0) AS gastos_compras,
+      COUNT(*)::INT AS compras
+    FROM "Compras" c
+    WHERE c.fecha_obtencion::DATE BETWEEN p_fecha_inicio AND p_fecha_fin
+    GROUP BY DATE_TRUNC('month', c.fecha_obtencion)::DATE
+  ),
+  costos_usados AS (
+    SELECT
+      DATE_TRUNC('month', COALESCE(o.fecha_cierre, o.fecha_ingreso))::DATE AS mes,
+      COALESCE(SUM(COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0)), 0) AS costo_repuestos_usados
+    FROM "Ordenes_Repuestos" orp
+    JOIN "Ordenes" o ON o.id_orden = orp.orden_id
+    LEFT JOIN "Repuestos" r ON r.id_repuesto = orp.repuesto_id
+    WHERE orp.estado_aprobacion = 'APROBADO'
+      AND COALESCE(o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN p_fecha_inicio AND p_fecha_fin
+    GROUP BY DATE_TRUNC('month', COALESCE(o.fecha_cierre, o.fecha_ingreso))::DATE
+  )
+  SELECT
+    TO_CHAR(m.mes, 'YYYY-MM')::TEXT AS periodo,
+    TO_CHAR(m.mes, 'Mon YYYY')::TEXT AS etiqueta,
+    COALESCE(i.ingresos, 0) AS ingresos,
+    COALESCE(g.gastos_compras, 0) AS gastos,
+    COALESCE(cu.costo_repuestos_usados, 0) AS costo_repuestos_usados,
+    COALESCE(i.ingresos, 0) - COALESCE(g.gastos_compras, 0) AS ganancia_neta,
+    COALESCE(i.ingresos, 0) - COALESCE(cu.costo_repuestos_usados, 0) AS margen_servicio,
+    COALESCE(i.facturas, 0)::INT AS facturas,
+    COALESCE(g.compras, 0)::INT AS compras
+  FROM meses m
+  LEFT JOIN ingresos i ON i.mes = m.mes
+  LEFT JOIN gastos g ON g.mes = m.mes
+  LEFT JOIN costos_usados cu ON cu.mes = m.mes
+  ORDER BY m.mes ASC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION admin_pro.ganancias_detalle(
+  p_fecha_inicio DATE DEFAULT DATE_TRUNC('year', CURRENT_DATE)::DATE,
+  p_fecha_fin DATE DEFAULT (DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '1 year' - INTERVAL '1 day')::DATE,
+  p_limite INT DEFAULT 12
+)
+RETURNS TABLE (
+  tipo TEXT,
+  fecha TIMESTAMP,
+  concepto TEXT,
+  monto NUMERIC,
+  metodo_pago TEXT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT *
+  FROM (
+    SELECT
+      'Ingreso'::TEXT AS tipo,
+      f.fecha_emision AS fecha,
+      CONCAT('Factura #', f.id_factura)::TEXT AS concepto,
+      COALESCE(f.total, 0) AS monto,
+      f.metodo_pago::TEXT AS metodo_pago
+    FROM "Facturas" f
+    WHERE f.fecha_emision::DATE BETWEEN p_fecha_inicio AND p_fecha_fin
+    UNION ALL
+    SELECT
+      'Gasto'::TEXT AS tipo,
+      c.fecha_obtencion AS fecha,
+      CONCAT('Compra #', c.id_compra, ' - ', COALESCE(r.nombre, 'Repuesto'))::TEXT AS concepto,
+      COALESCE(c.cantidad, 0) * COALESCE(c.costo_unitario, 0) AS monto,
+      c.metodo_pago::TEXT AS metodo_pago
+    FROM "Compras" c
+    LEFT JOIN "Repuestos" r ON r.id_repuesto = c.repuesto_id
+    WHERE c.fecha_obtencion::DATE BETWEEN p_fecha_inicio AND p_fecha_fin
+  ) movimientos
+  ORDER BY fecha DESC NULLS LAST
+  LIMIT GREATEST(COALESCE(p_limite, 12), 1);
+END;
+$$;

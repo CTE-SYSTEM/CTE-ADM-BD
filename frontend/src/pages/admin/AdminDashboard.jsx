@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import Table from '../../components/Table';
+import MetricBarChart from '../../components/MetricBarChart';
 
 const summaryCards = [
   { title: 'Equipos', key: 'equipos', color: 'bg-sky-50 text-sky-700 border-sky-100' },
@@ -41,6 +42,7 @@ const equiposPreviewColumns = [
 export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [equiposPreview, setEquiposPreview] = useState([]);
+  const [productividad, setProductividad] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showHelp, setShowHelp] = useState(false);
@@ -49,13 +51,15 @@ export default function AdminDashboard() {
     const fetchDashboard = async () => {
       setLoading(true);
       try {
-        const [res, equiposRes] = await Promise.all([
+        const [res, equiposRes, productividadRes] = await Promise.all([
           api.get('/admin_pro/dashboard'),
           api.get('/admin_pro/equipos'),
+          api.get('/admin_pro/analitica/productividad'),
         ]);
         const data = res.data;
         if (data.data) {
           setDashboard(data.data);
+          setProductividad(productividadRes.data?.data || null);
           setEquiposPreview(
             (equiposRes.data?.data || []).slice(0, 6).map((equipo) => ({
               id_equipo: equipo.id_equipo,
@@ -67,7 +71,7 @@ export default function AdminDashboard() {
         } else {
           setError('No se pudo cargar el panel de administración');
         }
-      } catch (e) {
+      } catch {
         setError('Error de red o servidor');
       }
       setLoading(false);
@@ -137,6 +141,57 @@ export default function AdminDashboard() {
             ))}
           </div>
 
+          <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Productividad mensual y anual</h2>
+                <p className="text-sm text-gray-400">Compara diagnosticos, ordenes cerradas y facturacion del equipo tecnico.</p>
+              </div>
+              <Link
+                to="/admin/tecnicos"
+                className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+              >
+                Ver tecnicos
+              </Link>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <div>
+                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-indigo-500">
+                  Mes a mes {productividad?.year || ''}
+                </p>
+                <MetricBarChart
+                  data={(productividad?.monthly || []).map((item) => ({
+                    ...item,
+                    etiqueta: item.etiqueta || item.mes,
+                  }))}
+                  labelKey="etiqueta"
+                  series={[
+                    { key: 'diagnosticos', label: 'Diagnosticos', color: '#4f46e5' },
+                    { key: 'ordenes_finalizadas', label: 'Ordenes cerradas', color: '#059669' },
+                  ]}
+                />
+              </div>
+
+              <div>
+                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-emerald-500">
+                  Resumen anual
+                </p>
+                <MetricBarChart
+                  data={(productividad?.yearly || []).map((item) => ({
+                    ...item,
+                    etiqueta: String(item.anio),
+                  }))}
+                  labelKey="etiqueta"
+                  series={[
+                    { key: 'diagnosticos', label: 'Diagnosticos', color: '#4f46e5' },
+                    { key: 'ordenes_finalizadas', label: 'Ordenes cerradas', color: '#059669' },
+                  ]}
+                />
+              </div>
+            </div>
+          </section>
+
           {/* Grid de Contenido Principal (Tablas Balanceadas) */}
           <div className="grid gap-6 lg:grid-cols-2">
             
@@ -191,6 +246,7 @@ export default function AdminDashboard() {
               <Link to="/admin/ordenes" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Órdenes</Link>
               <Link to="/admin/repuestos" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Repuestos</Link>
               <Link to="/admin/compras" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Compras</Link>
+              <Link to="/admin/ganancias" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Ganancias</Link>
               <Link to="/admin/tecnicos" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Técnicos</Link>
             </div>
           </section>

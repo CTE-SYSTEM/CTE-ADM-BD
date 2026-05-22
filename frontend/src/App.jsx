@@ -7,6 +7,7 @@ import Navbar from './components/Navbar';
 
 // Contexto de Autenticación
 import { AuthProvider, AuthContext } from './context/AuthContext';
+import { PersonalizacionProvider } from './features/personalizacion';
 
 // Páginas de Auth
 import Login from './pages/Auth/Login';
@@ -27,6 +28,7 @@ import RendimientoTecnicos from './pages/admin/RendimientoTecnicos';
 import OrdenesEstadoAvanzado from './pages/admin/OrdenesEstadoAvanzado';
 import DiagnosticosEstadoAvanzado from './pages/admin/DiagnosticosEstadoAvanzado';
 import ClientesAvanzado from './pages/admin/ClientesAvanzado';
+import Ganancias from './pages/admin/Ganancias';
 
 // --- SECCIÓN SECRETARIA ---
 import SecretariaDashboard from './pages/Secretaria/SecretariaDashboard';
@@ -46,29 +48,28 @@ import JefeDashboard from './pages/TecnicoJefe/TecnicoJefeDashboard';
 
 import './App.css';
 
+function MainLayout({ sidebarOpen, onToggleSidebar }) {
+  const location = useLocation();
+  const isAdminRoute = location.pathname === '/' || location.pathname.startsWith('/admin');
+
+  return (
+    <div className="flex h-screen bg-[var(--bg)] text-[var(--text)]">
+      <Sidebar open={sidebarOpen} />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <Navbar onToggleSidebar={onToggleSidebar} />
+        <main className={`flex-1 overflow-auto ${isAdminRoute ? 'admin-main' : 'p-6'}`}>
+          <div className={`mx-auto w-full ${isAdminRoute ? 'admin-content' : 'max-w-7xl'}`}>
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const toggleSidebar = () => setSidebarOpen((s) => !s);
-
-  // Layout estándar con Sidebar y Navbar (Admin, Secretaria, Técnico)
-  const MainLayout = () => {
-    const location = useLocation();
-    const isAdminRoute = location.pathname === '/' || location.pathname.startsWith('/admin');
-
-    return (
-      <div className="flex h-screen bg-gray-50 text-gray-900">
-        <Sidebar open={sidebarOpen} />
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <Navbar onToggleSidebar={toggleSidebar} />
-          <main className={`flex-1 overflow-auto ${isAdminRoute ? 'admin-main' : 'p-6'}`}>
-            <div className={`mx-auto w-full ${isAdminRoute ? 'admin-content' : 'max-w-7xl'}`}>
-              <Outlet />
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  };
 
   const router = createBrowserRouter(
     [
@@ -84,7 +85,7 @@ function App() {
 
           // 1. RUTAS CON SIDEBAR Y NAVBAR GLOBAL
           {
-            element: <MainLayout />,
+            element: <MainLayout sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />,
             children: [
               // Admin
               { index: true, element: <RequireAuth><AdminDashboard /></RequireAuth> },
@@ -94,6 +95,7 @@ function App() {
               { path: 'admin/ordenes', element: <RequireAuth><OrdenesAvanzado /></RequireAuth> },
               { path: 'admin/repuestos', element: <RequireAuth><RepuestosAvanzado /></RequireAuth> },
               { path: 'admin/compras', element: <RequireAuth><ComprasAvanzado /></RequireAuth> },
+              { path: 'admin/ganancias', element: <RequireAuth><Ganancias /></RequireAuth> },
               { path: 'admin/tecnicos', element: <RequireAuth><RendimientoTecnicos /></RequireAuth> },
               { path: 'admin/clientes', element: <RequireAuth><ClientesAvanzado /></RequireAuth> },
               { path: 'admin/inventario', element: <RequireAuth><InventarioAvanzado /></RequireAuth> },
@@ -135,7 +137,11 @@ function App() {
     ]
   );
 
-  return <RouterProvider router={router} />;
+  return (
+    <PersonalizacionProvider>
+      <RouterProvider router={router} />
+    </PersonalizacionProvider>
+  );
 }
 
 function RequireAuth({ children }) {
