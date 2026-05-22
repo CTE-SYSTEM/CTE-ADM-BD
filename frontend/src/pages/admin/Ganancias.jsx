@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import MetricBarChart from '../../components/MetricBarChart';
 import Table from '../../components/Table';
 import api from '../../services/api';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 const currency = (value) => `$ ${Number(value || 0).toFixed(2)}`;
 
@@ -18,6 +19,7 @@ const detailColumns = [
 export default function Ganancias() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
   const [fromDate, setFromDate] = useState(`${currentYear}-01-01`);
   const [toDate, setToDate] = useState(`${currentYear}-12-31`);
@@ -60,47 +62,100 @@ export default function Ganancias() {
     [data]
   );
 
+  const reportFilename = `ganancias_${fromDate || 'general'}_${toDate || 'general'}`;
+
+  const downloadGananciasCsv = async () => {
+    setDownloading(true);
+    setError('');
+    try {
+      downloadJsonCsv(detail, detailColumns, `${reportFilename}.csv`);
+    } catch {
+      setError('No se pudo descargar el reporte de ganancias.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadGananciasPdf = async () => {
+    setDownloading(true);
+    setError('');
+    try {
+      downloadJsonPdf(detail, detailColumns, `${reportFilename}.pdf`, 'Reporte de Ganancias');
+    } catch {
+      setError('No se pudo descargar el reporte de ganancias en PDF.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Ganancias</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
-            Mini modulo de autogestion para ingresos, gastos, ganancias y perdidas del negocio.
-          </p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-[150px_150px_auto] sm:items-end">
-          <label className="block space-y-1.5">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Desde</span>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(event) => setFromDate(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </label>
-
-          <label className="block space-y-1.5">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hasta</span>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(event) => setToDate(event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </label>
-
-          <button
-            type="button"
-            onClick={fetchGanancias}
-            disabled={loading}
-            className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300"
-          >
-            Consultar
-          </button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">Ganancias</h1>
+        <p className="text-gray-400 text-sm mt-0.5">
+          Mini modulo de autogestion para ingresos, gastos, ganancias y perdidas del negocio.
+        </p>
       </div>
+
+      <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between border-b border-gray-50 pb-4">
+          <div className="shrink-0">
+            <h2 className="text-lg font-bold text-slate-800">Parámetros de reporte</h2>
+            <p className="text-sm text-gray-400">Selecciona un periodo y exporta el reporte de ganancias filtrado.</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 w-full lg:w-auto">
+            <div className="w-full sm:w-[150px] shrink-0">
+              <span className="text-xs font-bold text-gray-500 uppercase block">Desde</span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(event) => setFromDate(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="w-full sm:w-[150px] shrink-0">
+              <span className="text-xs font-bold text-gray-500 uppercase block">Hasta</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(event) => setToDate(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={fetchGanancias}
+                disabled={loading}
+                className="rounded-xl bg-indigo-600 px-5 py-3 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 whitespace-nowrap"
+              >
+                Consultar
+              </button>
+              <button
+                type="button"
+                onClick={downloadGananciasCsv}
+                disabled={downloading || loading || detail.length === 0}
+                className="rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+                title="Exportar reporte de ganancias en CSV"
+              >
+                CSV
+              </button>
+              <button
+                type="button"
+                onClick={downloadGananciasPdf}
+                disabled={downloading || loading || detail.length === 0}
+                className="rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+                title="Exportar reporte de ganancias en PDF"
+              >
+                PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {loading && <div className="rounded-2xl bg-white p-6 shadow-sm text-gray-400 text-center">Calculando ganancias...</div>}
       {error && <div className="rounded-2xl bg-red-50 p-6 text-red-700 shadow-sm">{error}</div>}
