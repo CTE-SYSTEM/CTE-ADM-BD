@@ -465,6 +465,7 @@ BEGIN
       orp.repuesto_id,
       COALESCE(SUM(COALESCE(orp.cantidad_usada, 1)), 0)::BIGINT AS cantidad_usada
     FROM "Ordenes_Repuestos" orp
+    JOIN "Facturas" f ON f.orden_id = orp.orden_id
     WHERE orp.estado_aprobacion = 'APROBADO'
     GROUP BY orp.repuesto_id
   )

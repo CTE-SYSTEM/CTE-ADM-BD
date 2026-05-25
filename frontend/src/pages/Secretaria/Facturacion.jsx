@@ -19,6 +19,27 @@ const getEquipoFactura = (factura) => [
   factura?.orden?.diagnostico?.equipo?.modelo,
 ].filter(Boolean).join(' ') || 'Servicio tecnico';
 
+const getRepuestosOrden = (orden) => orden?.repuestos_facturacion || orden?.repuestos_usados || [];
+
+const getNombreRepuesto = (detalle) =>
+  detalle?.repuesto?.nombre || detalle?.pieza_solicitada || 'Pieza sin nombre';
+
+const getPrecioUnitarioRepuesto = (detalle) => {
+  if (detalle?.precio_unitario !== undefined) return Number(detalle.precio_unitario || 0);
+  const costo = Number(detalle?.repuesto?.costo_individual || 0);
+  const ganancia = Number(detalle?.repuesto?.ganancia_cordobas || 0);
+  const porcentaje = Number(detalle?.repuesto?.porcentaje_de_ganacia || 0);
+
+  if (ganancia > 0) return costo + ganancia;
+  if (porcentaje > 0) return costo + ((costo * porcentaje) / 100);
+  return costo;
+};
+
+const getTotalRepuesto = (detalle) => {
+  if (detalle?.total !== undefined) return Number(detalle.total || 0);
+  return Number(detalle?.cantidad_usada || 0) * getPrecioUnitarioRepuesto(detalle);
+};
+
 const buildTicketHtml = (factura, { autoPrint = false } = {}) => {
   const cliente = getClienteFactura(factura) || 'Consumidor final';
   const equipo = getEquipoFactura(factura);
@@ -166,6 +187,11 @@ const FacturacionPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (selectedOrden?.repuestos_pendientes_count > 0) {
+      setError('Esta orden tiene repuestos pendientes de aprobacion. Apruebelos o rechacelos antes de crear la factura.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -386,6 +412,56 @@ const FacturacionPage = () => {
                 <div className="text-xs font-semibold uppercase text-indigo-500">AC al salir</div>
                 <div>{selectedOrden.usa_corriente_ac_salida === null || selectedOrden.usa_corriente_ac_salida === undefined ? 'No registrado' : formatBool(selectedOrden.usa_corriente_ac_salida)}</div>
               </div>
+            </div>
+            <div className="mt-3 rounded-md bg-white">
+              <div className="flex items-center justify-between gap-3 border-b border-indigo-100 px-3 py-2">
+                <div>
+                  <div className="text-xs font-semibold uppercase text-indigo-500">Repuestos agregados</div>
+                  <div className="text-sm font-semibold text-indigo-950">
+                    {money(selectedOrden.monto_repuestos_calculado)} facturable
+                  </div>
+                </div>
+                {selectedOrden.repuestos_pendientes_count > 0 && (
+                  <span className="rounded bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
+                    {selectedOrden.repuestos_pendientes_count} pendiente(s)
+                  </span>
+                )}
+              </div>
+              {getRepuestosOrden(selectedOrden).length === 0 ? (
+                <div className="px-3 py-4 text-sm text-gray-500">Esta orden no tiene repuestos agregados.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="bg-gray-50 text-gray-500">
+                      <tr>
+                        <th className="px-3 py-2 font-semibold uppercase">Pieza</th>
+                        <th className="px-3 py-2 font-semibold uppercase">Estado</th>
+                        <th className="px-3 py-2 text-right font-semibold uppercase">Cant.</th>
+                        <th className="px-3 py-2 text-right font-semibold uppercase">Precio</th>
+                        <th className="px-3 py-2 text-right font-semibold uppercase">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {getRepuestosOrden(selectedOrden).map((detalle) => {
+                        const aprobado = String(detalle.estado_aprobacion || '').toUpperCase() === 'APROBADO';
+                        return (
+                          <tr key={detalle.id_detalle_repuesto}>
+                            <td className="px-3 py-2 font-semibold text-gray-800">{getNombreRepuesto(detalle)}</td>
+                            <td className="px-3 py-2">
+                              <span className={`rounded px-2 py-1 font-bold ${aprobado ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>
+                                {detalle.estado_aprobacion || 'PENDIENTE'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right">{detalle.cantidad_usada || 0}</td>
+                            <td className="px-3 py-2 text-right">{money(getPrecioUnitarioRepuesto(detalle))}</td>
+                            <td className="px-3 py-2 text-right font-semibold">{aprobado ? money(getTotalRepuesto(detalle)) : money(0)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}

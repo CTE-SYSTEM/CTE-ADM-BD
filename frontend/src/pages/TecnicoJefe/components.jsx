@@ -1,0 +1,267 @@
+import React from 'react';
+import { Bell, LogOut, Save, Settings, X } from 'lucide-react';
+import BrandLogo from '../../components/BrandLogo';
+import { DIAGNOSTICO_ESTADOS, ORDEN_ESTADOS, PRIORIDADES, REPUESTO_ESTADOS } from './constants';
+import { getCorreccionId, getCorreccionTipo, getEquipo } from './utils';
+
+const notificationColors = {
+  success: 'border-emerald-100 bg-emerald-50 text-emerald-800',
+  warning: 'border-amber-100 bg-amber-50 text-amber-800',
+  info: 'border-indigo-100 bg-indigo-50 text-indigo-800',
+};
+
+const cardColors = {
+  amber: 'bg-amber-50 text-amber-600',
+  blue: 'bg-blue-50 text-blue-600',
+  emerald: 'bg-emerald-50 text-emerald-600',
+  indigo: 'bg-indigo-50 text-indigo-600',
+  red: 'bg-red-50 text-red-600',
+};
+
+export const DashboardHeader = ({ user, logout, socketConnected, notificationsCount, onToggleNotifications }) => (
+  <header className="bg-[#0f172a] text-white p-6 shadow-xl">
+    <div className="container mx-auto flex justify-between items-center">
+      <div className="flex items-center gap-5">
+        <BrandLogo className="h-12 w-20 shadow-lg shadow-indigo-500/20" />
+        <h1 className="text-xl text-white italic uppercase tracking-tight">
+          Panel <span className="text-indigo-400">Jefe Tecnico</span>
+        </h1>
+      </div>
+
+      <div className="flex items-center gap-6">
+        <button
+          type="button"
+          onClick={onToggleNotifications}
+          className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/50 text-slate-200 hover:border-indigo-400 hover:text-white"
+          title={socketConnected ? 'Notificaciones conectadas' : 'Notificaciones desconectadas'}
+        >
+          <Bell size={20} />
+          {notificationsCount > 0 && (
+            <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+              {notificationsCount}
+            </span>
+          )}
+          <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ${socketConnected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+        </button>
+
+        <div className="text-right hidden md:block">
+          <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] leading-none mb-1">
+            Usuario Conectado
+          </p>
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-sm font-bold text-white uppercase tracking-tight">
+              {user?.nombre || user?.username || 'Tecnico Jefe'}
+            </span>
+            <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-indigo-500/30">
+              {user?.rol || 'Jefe'}
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={logout}
+          className="group flex items-center gap-3 bg-slate-800/50 hover:bg-red-500/10 p-2 pr-4 rounded-2xl transition-all border border-slate-700 hover:border-red-500/50"
+        >
+          <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center group-hover:text-red-500 transition-colors">
+            <LogOut size={20} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-red-500">
+            Salir
+          </span>
+        </button>
+      </div>
+    </div>
+  </header>
+);
+
+export const NotificationTray = ({ notifications, connected, onClear }) => (
+  <aside className="fixed right-6 top-24 z-40 w-[min(380px,calc(100vw-48px))] rounded-2xl border border-slate-200 bg-white shadow-2xl">
+    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+      <div>
+        <h2 className="text-xs font-black uppercase tracking-widest text-slate-800">Notificaciones</h2>
+        <p className="text-[10px] font-bold uppercase text-slate-400">
+          {connected ? 'En vivo' : 'Sin conexion en vivo'}
+        </p>
+      </div>
+      <button type="button" onClick={onClear} className="rounded-lg px-3 py-1 text-[10px] font-black uppercase text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+        Limpiar
+      </button>
+    </div>
+    <div className="max-h-[420px] space-y-2 overflow-y-auto p-3">
+      {notifications.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs font-bold text-slate-400">
+          Sin eventos recientes.
+        </div>
+      ) : (
+        notifications.map((item) => (
+          <div key={item.id} className={`rounded-xl border p-3 ${notificationColors[item.severity] || notificationColors.info}`}>
+            <div className="text-xs font-black uppercase">{item.title || 'Actividad'}</div>
+            <div className="mt-1 text-xs font-semibold leading-relaxed">{item.message}</div>
+            <div className="mt-2 text-[10px] font-bold uppercase opacity-60">
+              {item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </aside>
+);
+
+export const DetailBox = ({ label, value, isFull, highlight }) => (
+  <div className={`${isFull ? 'col-span-2' : ''} p-5 rounded-3xl border ${highlight ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-50 border-slate-100'}`}>
+    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">{label}</span>
+    <p className={`text-sm font-bold ${highlight ? 'text-indigo-700' : 'text-slate-700'}`}>{value || 'N/A'}</p>
+  </div>
+);
+
+export const FormSelect = ({ label, value, onChange, children }) => (
+  <label className="block">
+    <span className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+    <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-xl border-2 border-slate-100 bg-white px-4 py-3 text-xs font-bold uppercase text-slate-700 outline-none transition-all focus:border-indigo-500">
+      {children}
+    </select>
+  </label>
+);
+
+export const FormInput = ({ label, value, onChange, type = 'text', min }) => (
+  <label className="block">
+    <span className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+    <input type={type} min={min} value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-xl border-2 border-slate-100 bg-white px-4 py-3 text-xs font-bold text-slate-700 outline-none transition-all focus:border-indigo-500" />
+  </label>
+);
+
+export const StatCard = ({ icon, label, value, color, compact }) => (
+  <div className={`bg-white p-6 rounded-[2rem] shadow-sm border border-slate-50 ${compact ? 'md:max-w-sm' : ''}`}>
+    <div className={`w-10 h-10 ${cardColors[color] || cardColors.indigo} rounded-xl flex items-center justify-center mb-4`}>
+      {icon}
+    </div>
+    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+    <span className="text-3xl font-black text-slate-800 tracking-tighter">{value}</span>
+  </div>
+);
+
+export const TabButton = ({ active, onClick, icon, label }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-3 py-4 px-6 rounded-2xl font-black text-[10px] uppercase transition-all ${
+      active ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200 hover:border-indigo-200 hover:text-indigo-600'
+    }`}
+  >
+    {icon} <span>{label}</span>
+  </button>
+);
+
+export const DetailModal = ({ detalles, loadingDetalles, onClose }) => (
+  <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Ficha Tecnica</h2>
+        <button onClick={onClose} className="p-3 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
+          <X size={24} />
+        </button>
+      </div>
+      <div className="p-8 overflow-y-auto space-y-6">
+        {loadingDetalles ? (
+          <div className="py-20 text-center">Cargando detalles...</div>
+        ) : detalles ? (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <DetailBox label="Equipo" value={`${getEquipo(detalles)?.marca || 'S/M'} ${getEquipo(detalles)?.modelo || 'S/M'}`} />
+              <DetailBox label="Cliente" value={getEquipo(detalles)?.cliente?.nombre} />
+            </div>
+            <DetailBox label="Falla Reportada" value={detalles.falla_reportada || detalles.diagnostico?.falla_reportada} isFull highlight />
+            <DetailBox label="Diagnostico Realizado" value={detalles.diagnostico_real || detalles.diagnostico?.diagnostico_real || 'Aun no se ha realizado diagnostico'} isFull />
+          </>
+        ) : (
+          <div className="py-20 text-center text-slate-400 font-bold uppercase text-xs">No se encontraron detalles.</div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
+export const CorrectionModal = ({
+  editItem,
+  editForm,
+  editError,
+  tecnicos,
+  repuestosCatalogo,
+  savingId,
+  onClose,
+  onFieldChange,
+  onSave,
+}) => (
+  <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-[2rem] shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Correccion #{getCorreccionId(editItem)}</p>
+          <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
+            {getCorreccionTipo(editItem) === 'diagnostico' ? 'Modificar diagnostico' : getCorreccionTipo(editItem) === 'orden' ? 'Modificar orden' : 'Modificar repuesto'}
+          </h2>
+        </div>
+        <button onClick={onClose} className="p-3 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
+          <X size={24} />
+        </button>
+      </div>
+
+      <div className="p-8 overflow-y-auto space-y-5">
+        {getCorreccionTipo(editItem) !== 'repuesto' ? (
+          <>
+            <FormSelect label="Tecnico asignado" value={editForm.tecnico_id || ''} onChange={(value) => onFieldChange('tecnico_id', value)}>
+              <option value="">Sin tecnico</option>
+              {tecnicos.map((tecnico) => (
+                <option key={tecnico.id_tecnico} value={tecnico.id_tecnico}>{tecnico.nombre} - {tecnico.especialidad || 'GENERAL'}</option>
+              ))}
+            </FormSelect>
+            <FormSelect label="Prioridad" value={editForm.prioridad || 'Normal'} onChange={(value) => onFieldChange('prioridad', value)}>
+              {PRIORIDADES.map((prioridad) => <option key={prioridad} value={prioridad}>{prioridad}</option>)}
+            </FormSelect>
+            {getCorreccionTipo(editItem) === 'diagnostico' ? (
+              <>
+                <FormSelect label="Estado del diagnostico" value={editForm.estado_del_diagnostico || 'EN_REVISION'} onChange={(value) => onFieldChange('estado_del_diagnostico', value)}>
+                  {DIAGNOSTICO_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
+                </FormSelect>
+                <FormSelect label="Estado de aprobacion" value={editForm.Estado_aprobacion || 'Pendiente'} onChange={(value) => onFieldChange('Estado_aprobacion', value)}>
+                  {['Pendiente', 'Aprobado', 'Rechazado'].map((estado) => <option key={estado} value={estado}>{estado}</option>)}
+                </FormSelect>
+              </>
+            ) : (
+              <FormSelect label="Estado de la orden" value={editForm.estado || 'PENDIENTE'} onChange={(value) => onFieldChange('estado', value)}>
+                {ORDEN_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
+              </FormSelect>
+            )}
+          </>
+        ) : (
+          <>
+            <FormSelect label="Repuesto de inventario" value={editForm.repuesto_id || ''} onChange={(value) => onFieldChange('repuesto_id', value)}>
+              <option value="">Sin repuesto asociado</option>
+              {repuestosCatalogo.map((repuesto) => (
+                <option key={repuesto.id_repuesto} value={repuesto.id_repuesto}>{repuesto.nombre || `Repuesto #${repuesto.id_repuesto}`}</option>
+              ))}
+            </FormSelect>
+            <FormInput label="Pieza solicitada" value={editForm.pieza_solicitada || ''} onChange={(value) => onFieldChange('pieza_solicitada', value)} />
+            <FormInput label="Cantidad" type="number" min="1" value={editForm.cantidad_usada || 1} onChange={(value) => onFieldChange('cantidad_usada', value)} />
+            <FormSelect label="Estado de aprobacion" value={editForm.estado_aprobacion || 'APROBADO'} onChange={(value) => onFieldChange('estado_aprobacion', value)}>
+              {REPUESTO_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
+            </FormSelect>
+          </>
+        )}
+
+        {editError && <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-xs font-bold text-red-600">{editError}</div>}
+      </div>
+
+      <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/60 p-6">
+        <button onClick={onClose} className="px-5 py-3 rounded-xl bg-white border border-slate-200 text-slate-500 font-black text-[10px] uppercase hover:text-slate-800">Cancelar</button>
+        <button
+          onClick={onSave}
+          disabled={savingId === `correccion-${getCorreccionTipo(editItem)}-${getCorreccionId(editItem)}`}
+          className="flex items-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase hover:bg-indigo-700 disabled:opacity-50"
+        >
+          {savingId === `correccion-${getCorreccionTipo(editItem)}-${getCorreccionId(editItem)}` ? <Settings size={16} className="animate-spin" /> : <Save size={16} />}
+          Guardar cambios
+        </button>
+      </div>
+    </div>
+  </div>
+);

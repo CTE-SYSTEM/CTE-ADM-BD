@@ -29,6 +29,11 @@ BEGIN
     JOIN "Clientes" c ON e.cliente_id = c.id_cliente
     WHERE u.nombre_usuario = p_username
       AND t.activo = TRUE
+      AND NOT EXISTS (
+          SELECT 1
+          FROM "Ordenes" o
+          WHERE o.diagnostico_id = d.id_diagnostico
+      )
     ORDER BY d.fecha_asignacion DESC NULLS LAST, d.fecha_hora DESC NULLS LAST;
 END;
 $$ LANGUAGE plpgsql;

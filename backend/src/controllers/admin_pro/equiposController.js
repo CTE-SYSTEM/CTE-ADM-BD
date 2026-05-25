@@ -1,4 +1,5 @@
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 
 // 1. Monitoreo de equipos con historial y estado
 export const getEquiposAvanzado = async (req, res) => {
@@ -81,11 +82,18 @@ export const updateEquipoAdmin = async (req, res) => {
       return res.status(400).json({ error: 'No se proporcionaron campos para actualizar' });
     }
 
-    const equipo = await prisma.equipos.update({
-      where: { id_equipo: Number(id) },
-      data,
-      include: { cliente: true },
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT admin_pro.actualizar_equipo(
+        ${Number(id)},
+        ${data.tipo ?? null},
+        ${data.marca ?? null},
+        ${data.modelo ?? null},
+        ${data.numero_serie ?? null}
+      ) AS data
+    `);
+    const equipo = row?.data;
+
+    if (equipo?.error) return res.status(404).json({ error: equipo.error });
 
     res.json({ data: equipo });
   } catch (error) {

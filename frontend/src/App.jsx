@@ -40,7 +40,7 @@ const TiposRepuestoSecretaria = lazy(() => import('./pages/Secretaria/TiposRepue
 const ComprasSecretaria = lazy(() => import('./pages/Secretaria/Compras'));
 const FacturacionSecretaria = lazy(() => import('./pages/Secretaria/Facturacion'));
 const Diagnostico = lazy(() => import('./pages/Secretaria/Diagnostico'));
-const NuevaOrden = lazy(() => import('./pages/Secretaria/Nuevaorden'));
+const NuevaOrden = lazy(() => import('./pages/Secretaria/NuevaOrden'));
 
 const TecnicoDashboard = lazy(() => import('./pages/Tecnico/TecnicoDashboard'));
 const JefeDashboard = lazy(() => import('./pages/TecnicoJefe/TecnicoJefeDashboard'));

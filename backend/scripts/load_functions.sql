@@ -1,3 +1,6 @@
+-- Este script carga todas las funciones necesarias para el funcionamiento del sistema.
+-- Se ejecuta despues de sincronizar la estructura de la base de datos.
+
 \i scripts/modules/Seguridad.sql
 \i scripts/modules/Auditoria.sql
 \i scripts/modules/Secretaria/Clientes.sql
@@ -5,6 +8,7 @@
 \i scripts/modules/Secretaria/Diagnostico.sql
 \i scripts/modules/Secretaria/Compras.sql
 \i scripts/modules/Secretaria/Facturacion.sql
+\i scripts/modules/Secretaria/Nuevaorden.sql
 \i scripts/modules/Secretaria/Garantias.sql
 \i scripts/modules/Secretaria/Proveedores.sql
 \i scripts/modules/Secretaria/Repuesto.sql

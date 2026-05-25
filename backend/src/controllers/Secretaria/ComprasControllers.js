@@ -1,49 +1,12 @@
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 import { METODOS_PAGO, assertInList } from '../../utils/domainValidation.js';
 
 const normalizeText = (value = '') => String(value).trim().replace(/\s+/g, ' ');
-const sameMoney = (left, right) => Number(left || 0) === Number(right || 0);
-const repuestoSafeSelect = {
-  id_repuesto: true,
-  tipo_repuesto_id: true,
-  proveedor_id: true,
-  nombre: true,
-  descripcion: true,
-  costo_individual: true,
-  porcentaje_de_ganacia: true,
-  ganancia_cordobas: true,
-  activo: true,
-  descontinuada: true,
-  proveedor: true,
-  categoria: true,
-};
-
-const buildRepuestoVariantWhere = (repuesto, proveedorId, costoNumber) => ({
-  descontinuada: false,
-  tipo_repuesto_id: repuesto.tipo_repuesto_id,
-  nombre: repuesto.nombre ? { equals: repuesto.nombre, mode: 'insensitive' } : null,
-  descripcion: repuesto.descripcion ? { equals: repuesto.descripcion, mode: 'insensitive' } : null,
-  proveedor_id: proveedorId,
-  costo_individual: costoNumber,
-  ganancia_cordobas: repuesto.ganancia_cordobas,
-});
-
-const isSameRepuestoVariant = (repuesto, proveedorId, costoNumber) => {
-  return (
-    Number(repuesto.proveedor_id || 0) === proveedorId
-    && sameMoney(repuesto.costo_individual, costoNumber)
-  );
-};
 
 export const getCompras = async (req, res) => {
   try {
-    const compras = await prisma.compras.findMany({
-      include: {
-        proveedor: true,
-        repuesto: { select: repuestoSafeSelect },
-      },
-      orderBy: { id_compra: 'desc' },
-    });
+    const compras = await prisma.$queryRaw(Prisma.sql`SELECT * FROM get_compras_completas()`);
 
     res.json({ data: compras });
   } catch (error) {
@@ -86,81 +49,17 @@ export const createCompra = async (req, res) => {
       return res.status(400).json({ error: 'La fecha de obtencion no es valida' });
     }
 
-    const [proveedor, repuesto] = await Promise.all([
-      prisma.proveedores.findFirst({ where: { id_proveedor: proveedorId, descontinuada: false } }),
-      prisma.repuestos.findFirst({
-        where: { id_repuesto: repuestoId, descontinuada: false },
-        include: { proveedor: true, categoria: true },
-      }),
-    ]);
-
-    if (!proveedor) {
-      return res.status(400).json({ error: 'El proveedor seleccionado no existe o esta descontinuado' });
-    }
-
-    if (!repuesto) {
-      return res.status(400).json({ error: 'El repuesto seleccionado no existe o esta descontinuado' });
-    }
-
-    const compra = await prisma.$transaction(async (tx) => {
-      let targetRepuestoId = repuestoId;
-      const repuestoSinVarianteDefinida = !repuesto.proveedor_id && !Number(repuesto.costo_individual || 0);
-      const mismaVariante = isSameRepuestoVariant(repuesto, proveedorId, costoNumber);
-      const tieneProveedorBase = Boolean(repuesto.proveedor_id);
-      const tieneCostoBase = Number(repuesto.costo_individual || 0) > 0;
-      const debeCrearVariante = !repuestoSinVarianteDefinida && ((tieneProveedorBase || tieneCostoBase) && !mismaVariante);
-
-      if (debeCrearVariante) {
-        const varianteExistente = await tx.repuestos.findFirst({
-          where: buildRepuestoVariantWhere(repuesto, proveedorId, costoNumber),
-        });
-
-        if (varianteExistente) {
-          targetRepuestoId = varianteExistente.id_repuesto;
-        } else {
-          const variante = await tx.repuestos.create({
-            data: {
-              tipo_repuesto_id: repuesto.tipo_repuesto_id,
-              proveedor_id: proveedorId,
-              nombre: repuesto.nombre,
-              descripcion: repuesto.descripcion,
-              costo_individual: costoNumber,
-              porcentaje_de_ganacia: repuesto.porcentaje_de_ganacia,
-              ganancia_cordobas: repuesto.ganancia_cordobas,
-              activo: true,
-              descontinuada: false,
-            },
-          });
-          targetRepuestoId = variante.id_repuesto;
-        }
-      }
-
-      const created = await tx.compras.create({
-        data: {
-          repuesto_id: targetRepuestoId,
-          proveedor_id: proveedorId,
-          documento: normalizeText(documento) || null,
-          fecha_obtencion: fecha,
-          cantidad: cantidadNumber,
-          costo_unitario: costoNumber,
-          metodo_pago: assertInList(normalizeText(metodo_pago), METODOS_PAGO, 'Metodo de pago'),
-        },
-        include: {
-          proveedor: true,
-          repuesto: { select: repuestoSafeSelect },
-        },
-      });
-
-      await tx.repuestos.update({
-        where: { id_repuesto: targetRepuestoId },
-        data: {
-          proveedor_id: proveedorId,
-          costo_individual: costoNumber,
-        },
-      });
-
-      return created;
-    });
+    const [compra] = await prisma.$queryRaw(Prisma.sql`
+      SELECT * FROM crear_compra_con_variante_proc(
+        ${repuestoId},
+        ${proveedorId},
+        ${normalizeText(documento) || null},
+        ${fecha || null},
+        ${cantidadNumber},
+        ${costoNumber},
+        ${assertInList(normalizeText(metodo_pago), METODOS_PAGO, 'Metodo de pago')}
+      )
+    `);
 
     res.status(201).json({ data: compra });
   } catch (error) {

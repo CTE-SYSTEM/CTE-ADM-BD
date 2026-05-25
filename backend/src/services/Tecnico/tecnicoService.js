@@ -1,4 +1,5 @@
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 import { ORDEN_ESTADOS, RESULTADOS_ORDEN, assertInList } from '../../utils/domainValidation.js';
 
 const repuestoSafeSelect = {
@@ -28,8 +29,6 @@ const ordenInclude = {
   },
 };
 
-const getRowsData = (rows) => rows.map((row) => row.data);
-
 export const getDatabaseMessage = (error) => {
   const message = error?.meta?.message || error?.message || '';
   const match = message.match(/ERROR:\s*(.*)$/m);
@@ -38,7 +37,20 @@ export const getDatabaseMessage = (error) => {
 
 export const findTecnicos = () => prisma.tecnicos.findMany();
 
-export const createTecnico = (data) => prisma.tecnicos.create({ data });
+export const createTecnico = async (data) => {
+  const rows = await prisma.$queryRaw(Prisma.sql`
+    SELECT crear_tecnico_proc(
+      ${data.nombre},
+      ${data.especialidad || null},
+      ${data.horario || null},
+      ${data.contacto || null},
+      ${data.usuario_id ? Number(data.usuario_id) : null},
+      ${data.activo === undefined ? true : Boolean(data.activo)}
+    ) AS data
+  `);
+
+  return rows[0]?.data;
+};
 
 export const getTecnicoActivoByUsername = (username) =>
   prisma.tecnicos.findFirst({
@@ -49,41 +61,21 @@ export const getTecnicoActivoByUsername = (username) =>
   });
 
 export const getMisDiagnosticos = async (username) => {
-  const [tecnico, rows] = await Promise.all([
-    getTecnicoActivoByUsername(username),
-    prisma.$queryRaw`SELECT data FROM get_mis_diagnosticos_tecnico(${username})`,
-  ]);
+  const tecnico = await getTecnicoActivoByUsername(username);
+  if (!tecnico) return { tecnico: null, data: [] };
 
-  return { tecnico, data: tecnico ? getRowsData(rows) : [] };
+  const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_mis_diagnosticos_tecnico(${username})`);
+  const diagnosticos = rows.map((row) => row.data);
+
+  return { tecnico, data: diagnosticos };
 };
 
 export const getMisOrdenes = async (username) => {
   const tecnico = await getTecnicoActivoByUsername(username);
   if (!tecnico) return { tecnico: null, data: [] };
 
-  const ordenes = await prisma.ordenes.findMany({
-    where: { tecnico_id: tecnico.id_tecnico },
-    include: ordenInclude,
-    orderBy: [
-      { fecha_ingreso: 'desc' },
-      { id_orden: 'desc' },
-    ],
-  });
-
-  const ordenesFinalizadas = ordenes.filter((orden) => (orden.estado || '').toUpperCase() === 'FINALIZADO');
-  const rankFinalizadas = new Map(ordenesFinalizadas.map((orden, index) => [orden.id_orden, index + 1]));
-  const ayer = Date.now() - 24 * 60 * 60 * 1000;
-
-  const data = ordenes.map((orden) => {
-    const estado = (orden.estado || '').toUpperCase();
-    const fechaIngreso = orden.fecha_ingreso ? new Date(orden.fecha_ingreso).getTime() : 0;
-    return {
-      ...orden,
-      puede_editar_completada:
-        !['FINALIZADO', 'IRREPARABLE', 'ENTREGADO'].includes(estado)
-        || ((rankFinalizadas.get(orden.id_orden) || 999) <= 5 && fechaIngreso >= ayer),
-    };
-  });
+  const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_mis_ordenes_tecnico(${username})`);
+  const data = rows.map((row) => row.data);
 
   return { tecnico, data };
 };
@@ -118,10 +110,11 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
   const estadoNuevo = assertInList(String(estado).toUpperCase(), ORDEN_ESTADOS, 'Estado de la orden');
   const estadoCierre = ['FINALIZADO', 'IRREPARABLE'].includes(estadoNuevo);
 
-  const ordenActual = await prisma.ordenes.findUnique({
-    where: { id_orden: Number(ordenId) },
-    include: { repuestos_usados: true },
-  });
+  const [ordenActual] = await prisma.$queryRaw(Prisma.sql`
+    SELECT id_orden, estado
+    FROM "Ordenes"
+    WHERE id_orden = ${Number(ordenId)}
+  `);
 
   if (!ordenActual) {
     const error = new Error('Orden no encontrada');
@@ -136,18 +129,10 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
   }
 
   if (estadoNuevo === 'FINALIZADO') {
-    const piezasSinAprobar = ordenActual.repuestos_usados.some((item) => item.estado_aprobacion !== 'APROBADO');
-    if (piezasSinAprobar) {
-      const error = new Error('No se puede finalizar: todas las piezas solicitadas deben estar aprobadas');
-      error.statusCode = 409;
-      throw error;
-    }
+    // La validacion de piezas aprobadas vive en actualizar_estado_orden_tecnico_proc.
   }
 
-  const data = { estado: estadoNuevo };
-
   if (estadoCierre) {
-    const resultado = assertInList(resultado_final || (estadoNuevo === 'IRREPARABLE' ? 'IRREPARABLE' : 'REPARADO'), RESULTADOS_ORDEN, 'Resultado final');
     const observacion = String(observacion_final || '').trim();
 
     if (!observacion) {
@@ -155,19 +140,20 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
       error.statusCode = 400;
       throw error;
     }
-
-    data.resultado_final = resultado;
-    data.enciende_salida = enciende_salida === true || enciende_salida === 'true';
-    data.usa_corriente_ac_salida = usa_corriente_ac_salida === true || usa_corriente_ac_salida === 'true';
-    data.observacion_final = observacion;
-    data.fecha_cierre = new Date();
   }
 
-  return prisma.ordenes.update({
-    where: { id_orden: Number(ordenId) },
-    data,
-    include: ordenInclude,
-  });
+  const rows = await prisma.$queryRaw(Prisma.sql`
+    SELECT data FROM actualizar_estado_orden_tecnico_proc(
+      ${Number(ordenId)},
+      ${estadoNuevo},
+      ${estadoCierre ? assertInList(resultado_final || (estadoNuevo === 'IRREPARABLE' ? 'IRREPARABLE' : 'REPARADO'), RESULTADOS_ORDEN, 'Resultado final') : null},
+      ${estadoCierre ? enciende_salida === true || enciende_salida === 'true' : null},
+      ${estadoCierre ? usa_corriente_ac_salida === true || usa_corriente_ac_salida === 'true' : null},
+      ${estadoCierre ? String(observacion_final || '').trim() : null}
+    )
+  `);
+
+  return rows[0]?.data;
 };
 
 export const solicitarRepuesto = async (ordenId, payload) => {
@@ -176,7 +162,11 @@ export const solicitarRepuesto = async (ordenId, payload) => {
   let nombreSolicitado = String(repuesto || '').trim();
   const repuestoId = Number(repuesto_id) || null;
 
-  const orden = await prisma.ordenes.findUnique({ where: { id_orden: Number(ordenId) } });
+  const [orden] = await prisma.$queryRaw(Prisma.sql`
+    SELECT id_orden
+    FROM "Ordenes"
+    WHERE id_orden = ${Number(ordenId)}
+  `);
   if (!orden) {
     const error = new Error('Orden no encontrada');
     error.statusCode = 404;
@@ -189,45 +179,14 @@ export const solicitarRepuesto = async (ordenId, payload) => {
     throw error;
   }
 
-  if (repuestoId) {
-    const repuestoEncontrado = await prisma.repuestos.findFirst({
-      where: {
-        id_repuesto: repuestoId,
-        descontinuada: false,
-      },
-      select: { nombre: true, stock_actual: true },
-    });
+  const rows = await prisma.$queryRaw(Prisma.sql`
+    SELECT data FROM solicitar_pieza_orden_tecnico_proc(
+      ${Number(ordenId)},
+      ${repuestoId},
+      ${nombreSolicitado || null},
+      ${cantidadUsada}
+    )
+  `);
 
-    if (!repuestoEncontrado) {
-      const error = new Error('El repuesto seleccionado no existe o esta descontinuado');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    if (Number(repuestoEncontrado.stock_actual || 0) < cantidadUsada) {
-      const error = new Error('El repuesto seleccionado no tiene stock suficiente');
-      error.statusCode = 409;
-      throw error;
-    }
-
-    nombreSolicitado = repuestoEncontrado.nombre || nombreSolicitado;
-  }
-
-  const solicitud = await prisma.ordenes_Repuestos.create({
-    data: {
-      orden_id: Number(ordenId),
-      repuesto_id: repuestoId,
-      pieza_solicitada: nombreSolicitado || String(repuestoId),
-      cantidad_usada: cantidadUsada,
-      estado_aprobacion: 'PENDIENTE',
-    },
-    include: { repuesto: { select: repuestoSafeSelect } },
-  });
-
-  await prisma.ordenes.update({
-    where: { id_orden: Number(ordenId) },
-    data: { estado: 'ESPERANDO_PIEZA' },
-  });
-
-  return solicitud;
+  return rows[0]?.data;
 };

@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 
 const ROLES_ASIGNABLES = ['Secretaria', 'TecnicoJefe', 'Tecnico'];
 const ROLES_ADMIN_PASSWORD = ['admin_pro', 'Administrador', 'Admin'];
@@ -26,36 +27,20 @@ export const createUsuario = async (req, res) => {
 
     const hash = password ? await bcrypt.hash(password, 10) : contrasena_hash;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const usuario = await tx.usuarios.create({
-        data: {
-          nombre_usuario,
-          contrasena_hash: hash,
-          correo_electronico,
-          rol,
-          activo: activo !== undefined ? activo : true,
-        },
-      });
+    const [result] = await prisma.$queryRaw(Prisma.sql`
+      SELECT admin_pro.crear_usuario(
+        ${nombre_usuario},
+        ${correo_electronico || null},
+        ${rol},
+        ${hash},
+        ${activo !== undefined ? Boolean(activo) : true},
+        ${especialidad || null},
+        ${horario || null},
+        ${contacto || null}
+      ) AS data
+    `);
 
-      if (rol === 'Tecnico') {
-        const tecnico = await tx.tecnicos.create({
-          data: {
-            usuario_id: usuario.id_usuario,
-            nombre: nombre_usuario,
-            especialidad: especialidad || null,
-            horario: horario || null,
-            contacto: contacto || correo_electronico || null,
-            activo: true,
-          },
-        });
-
-        return { usuario, tecnico };
-      }
-
-      return { usuario };
-    });
-
-    res.status(201).json({ data: result.usuario, tecnico: result.tecnico });
+    res.status(201).json({ data: result.data.usuario, tecnico: result.data.tecnico });
   } catch (error) {
     if (error.code === 'P2002' && error.meta?.target?.includes('nombre_usuario')) {
       return res.status(409).json({ error: 'El nombre de usuario ya existe' });
@@ -73,10 +58,18 @@ export const updateUsuario = async (req, res) => {
       return res.status(400).json({ error: 'No se permite asignar el rol Administrador ni admin_pro desde esta pantalla' });
     }
 
-    const usuario = await prisma.usuarios.update({
-      where: { id_usuario: Number(id) },
-      data: { nombre_usuario, correo_electronico, rol, activo }
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT admin_pro.actualizar_usuario(
+        ${Number(id)},
+        ${nombre_usuario ?? null},
+        ${correo_electronico ?? null},
+        ${rol ?? null},
+        ${activo === undefined ? null : Boolean(activo)}
+      ) AS data
+    `);
+    const usuario = row?.data;
+
+    if (usuario?.error) return res.status(404).json({ error: usuario.error });
     res.json({ data: usuario });
   } catch (error) {
     res.status(500).json({ error: 'Error al actualizar usuario', details: error.message });
@@ -114,10 +107,11 @@ export const updateUsuarioPassword = async (req, res) => {
     }
 
     const hash = await bcrypt.hash(String(password), 10);
-    await prisma.usuarios.update({
-      where: { id_usuario: Number(id) },
-      data: { contrasena_hash: hash },
-    });
+    const [result] = await prisma.$queryRaw(Prisma.sql`
+      SELECT admin_pro.cambiar_password_usuario(${req.user?.rol}, ${Number(id)}, ${hash}) AS data
+    `);
+
+    if (result?.data?.error) return res.status(400).json({ error: result.data.error });
 
     res.json({ message: 'Contrasena actualizada correctamente' });
   } catch (error) {
@@ -128,10 +122,10 @@ export const updateUsuarioPassword = async (req, res) => {
 export const deleteUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-    const usuario = await prisma.usuarios.update({
-      where: { id_usuario: Number(id) },
-      data: { activo: false }
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`SELECT admin_pro.desactivar_usuario(${Number(id)}) AS data`);
+    const usuario = row?.data;
+
+    if (usuario?.error) return res.status(404).json({ error: usuario.error });
     res.json({ data: usuario });
   } catch (error) {
     res.status(500).json({ error: 'Error al desactivar usuario', details: error.message });

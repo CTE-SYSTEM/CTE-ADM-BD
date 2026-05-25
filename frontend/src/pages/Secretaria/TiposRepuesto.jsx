@@ -35,7 +35,7 @@ const GuidedTour = ({ stepIndex, onBack, onClose, onNext }) => {
   return (
     <>
       <div className="fixed inset-0 z-40 bg-gray-900/55" />
-      <div className="fixed bottom-6 right-6 z-[70] w-[min(92vw,390px)] rounded-xl bg-white p-5 shadow-2xl">
+      <div className="fixed bottom-6 right-6 z-[70] w-[min(92vw,390px)] rounded-xl bg-white p-5 shadow-2xl text-left">
         <div className="mb-3 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Paso {stepIndex + 1} de {tourSteps.length}</p>
@@ -49,11 +49,21 @@ const GuidedTour = ({ stepIndex, onBack, onClose, onNext }) => {
         <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-gray-100">
           <div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${((stepIndex + 1) / tourSteps.length) * 100}%` }} />
         </div>
+        
         <div className="mt-5 flex items-center justify-between gap-3">
-          <button type="button" onClick={onBack} disabled={stepIndex === 0} className="rounded-lg px-4 py-2 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40">
-            Atras
+          <button 
+            type="button" 
+            onClick={onBack} 
+            disabled={stepIndex === 0} 
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Atrás
           </button>
-          <button type="button" onClick={onNext} className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+          <button 
+            type="button" 
+            onClick={onNext} 
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm"
+          >
             {isLast ? 'Finalizar' : 'Siguiente'}
           </button>
         </div>
@@ -62,7 +72,14 @@ const GuidedTour = ({ stepIndex, onBack, onClose, onNext }) => {
   );
 };
 
-const TipoRepuestoForm = ({ initialData = null, onCancel, onSubmit, activeTourTarget = '' }) => {
+const TipoRepuestoForm = ({ 
+  initialData = null, 
+  onCancel, 
+  onSubmit, 
+  activeTourTarget = '', 
+  sugerenciasTipos = [], 
+  sugerenciasElectronicos = [] 
+}) => {
   const [formData, setFormData] = useState({
     nombre_tipo: initialData?.nombre_tipo || '',
     electronico: initialData?.electronico || '',
@@ -82,16 +99,53 @@ const TipoRepuestoForm = ({ initialData = null, onCancel, onSubmit, activeTourTa
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 text-left">
       <div data-tour-target="form" className={`grid grid-cols-1 gap-4 md:grid-cols-2 ${tourHighlightClass(activeTourTarget === 'form')}`}>
-        <Field label="Tipo de repuesto" name="nombre_tipo" value={formData.nombre_tipo} onChange={handleChange} placeholder="Ej: Pantalla, Bateria, Flex" required />
-        <Field label="Electronico relacionado" name="electronico" value={formData.electronico} onChange={handleChange} placeholder="Ej: Celular, Laptop, Impresora" />
+        
+        {/* CORRECCIÓN EXCELENTE: Ahora Tipo de repuesto también tiene datalist dinámico */}
+        <div>
+          <Field 
+            label="Tipo de repuesto" 
+            name="nombre_tipo" 
+            value={formData.nombre_tipo} 
+            onChange={handleChange} 
+            placeholder="Selecciona o escribe (Ej: Batería, Pantalla)..." 
+            list="lista-nombres-tipo"
+            required 
+            autoComplete="off"
+          />
+          <datalist id="lista-nombres-tipo">
+            {sugerenciasTipos.map((tipoName, index) => (
+              <option key={index} value={tipoName} />
+            ))}
+          </datalist>
+        </div>
+        
+        {/* Autocompletado del Electrónico relacionado */}
+        <div>
+          <Field 
+            label="Electrónico relacionado" 
+            name="electronico" 
+            value={formData.electronico} 
+            onChange={handleChange} 
+            placeholder="Selecciona o escribe (Ej: Laptop, Teléfono)..." 
+            list="lista-electronicos"
+            required
+            autoComplete="off" 
+          />
+          <datalist id="lista-electronicos">
+            {sugerenciasElectronicos.map((electro, index) => (
+              <option key={index} value={electro} />
+            ))}
+          </datalist>
+        </div>
       </div>
+      
       <div className="flex justify-end gap-3 border-t pt-4">
-        <button type="button" onClick={onCancel} className="rounded-lg bg-gray-100 px-4 py-2 text-gray-700 hover:bg-gray-200">
+        <button type="button" onClick={onCancel} className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
           Cancelar
         </button>
-        <button type="submit" className="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700">
+        <button type="submit" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm">
           {initialData ? 'Actualizar Tipo' : 'Guardar Tipo'}
         </button>
       </div>
@@ -102,7 +156,7 @@ const TipoRepuestoForm = ({ initialData = null, onCancel, onSubmit, activeTourTa
 const Field = ({ label, className = '', ...props }) => (
   <div className={className}>
     <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
-    <input {...props} className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500" />
+    <input {...props} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" />
   </div>
 );
 
@@ -193,7 +247,7 @@ const TiposRepuesto = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Seguro que quieres eliminar este tipo de repuesto?')) return;
+    if (!window.confirm('¿Seguro que quieres eliminar este tipo de repuesto?')) return;
     setLoading(true);
     setError(null);
     try {
@@ -213,13 +267,17 @@ const TiposRepuesto = () => {
 
   const columnas = [
     { header: 'ID', accessor: 'id_tipo_repuesto', contentClassName: 'whitespace-nowrap leading-relaxed' },
-    { header: 'Tipo de repuesto', accessor: 'nombre_tipo', contentClassName: 'whitespace-nowrap leading-relaxed' },
-    { header: 'Electronico', accessor: 'electronico', contentClassName: 'whitespace-nowrap leading-relaxed' },
+    { header: 'Tipo de repuesto', accessor: 'nombre_tipo', contentClassName: 'whitespace-nowrap leading-relaxed font-semibold text-gray-700' },
+    { header: 'Electrónico', accessor: 'electronico', contentClassName: 'whitespace-nowrap leading-relaxed text-gray-600' },
     {
       header: 'Repuestos unidos',
       accessor: 'repuestos',
-      contentClassName: 'whitespace-nowrap leading-relaxed',
-      render: (row) => row._count?.repuestos ?? 0,
+      contentClassName: 'whitespace-nowrap leading-relaxed font-medium',
+      render: (row) => (
+        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${row._count?.repuestos > 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
+          {row._count?.repuestos ?? 0} piezas
+        </span>
+      ),
     },
     {
       header: 'Acciones',
@@ -228,10 +286,10 @@ const TiposRepuesto = () => {
       render: (row) => (
         <div className="flex gap-2">
           <div data-tour-target="actions" className={`flex gap-2 ${tourHighlightClass(activeTourTarget === 'actions')}`}>
-            <button onClick={() => { setEditingTipo(row); setShowForm(true); }} className="rounded p-1 text-blue-600 hover:bg-blue-50" title="Editar">
+            <button onClick={() => { setEditingTipo(row); setShowForm(true); }} className="rounded p-1 text-blue-600 hover:bg-blue-50 transition-colors" title="Editar">
               <Edit className="h-4 w-4" />
             </button>
-            <button onClick={() => handleDelete(row.id_tipo_repuesto)} className="rounded p-1 text-red-600 hover:bg-red-50" title="Eliminar">
+            <button onClick={() => handleDelete(row.id_tipo_repuesto)} className="rounded p-1 text-red-600 hover:bg-red-50 transition-colors" title="Eliminar">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
@@ -241,7 +299,7 @@ const TiposRepuesto = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6 text-left">
       {showHelp && (
         <GuidedTour
           stepIndex={tourStep}
@@ -253,29 +311,37 @@ const TiposRepuesto = () => {
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="mb-1 text-2xl font-bold">Tipos de Repuesto</h2>
-          <p className="text-gray-500">Clasifica repuestos y relaciona cada tipo con el electronico correspondiente.</p>
+          <h2 className="mb-1 text-2xl font-bold text-gray-800">Tipos de Repuesto</h2>
+          <p className="text-gray-500">Clasifica repuestos y relaciona cada tipo con el electrónico correspondiente.</p>
         </div>
         <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
-          <button type="button" onClick={startTour} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50" title="Iniciar tutorial guiado">
+          <button type="button" onClick={startTour} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all" title="Iniciar tutorial guiado">
             <HelpCircle className="h-4 w-4" /> Ayuda
           </button>
-          <button onClick={() => { setEditingTipo(null); setShowForm(true); }} className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+          <button onClick={() => { setEditingTipo(null); setShowForm(true); }} className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-all">
             <Plus className="h-4 w-4" /> Nuevo Tipo
           </button>
         </div>
       </div>
 
-      {error && <div className="mb-4 rounded-lg bg-red-100 p-3 text-red-700">{error}</div>}
+      {error && <div className="mb-4 rounded-lg bg-red-100 p-3 text-sm font-medium text-red-700">{error}</div>}
 
       {showForm && (
         <div className="mb-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold">{editingTipo ? 'Editar Tipo de Repuesto' : 'Nuevo Tipo de Repuesto'}</h3>
+          <h3 className="mb-4 text-lg font-semibold text-gray-800">{editingTipo ? 'Editar Tipo de Repuesto' : 'Nuevo Tipo de Repuesto'}</h3>
           <TipoRepuestoForm
             initialData={editingTipo}
             onCancel={() => { setShowForm(false); setEditingTipo(null); }}
             onSubmit={handleSubmit}
             activeTourTarget={activeTourTarget}
+            
+            /* CORRECCIÓN: Ahora pasamos ambas colecciones únicas sin duplicados */
+            sugerenciasTipos={[
+              ...new Set(tipos.map((t) => t.nombre_tipo).filter(Boolean)),
+            ]}
+            sugerenciasElectronicos={[
+              ...new Set(tipos.map((t) => t.electronico).filter(Boolean)),
+            ]}
           />
         </div>
       )}
@@ -285,17 +351,17 @@ const TiposRepuesto = () => {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar por tipo o electronico..."
+            placeholder="Buscar por tipo o electrónico (Ej: Laptop, Batería, Teléfono)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-4 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
       </div>
 
-      <div data-tour-target="table" className={`rounded-xl border border-gray-100 bg-white shadow-sm ${tourHighlightClass(activeTourTarget === 'table')}`}>
+      <div data-tour-target="table" className={`rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden ${tourHighlightClass(activeTourTarget === 'table')}`}>
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Cargando...</div>
+          <div className="p-8 text-center text-gray-500 font-medium">Cargando categorías...</div>
         ) : (
           <Table columns={columnas} data={filteredTipos} />
         )}

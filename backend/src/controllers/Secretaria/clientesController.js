@@ -1,13 +1,11 @@
 // backend/src/controllers/Secretaria/clientesController.js
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 
 /** Obtener todos los clientes activos */
 export const getClientes = async (req, res) => {
   try {
-    const clientes = await prisma.clientes.findMany({
-      where: { activo: true },
-      orderBy: { id_cliente: 'desc' }
-    });
+    const clientes = await prisma.$queryRaw(Prisma.sql`SELECT * FROM get_clientes_activos()`);
     res.json({ data: clientes });
   } catch (error) {
     console.error('❌ Error en getClientes:', error.message);
@@ -23,16 +21,9 @@ export const createCliente = async (req, res) => {
     if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
     if (!telefono) return res.status(400).json({ error: 'El teléfono es obligatorio' });
 
-    const resultado = await prisma.clientes.create({
-      data: {
-        nombre,
-        telefono,
-        direccion,
-        correo,
-        contacto_secundario,
-        activo: true
-      }
-    });
+    const [resultado] = await prisma.$queryRaw(Prisma.sql`
+      SELECT * FROM crear_cliente_proc(${nombre}, ${telefono || null}, ${direccion || null}, ${correo || null}, ${contacto_secundario || null})
+    `);
     res.status(201).json({ data: resultado });
   } catch (error) {
     console.error('❌ Error en createCliente:', error.message);
@@ -47,16 +38,11 @@ export const updateCliente = async (req, res) => {
     const { id } = req.params;
     const { nombre, telefono, direccion, correo, contacto_secundario } = req.body;
 
-    const resultado = await prisma.clientes.update({
-      where: { id_cliente: parseInt(id) },
-      data: {
-        nombre,
-        telefono,
-        direccion,
-        correo,
-        contacto_secundario
-      }
-    });
+    const [resultado] = await prisma.$queryRaw(Prisma.sql`
+      SELECT * FROM actualizar_cliente_proc(${Number(id)}, ${nombre}, ${telefono || null}, ${direccion || null}, ${correo || null}, ${contacto_secundario || null})
+    `);
+
+    if (!resultado) return res.status(404).json({ error: 'Cliente no encontrado' });
 
     res.json({ data: resultado });
   } catch (error) {
@@ -73,10 +59,7 @@ export const updateCliente = async (req, res) => {
 export const deleteCliente = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.clientes.update({
-      where: { id_cliente: parseInt(id) },
-      data: { activo: false }
-    });
+    await prisma.$executeRaw(Prisma.sql`SELECT desactivar_cliente_proc(${Number(id)})`);
     
     res.status(204).send();
   } catch (error) {

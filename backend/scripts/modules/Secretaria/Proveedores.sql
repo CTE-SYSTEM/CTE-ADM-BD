@@ -60,3 +60,26 @@ BEGIN
     RETURNING *;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION existe_proveedor_activo_nombre(p_nombre TEXT, p_excluir_id INT DEFAULT NULL)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM "Proveedores"
+        WHERE lower(nombre) = lower(p_nombre)
+          AND descontinuada = false
+          AND (p_excluir_id IS NULL OR id_proveedor <> p_excluir_id)
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- 5. Desactivar proveedor
+CREATE OR REPLACE FUNCTION desactivar_proveedor_proc(p_id INT)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE "Proveedores"
+    SET descontinuada = true
+    WHERE id_proveedor = p_id;
+END;
+$$ LANGUAGE plpgsql;

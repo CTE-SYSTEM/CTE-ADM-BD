@@ -1,4 +1,5 @@
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 
 // 2. Monitoreo de repuestos con historial y proveedor
 export const getRepuestosAvanzado = async (req, res) => {
@@ -32,10 +33,20 @@ export const updateRepuestoAdmin = async (req, res) => {
       return res.status(400).json({ error: 'No se proporcionaron campos para actualizar' });
     }
 
-    const repuesto = await prisma.repuestos.update({
-      where: { id_repuesto: Number(id) },
-      data,
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT admin_pro.actualizar_repuesto(
+        ${Number(id)},
+        ${data.nombre ?? null},
+        ${data.descripcion ?? null},
+        ${data.costo_individual ?? null},
+        ${data.porcentaje_de_ganacia ?? null},
+        ${Object.prototype.hasOwnProperty.call(data, 'activo') ? data.activo : null},
+        ${Object.prototype.hasOwnProperty.call(data, 'descontinuada') ? data.descontinuada : null}
+      ) AS data
+    `);
+    const repuesto = row?.data;
+
+    if (repuesto?.error) return res.status(404).json({ error: repuesto.error });
 
     res.json({ data: repuesto });
   } catch (error) {

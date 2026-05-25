@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ClipboardList, Users, Laptop, Truck, Package,
-  ReceiptText, Stethoscope, Filter, Tags
+  ReceiptText, Stethoscope, Filter, Tags, AlertCircle
 } from 'lucide-react';
 import { getClientes } from '../../services/secretaria/clientesService';
 import { getEquipos } from '../../services/secretaria/equiposService';
@@ -16,7 +16,7 @@ import { getDiagnosticos } from '../../services/secretaria/diagnosticoService';
 const dateFields = {
   clientes: [],
   equipos: [],
-  ordenes: ['fecha_ingreso'],
+  ordenes: ['fecha_ingreso', 'createdAt'],
   proveedores: [],
   repuestos: [],
   tiposRepuesto: [],
@@ -33,6 +33,7 @@ const getItemDate = (item, fields) => {
 };
 
 const filterItemsByDate = (items, fields, filterType) => {
+  if (!items || !Array.isArray(items)) return [];
   if (filterType === 'all') return items;
   if (!fields.length) return items;
 
@@ -101,7 +102,8 @@ const SecretariaDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        const [resClientes, resEquipos, resOrdenes, resProveedores, resRepuestos, resTiposRepuesto, resFacturas, resDiagnosticos] = await Promise.all([
+        // Usamos Promise.allSettled para evitar que la caída de un servicio tire abajo todo el módulo
+        const resultados = await Promise.allSettled([
           getClientes(),
           getEquipos(),
           getOrdenes(),
@@ -112,18 +114,32 @@ const SecretariaDashboard = () => {
           getDiagnosticos(),
         ]);
 
+        const extraeData = (res, backupKey) => {
+          if (res.status === 'fulfilled' && res.value?.data) {
+            // Maneja el formato limpio nuevo { ordenes: [...] } o el formato estándar .data o .data.data
+            return res.value.data[backupKey] || res.value.data.data || res.value.data || [];
+          }
+          return [];
+        };
+
+        if (resultados[2].status === 'rejected') {
+          console.error('El servicio de órdenes falló al responder:', resultados[2].reason);
+          setError('Aviso: No se pudieron sincronizar las órdenes de trabajo actuales.');
+        }
+
         setRawData({
-          clientes: resClientes.data.data || [],
-          equipos: resEquipos.data.data || [],
-          ordenes: resOrdenes.data.data || [],
-          proveedores: resProveedores.data.data || [],
-          repuestos: resRepuestos.data.data || [],
-          tiposRepuesto: resTiposRepuesto.data.data || [],
-          facturas: resFacturas.data.data || [],
-          diagnosticos: resDiagnosticos.data.data || [],
+          clientes: extraeData(resultados[0], 'clientes'),
+          equipos: extraeData(resultados[1], 'equipos'),
+          ordenes: extraeData(resultados[2], 'ordenes'),
+          proveedores: extraeData(resultados[3], 'proveedores'),
+          repuestos: extraeData(resultados[4], 'repuestos'),
+          tiposRepuesto: extraeData(resultados[5], 'tiposRepuesto'),
+          facturas: extraeData(resultados[6], 'facturas'),
+          diagnosticos: extraeData(resultados[7], 'diagnosticos'),
         });
-      } catch {
-        setError('No se pudo cargar el dashboard de Secretaria');
+      } catch (err) {
+        console.error(err);
+        setError('Ocurrió un problema crítico al procesar los paneles informativos.');
       } finally {
         setLoading(false);
       }
@@ -176,9 +192,9 @@ const SecretariaDashboard = () => {
           <div className="h-11 w-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
             <ClipboardList className="h-6 w-6" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Secretaria</h1>
-            <p className="text-gray-500">Gestion operativa - {filterType === 'all' ? 'Historial completo' : `Filtro: ${filterType.toUpperCase()}`}</p>
+          <div className="text-left">
+            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Secretaría</h1>
+            <p className="text-gray-500 font-medium">Gestión operativa - {filterType === 'all' ? 'Historial completo' : `Filtro: ${filterType.toUpperCase()}`}</p>
           </div>
         </div>
 
@@ -187,7 +203,7 @@ const SecretariaDashboard = () => {
             { id: 'all', label: 'Todo' },
             { id: 'week', label: 'Semana' },
             { id: 'month', label: 'Mes' },
-            { id: 'year', label: 'Anio' },
+            { id: 'year', label: 'Año' },
           ].map((filter) => (
             <button
               key={filter.id}
@@ -204,7 +220,12 @@ const SecretariaDashboard = () => {
         </div>
       </div>
 
-      {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">{error}</div>}
+      {error && (
+        <div className="mb-6 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 text-left">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+          {error}
+        </div>
+      )}
 
       <section className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-8 mb-8">
         {quickActions.map((action) => {
@@ -215,7 +236,7 @@ const SecretariaDashboard = () => {
                 <Icon className="w-5 h-5" />
               </div>
               <div className="text-xl font-bold text-gray-900">{loading ? '...' : action.value}</div>
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{action.title}</div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-left">{action.title}</div>
             </Link>
           );
         })}
@@ -223,12 +244,12 @@ const SecretariaDashboard = () => {
 
       <section className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-          <div>
+          <div className="text-left">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
               <Filter className="w-4 h-4 text-indigo-500" />
-              Ultimas ordenes ({filterType})
+              Últimas órdenes ({filterType})
             </h2>
-            <p className="text-sm text-gray-500">Ordenes generadas, ordenadas por fecha de ingreso.</p>
+            <p className="text-sm text-gray-500 font-medium">Órdenes generadas en el sistema técnico.</p>
           </div>
           <Link to="/secretaria/nueva-orden" className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100">
             Nueva orden
@@ -243,34 +264,34 @@ const SecretariaDashboard = () => {
                 <th className="px-4 py-3 border-b border-gray-100">Fecha</th>
                 <th className="px-4 py-3 border-b border-gray-100">Cliente</th>
                 <th className="px-4 py-3 border-b border-gray-100">Equipo</th>
-                <th className="px-4 py-3 border-b border-gray-100">Tecnico</th>
+                <th className="px-4 py-3 border-b border-gray-100">Técnico</th>
                 <th className="px-4 py-3 border-b border-gray-100 text-center">Estado</th>
               </tr>
             </thead>
             <tbody>
               {filteredOrdenes.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-10 text-center text-gray-400 italic">
-                    No se encontraron ordenes registradas en este periodo
+                  <td colSpan="6" className="px-4 py-10 text-center text-gray-400 italic font-medium">
+                    No se encontraron órdenes registradas en este periodo
                   </td>
                 </tr>
               ) : (
                 filteredOrdenes.map((orden) => (
                   <tr key={orden.id_orden} className="hover:bg-gray-50 border-b border-gray-50 transition-colors">
                     <td className="px-4 py-3 font-bold text-indigo-600">#{orden.id_orden}</td>
-                    <td className="px-4 py-3">{orden.fecha_ingreso ? new Date(orden.fecha_ingreso).toLocaleDateString() : '-'}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800">{orden.diagnostico?.equipo?.cliente?.nombre || 'General'}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3">{orden.fecha_ingreso || orden.createdAt ? new Date(orden.fecha_ingreso || orden.createdAt).toLocaleDateString() : '-'}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-700">{orden.diagnostico?.equipo?.cliente?.nombre || 'General'}</td>
+                    <td className="px-4 py-3 text-gray-600">
                       {[orden.diagnostico?.equipo?.marca, orden.diagnostico?.equipo?.modelo].filter(Boolean).join(' ') || '-'}
                     </td>
-                    <td className="px-4 py-3">{orden.tecnico?.nombre || 'Sin asignar'}</td>
+                    <td className="px-4 py-3 text-gray-600">{orden.tecnico?.nombre || 'Sin asignar'}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-bold border ${
+                      <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black border ${
                         orden.estado === 'FINALIZADO'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                          : 'bg-gray-100 text-gray-700 border-gray-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-100'
                       }`}>
-                        {orden.estado || 'PENDIENTE'}
+                        {(orden.estado || 'PENDIENTE').replace('_', ' ')}
                       </span>
                     </td>
                   </tr>

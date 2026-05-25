@@ -1,0 +1,19 @@
+#!/bin/sh
+echo "--- Sincronizando Esquema ---"
+npx prisma generate
+npx prisma db push --accept-data-loss
+
+echo ">>> Cargando funciones y procedimientos..."
+npm run db:functions:container
+
+# Verificar si hay usuarios para determinar si es "primera vez"
+COUNT=$(psql "$SQL_DATABASE_URL" -tAc "SELECT count(*) FROM \"Usuarios\";" 2>/dev/null || echo 0)
+
+if [ "$COUNT" -eq "0" ]; then
+  echo ">>> [PRIMERA VEZ] Ejecutando semilla..."
+  npm run db:seed:container
+  echo ">>> [PRIMERA VEZ] Ejecutando datos operativos de prueba..."
+  npm run db:seed:operativo
+else
+  echo ">>> [ARRANQUE NORMAL] Base de datos detectada. Saltando semilla."
+fi

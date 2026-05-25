@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Table from '../../components/Table';
+import Autocomplete from '../../components/Autocomplete';
 import {
   Plus, Search, Edit, Trash2, Tag, Info,
   Loader2, AlertCircle, Cpu, Filter, HelpCircle, X
@@ -30,6 +31,7 @@ const toTitleCase = (value = '') => (
     .join(' ')
 );
 
+// CORREGIDO: Sintaxis limpia con los corchetes [] correctos para evitar errores en el editor de código
 const uniqueSorted = (values) => (
   [...new Set(values.map(toTitleCase).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
@@ -181,8 +183,30 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [],
   }, [initialData]);
 
   const categoriaOptions = useMemo(() => sortCategorias(categorias), [categorias]);
-  const tiposSugeridos = useMemo(() => uniqueSorted(categorias.map((categoria) => categoria.nombre_tipo)), [categorias]);
-  const electronicosSugeridos = useMemo(() => uniqueSorted(categorias.map((categoria) => categoria.electronico)), [categorias]);
+
+  // Lista global de todos los electrónicos únicos ordenados alfabéticamente
+  const electronicosSugeridos = useMemo(() => {
+    const nombresUnicos = [...new Set(categorias.map((cat) => toTitleCase(cat.electronico)))].filter(Boolean);
+    return nombresUnicos.sort((a, b) => a.localeCompare(b, 'es')).map(nombre => ({ nombre }));
+  }, [categorias]);
+
+  // LÓGICA CLAVE: Filtramos dinámicamente los tipos de repuesto según el electrónico que el usuario escribió o seleccionó
+  const tiposSugeridosFiltrados = useMemo(() => {
+    if (!formData.electronico) return []; // Si no hay electrónico seleccionado, la lista de repuestos se mantiene vacía.
+
+    const electronicoActual = formData.electronico.toLowerCase();
+    
+    // Filtramos las categorías de la base de datos que coincidan exactamente con el electrónico actual
+    const categoriasFiltradas = categorias.filter(
+      (cat) => String(cat.electronico || '').toLowerCase() === electronicoActual
+    );
+
+    // Extraemos los nombres de tipos de repuesto únicos (ej: Pantalla, Almacenamiento) para esas categorías
+    const tiposUnicos = [...new Set(categoriasFiltradas.map((cat) => toTitleCase(cat.nombre_tipo)))].filter(Boolean);
+    
+    return tiposUnicos.sort((a, b) => a.localeCompare(b, 'es')).map(nombre => ({ nombre }));
+  }, [categorias, formData.electronico]);
+
   const costo = Number(formData.costo_individual || 0);
   const ganancia = Number(formData.ganancia_cordobas || 0);
   const gananciaRule = useMemo(() => getGananciaRule(costo), [costo]);
@@ -214,13 +238,19 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [],
     });
   };
 
-  const handleCategoriaSelect = (categoria) => {
-    setFormData((prev) => ({
-      ...prev,
-      tipo_repuesto_id: String(categoria.id_tipo_repuesto),
-      categoria_nombre: categoria.nombre_tipo || '',
-      electronico: categoria.electronico || '',
-    }));
+  // Intercepta las selecciones de los componentes <Autocomplete /> personalizados
+  const handleAutocompleteSelect = (name, selectedValue) => {
+    setFormData((prev) => {
+      const next = { ...prev, [name]: selectedValue };
+      
+      // Si el usuario cambia el Electrónico, limpiamos el campo del Repuesto para obligarlo a seleccionar uno compatible
+      if (name === 'electronico') {
+        next.categoria_nombre = '';
+      }
+
+      next.tipo_repuesto_id = findCategoriaId(next.categoria_nombre, next.electronico);
+      return next;
+    });
   };
 
   const handleSubmitInternal = (e) => {
@@ -249,65 +279,57 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [],
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div data-tour-target="category" className={`space-y-4 p-4 bg-gray-50 rounded-xl border border-gray-200 shadow-sm ${tourHighlightClass(activeTourTarget === 'category')}`}>
           <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-            <Tag className="w-3 h-3" /> Clasificacion del Componente
+            <Tag className="w-3 h-3" /> Clasificación del Componente
           </h4>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* PRIMERO: ELECTRÓNICO (Establece el dispositivo padre global) */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Tipo de repuesto</label>
-              <input
-                name="categoria_nombre"
-                value={formData.categoria_nombre}
-                onChange={handleChange}
-                list="tipos-repuesto-sugeridos"
-                placeholder="Ej: Bateria, Pantalla, Flex"
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-              <datalist id="tipos-repuesto-sugeridos">
-                {tiposSugeridos.map((tipo) => <option key={tipo} value={tipo} />)}
-              </datalist>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Electronico</label>
-              <input
+              <Autocomplete
+                label="Electrónico"
                 name="electronico"
                 value={formData.electronico}
-                onChange={handleChange}
-                list="electronicos-repuesto-sugeridos"
-                placeholder="Ej: Telefono, Laptop"
+                onChange={(e) => handleAutocompleteSelect('electronico', e.target.value)}
+                options={electronicosSugeridos}
+                getOptionValue={(item) => item.nombre}
+                getOptionLabel={(item) => item.nombre}
+                getOptionDescription={() => 'Dispositivo compatible registrado'}
+                placeholder="Ej: Laptop, Teléfono, Consola"
+                emptyMessage="No se encontraron dispositivos en la base de datos"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               />
-              <datalist id="electronicos-repuesto-sugeridos">
-                {electronicosSugeridos.map((electronico) => <option key={electronico} value={electronico} />)}
-              </datalist>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {categoriaOptions.slice(0, 8).map((categoria) => (
-                <button
-                  key={categoria.id_tipo_repuesto}
-                  type="button"
-                  onClick={() => handleCategoriaSelect(categoria)}
-                  className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-md hover:bg-indigo-100 transition-colors"
-                >
-                  {formatCategoria(categoria)}
-                </button>
-              ))}
+            {/* SEGUNDO: TIPO DE REPUESTO (Filtrado dinámicamente y dependiente) */}
+            <div>
+              <Autocomplete
+                label="Tipo de repuesto"
+                name="categoria_nombre"
+                value={formData.categoria_nombre}
+                onChange={(e) => handleAutocompleteSelect('categoria_nombre', e.target.value)}
+                options={tiposSugeridosFiltrados} // Consume la lista filtrada en tiempo real
+                getOptionValue={(item) => item.nombre}
+                getOptionLabel={(item) => item.nombre}
+                getOptionDescription={() => 'Categoría de componente'}
+                placeholder={formData.electronico ? "Ej: Pantalla, Flex, Almacenamiento" : "Primero escribe o selecciona un electrónico..."}
+                emptyMessage="No hay repuestos registrados para este aparato"
+                required
+                disabled={!formData.electronico} // Bloqueado si no hay un aparato seleccionado en el formulario
+              />
             </div>
+            
+            {/* SE REMOVIERON LOS BOTONES EXTRA QUE CAUSABAN CONFLICTO VISUAL */}
           </div>
         </div>
 
         <div data-tour-target="details" className={`space-y-4 ${tourHighlightClass(activeTourTarget === 'details')}`}>
           <div className="space-y-1 text-left">
-            <label className="block text-sm font-bold text-gray-700">Modelo/Codigo</label>
+            <label className="block text-sm font-bold text-gray-700">Modelo/Código</label>
             <input
               name="nombre"
               value={formData.nombre}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
               required
             />
           </div>
@@ -322,7 +344,7 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [],
                 name="costo_individual"
                 value={formData.costo_individual}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div className="space-y-1">
@@ -335,7 +357,7 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [],
                 value={formData.ganancia_cordobas}
                 onChange={handleChange}
                 placeholder="Ej: 250"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
@@ -353,7 +375,7 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [],
                 <button
                   type="button"
                   onClick={() => setFormData((prev) => ({ ...prev, ganancia_cordobas: String(gananciaRule.gananciaAplicable) }))}
-                  className="rounded-md border border-green-200 bg-white px-3 py-1.5 text-xs font-bold text-green-700 hover:bg-green-100"
+                  className="rounded-md border border-green-200 bg-white px-3 py-1.5 text-xs font-bold text-green-700 hover:bg-green-100 shadow-sm transition-all"
                 >
                   Usar C$ {gananciaRule.gananciaAplicable}
                 </button>
@@ -370,20 +392,20 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [],
 
         <div className="md:col-span-2 text-left">
           <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1">
-            <Info className="w-4 h-4 text-indigo-500" /> Descripcion Tecnica
+            <Info className="w-4 h-4 text-indigo-500" /> Descripción Técnica
           </label>
           <textarea
             name="descripcion"
             value={formData.descripcion}
             onChange={handleChange}
             rows={2}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 shadow-sm"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 shadow-sm outline-none text-sm"
           />
         </div>
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t">
-        <button type="button" onClick={onCancel} className="px-6 py-2 text-gray-600 font-semibold hover:bg-gray-100 rounded-lg">Cancelar</button>
+        <button type="button" onClick={onCancel} className="px-6 py-2 text-gray-600 font-semibold hover:bg-gray-100 rounded-lg transition-all">Cancelar</button>
         <button type="submit" className="px-6 py-2 text-white bg-indigo-600 font-bold rounded-lg shadow-lg active:scale-95 transition-all">
           {initialData ? 'Actualizar Repuesto' : 'Guardar Repuesto'}
         </button>
@@ -425,7 +447,7 @@ const Repuestos = () => {
     if (!showHelp || !activeTourTarget) return;
     const scrollTimer = window.setTimeout(() => {
       document
-        .querySelector(`[data-tour-target="${activeTourTarget}"]`)
+        ?.querySelector(`[data-tour-target="${activeTourTarget}"]`)
         ?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     }, 80);
 
@@ -477,7 +499,7 @@ const Repuestos = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Eliminar este repuesto?')) return;
+    if (!window.confirm('¿Eliminar este repuesto?')) return;
     try {
       await deleteRepuesto(id);
       await loadData();
@@ -519,8 +541,8 @@ const Repuestos = () => {
     ) },
     { header: 'Acciones', render: (row) => (
       <div data-tour-target="actions" className={`flex gap-1 ${tourHighlightClass(activeTourTarget === 'actions')}`}>
-        <button onClick={() => { setEditingRepuesto(row); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit className="w-4 h-4" /></button>
-        <button onClick={() => handleDelete(row.id_repuesto)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+        <button onClick={() => { setEditingRepuesto(row); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
+        <button onClick={() => handleDelete(row.id_repuesto)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
       </div>
     ) },
   ];
@@ -539,7 +561,7 @@ const Repuestos = () => {
       <div className="flex justify-between items-end mb-8">
         <div className="text-left">
           <h2 className="text-3xl font-black text-gray-800 tracking-tight">Inventario de Repuestos</h2>
-          <p className="text-gray-500 font-medium italic text-sm">Gestion de componentes para CTE</p>
+          <p className="text-gray-500 font-medium italic text-sm">Gestión de componentes para CTE</p>
         </div>
         <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
           <button
@@ -572,11 +594,11 @@ const Repuestos = () => {
           <div className="flex items-center gap-2 text-gray-500 mr-2"><Filter className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-wider">Filtros:</span></div>
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Buscar por Modelo/Codigo..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm" value={filterNombre} onChange={(e) => setFilterNombre(e.target.value)} />
+            <input type="text" placeholder="Buscar por Modelo/Codigo..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm outline-none" value={filterNombre} onChange={(e) => setFilterNombre(e.target.value)} />
           </div>
           <div className="relative flex-1 min-w-[200px]">
             <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Filtrar por Categoria..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm" value={filterCategoria} onChange={(e) => setFilterCategoria(e.target.value)} />
+            <input type="text" placeholder="Filtrar por Categoria..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm outline-none" value={filterCategoria} onChange={(e) => setFilterCategoria(e.target.value)} />
           </div>
         </div>
         {loading ? <div className="p-12 flex justify-center items-center gap-3 text-indigo-600"><Loader2 className="w-6 h-6 animate-spin" /><span className="font-bold">Sincronizando...</span></div> : <Table columns={columnas} data={filteredRepuestos} />}

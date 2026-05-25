@@ -23,7 +23,8 @@ services:
       target: dev
     image: cte-backend:dev
     container_name: backend_cte_setup
-    command: sh -c "npx prisma generate && npx prisma db push && npm run db:functions:container && npm run db:seed:container"
+    # Ejecuta nuestro nuevo script de control inteligente
+    command: sh /app/scripts/setup.sh
     depends_on:
       db:
         condition: service_healthy

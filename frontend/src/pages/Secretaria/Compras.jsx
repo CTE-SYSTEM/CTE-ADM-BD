@@ -132,7 +132,7 @@ const CompraForm = ({ onSubmit, onCancel, proveedores = [], repuestos = [], acti
           ))}
         </Select>
 
-        <Field label="Documento" name="documento" value={formData.documento} onChange={handleChange} placeholder="Factura o recibo" maxLength={80} />
+        <Field label="Numero de factura o recibo" name="documento" value={formData.documento} onChange={handleChange} placeholder="Factura o recibo" maxLength={80} />
         <Field label="Fecha de obtencion" name="fecha_obtencion" type="date" value={formData.fecha_obtencion} onChange={handleChange} />
       </div>
 

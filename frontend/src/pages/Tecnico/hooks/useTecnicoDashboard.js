@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../../services/api';
-import { estadosDiagnosticoCompletado, estadosOrdenCerrada } from '../components/TecnicoBadges';
-import { mapDiagnostico, mapOrden } from '../utils/tecnicoMappers';
+import { estadosDiagnosticoCompletado, estadosOrdenCerrada } from '../../../components/TecnicoBadges';
+import { mapDiagnostico, mapOrden } from '../../../utils/tecnicoMappers';
 
 const isInList = (value, list) => list.includes(String(value || '').toUpperCase());
 

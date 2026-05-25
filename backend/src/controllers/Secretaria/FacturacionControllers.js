@@ -40,17 +40,46 @@ const repuestosUsadosInclude = {
   },
 };
 
+const calcularPrecioVentaRepuesto = (repuesto = {}) => {
+  const costo = Number(repuesto.costo_individual || 0);
+  const gananciaCordobas = Number(repuesto.ganancia_cordobas || 0);
+  const porcentajeGanancia = Number(repuesto.porcentaje_de_ganacia || 0);
+
+  if (gananciaCordobas > 0) return costo + gananciaCordobas;
+  if (porcentajeGanancia > 0) return costo + ((costo * porcentajeGanancia) / 100);
+  return costo;
+};
+
 const calcularMontoRepuestos = (repuestosUsados = []) => {
   const total = repuestosUsados
     .filter((detalle) => (detalle.estado_aprobacion || '').toUpperCase() === 'APROBADO')
     .reduce((sum, detalle) => {
       const cantidad = Number(detalle.cantidad_usada || 0);
-      const costo = Number(detalle.repuesto?.costo_individual || 0);
-      return sum + (cantidad * costo);
+      const precioVenta = calcularPrecioVentaRepuesto(detalle.repuesto);
+      return sum + (cantidad * precioVenta);
     }, 0);
 
   return Math.round(total * 100) / 100;
 };
+
+const mapDetalleRepuestoFacturacion = (detalle) => {
+  const cantidad = Number(detalle.cantidad_usada || 0);
+  const precio_unitario = Math.round(calcularPrecioVentaRepuesto(detalle.repuesto) * 100) / 100;
+
+  return {
+    id_detalle_repuesto: detalle.id_detalle_repuesto,
+    repuesto_id: detalle.repuesto_id,
+    pieza_solicitada: detalle.pieza_solicitada,
+    cantidad_usada: detalle.cantidad_usada,
+    estado_aprobacion: detalle.estado_aprobacion,
+    repuesto: detalle.repuesto,
+    precio_unitario,
+    total: Math.round((cantidad * precio_unitario) * 100) / 100,
+  };
+};
+
+const tieneRepuestosSinAprobar = (orden) =>
+  (orden.repuestos_usados || []).some((detalle) => (detalle.estado_aprobacion || '').toUpperCase() !== 'APROBADO');
 
 export const getFacturas = async (req, res) => {
   try {
@@ -104,6 +133,10 @@ export const createFactura = async (req, res) => {
 
     if (orden.facturas.length > 0) {
       return res.status(409).json({ error: 'Esta orden ya tiene una factura registrada' });
+    }
+
+    if (estadoOrden === 'FINALIZADO' && tieneRepuestosSinAprobar(orden)) {
+      return res.status(409).json({ error: 'La orden tiene repuestos pendientes de aprobacion. Apruebelos o rechacelos antes de facturar.' });
     }
 
     const montoRepuestos = estadoOrden === 'IRREPARABLE' ? 0 : calcularMontoRepuestos(orden.repuestos_usados);
@@ -177,6 +210,9 @@ export const getOrdenesParaFacturar = async (req, res) => {
       .map((orden) => ({
         ...orden,
         monto_repuestos_calculado: (orden.estado || '').toUpperCase() === 'IRREPARABLE' ? 0 : calcularMontoRepuestos(orden.repuestos_usados),
+        repuestos_facturacion: (orden.repuestos_usados || []).map(mapDetalleRepuestoFacturacion),
+        repuestos_pendientes_count: (orden.repuestos_usados || [])
+          .filter((detalle) => (detalle.estado_aprobacion || '').toUpperCase() !== 'APROBADO').length,
       }));
 
     res.json({

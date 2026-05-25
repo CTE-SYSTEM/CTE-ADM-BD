@@ -1,4 +1,5 @@
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 
 // 3. Monitoreo de órdenes y facturas
 export const getOrdenesAvanzado = async (req, res) => {
@@ -38,10 +39,19 @@ export const updateOrdenAdmin = async (req, res) => {
       return res.status(400).json({ error: 'No se proporcionaron campos para actualizar' });
     }
 
-    const orden = await prisma.ordenes.update({
-      where: { id_orden: Number(id) },
-      data,
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT admin_pro.actualizar_orden(
+        ${Number(id)},
+        ${data.estado ?? null},
+        ${Object.prototype.hasOwnProperty.call(data, 'tecnico_id') ? data.tecnico_id : null},
+        ${Object.prototype.hasOwnProperty.call(data, 'tecnico_id')},
+        ${data.resultado_final ?? null},
+        ${data.observacion_final ?? null}
+      ) AS data
+    `);
+    const orden = row?.data;
+
+    if (orden?.error) return res.status(404).json({ error: orden.error });
 
     res.json({ data: orden });
   } catch (error) {

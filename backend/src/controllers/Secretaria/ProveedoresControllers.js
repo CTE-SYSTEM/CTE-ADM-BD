@@ -1,5 +1,6 @@
 // controllers/Secretaria/ProveedoresControllers.js
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 
 const normalizeText = (value = '') => String(value).trim().replace(/\s+/g, ' ');
 const normalizeNullableText = (value = '') => {
@@ -17,10 +18,7 @@ const validateEmail = (correo) => !correo || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c
 
 export const getProveedores = async (req, res) => {
   try {
-    const proveedores = await prisma.proveedores.findMany({
-      where: { descontinuada: false },
-      orderBy: { id_proveedor: 'desc' },
-    });
+    const proveedores = await prisma.$queryRaw(Prisma.sql`SELECT * FROM get_proveedores_activos()`);
 
     res.json({ data: proveedores });
   } catch (error) {
@@ -31,10 +29,8 @@ export const getProveedores = async (req, res) => {
 
 export const getProveedorById = async (req, res) => {
   try {
-    const proveedor = await prisma.proveedores.findUnique({
-      where: { id_proveedor: Number(req.params.id) },
-      include: { compras: true },
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_proveedor_detalle(${Number(req.params.id)})`);
+    const proveedor = row?.data;
 
     if (!proveedor) {
       return res.status(404).json({ error: 'Proveedor no encontrado' });
@@ -64,20 +60,15 @@ export const createProveedor = async (req, res) => {
       return res.status(400).json({ error: 'El correo del proveedor no tiene un formato valido' });
     }
 
-    const existente = await prisma.proveedores.findFirst({
-      where: {
-        nombre: { equals: nombre, mode: 'insensitive' },
-        descontinuada: false,
-      },
-    });
+    const [existente] = await prisma.$queryRaw(Prisma.sql`SELECT existe_proveedor_activo_nombre(${nombre}, ${null}) AS existe`);
 
-    if (existente) {
+    if (existente?.existe) {
       return res.status(409).json({ error: 'Ya existe un proveedor activo con ese nombre' });
     }
 
-    const proveedor = await prisma.proveedores.create({
-      data: { nombre, telefono, direccion, correo, web, notas, descontinuada: false },
-    });
+    const [proveedor] = await prisma.$queryRaw(Prisma.sql`
+      SELECT * FROM crear_proveedor_proc(${nombre}, ${telefono}, ${direccion}, ${correo}, ${web}, ${notas})
+    `);
 
     res.status(201).json({ data: proveedor });
   } catch (error) {
@@ -104,22 +95,17 @@ export const updateProveedor = async (req, res) => {
       return res.status(400).json({ error: 'El correo del proveedor no tiene un formato valido' });
     }
 
-    const duplicado = await prisma.proveedores.findFirst({
-      where: {
-        id_proveedor: { not: id },
-        nombre: { equals: nombre, mode: 'insensitive' },
-        descontinuada: false,
-      },
-    });
+    const [duplicado] = await prisma.$queryRaw(Prisma.sql`SELECT existe_proveedor_activo_nombre(${nombre}, ${id}) AS existe`);
 
-    if (duplicado) {
+    if (duplicado?.existe) {
       return res.status(409).json({ error: 'Ya existe otro proveedor activo con ese nombre' });
     }
 
-    const proveedor = await prisma.proveedores.update({
-      where: { id_proveedor: id },
-      data: { nombre, telefono, direccion, correo, web, notas },
-    });
+    const [proveedor] = await prisma.$queryRaw(Prisma.sql`
+      SELECT * FROM actualizar_proveedor_proc(${id}, ${nombre}, ${telefono}, ${direccion}, ${correo}, ${web}, ${notas})
+    `);
+
+    if (!proveedor) return res.status(404).json({ error: 'Proveedor no encontrado' });
 
     res.json({ data: proveedor });
   } catch (error) {
@@ -133,10 +119,7 @@ export const updateProveedor = async (req, res) => {
 
 export const deleteProveedor = async (req, res) => {
   try {
-    await prisma.proveedores.update({
-      where: { id_proveedor: Number(req.params.id) },
-      data: { descontinuada: true }
-    });
+    await prisma.$executeRaw(Prisma.sql`SELECT desactivar_proveedor_proc(${Number(req.params.id)})`);
     res.status(204).send();
   } catch (error) {
     if (error.code === 'P2025') {

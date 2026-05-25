@@ -1,4 +1,3 @@
-// frontend/src/pages/Secretaria/Clientes.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // Importado para la redirección
 import Table from '../../components/Table';
@@ -11,6 +10,13 @@ const emptyCliente = {
   direccion: '',
   correo: '',
   contacto_secundario: '',
+};
+
+// Función de validación de correo electrónico usando Regex estándar
+const validateEmail = (email) => {
+  if (!email || email.trim() === '') return true; // Permitimos vacío si no es obligatorio
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(String(email).toLowerCase());
 };
 
 const formatPhone = (value = '') => {
@@ -67,7 +73,7 @@ const tourHighlightClass = (isActive) =>
     ? 'relative z-[60] rounded-xl bg-white ring-4 ring-indigo-400 ring-offset-4 ring-offset-white shadow-2xl transition-all'
     : '';
 
-// Componente de Formulario actualizado
+// Componente de Formulario actualizado con validación de correo
 const ClienteForm = ({ onSubmit, onCancel, initialData = null, activeTourTarget = '' }) => {
   const [formData, setFormData] = useState({
     nombre: initialData?.nombre || '',
@@ -76,6 +82,15 @@ const ClienteForm = ({ onSubmit, onCancel, initialData = null, activeTourTarget 
     correo: initialData?.correo || '',
     contacto_secundario: initialData?.contacto_secundario || '',
   });
+
+  const [emailError, setEmailError] = useState('');
+
+  // Validar el correo inicial si se está editando un cliente
+  useEffect(() => {
+    if (initialData?.correo) {
+      setEmailError(!validateEmail(initialData.correo) ? 'Formato de correo no válido' : '');
+    }
+  }, [initialData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -89,6 +104,10 @@ const ClienteForm = ({ onSubmit, onCancel, initialData = null, activeTourTarget 
       nextValue = sanitizeInternationalPhone(value);
     }
 
+    if (name === 'correo') {
+      setEmailError(value && !validateEmail(value) ? 'Formato de correo no válido' : '');
+    }
+
     setFormData((prev) => ({ ...prev, [name]: nextValue }));
   };
 
@@ -100,16 +119,17 @@ const ClienteForm = ({ onSubmit, onCancel, initialData = null, activeTourTarget 
       >
         <Field label="Nombre Completo" name="nombre" value={formData.nombre} onChange={handleChange} required />
         <Field label="Telefono" name="telefono" value={formData.telefono} onChange={handleChange} inputMode="numeric" maxLength={9} />
-        <Field label="Correo" name="correo" type="email" value={formData.correo} onChange={handleChange} />
+        <Field label="Correo" name="correo" type="email" value={formData.correo} onChange={handleChange} error={emailError} />
         <Field label="Contacto secundario" name="contacto_secundario" value={formData.contacto_secundario} onChange={handleChange} inputMode="tel" placeholder="+1-212-555-0198" />
         <Field label="Direccion" name="direccion" value={formData.direccion} onChange={handleChange} className="md:col-span-2" />
       </div>
       
-      {/* Pasamos formData a las acciones para manejar los diferentes tipos de submit */}
+      {/* Pasamos formData y la condición de error para bloquear las acciones si el correo es inválido */}
       <FormActions 
         onCancel={onCancel} 
         isEditing={Boolean(initialData)} 
         activeTourTarget={activeTourTarget}
+        isFormInvalid={!!emailError}
         onSave={() => onSubmit(formData, 'save')}
         onNext={() => onSubmit(formData, 'next')}
       />
@@ -117,18 +137,21 @@ const ClienteForm = ({ onSubmit, onCancel, initialData = null, activeTourTarget 
   );
 };
 
-const Field = ({ label, className = '', ...props }) => (
+const Field = ({ label, className = '', error, ...props }) => (
   <div className={className}>
     <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
     <input
       {...props}
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
+        error ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50/30' : 'border-gray-300'
+      }`}
     />
+    {error && <p className="text-red-500 text-xs mt-1 font-medium">{error}</p>}
   </div>
 );
 
-// Acciones del formulario con el nuevo botón
-const FormActions = ({ onCancel, isEditing, activeTourTarget, onSave, onNext }) => (
+// Acciones del formulario con bloqueo visual y lógico mediante disabled
+const FormActions = ({ onCancel, isEditing, activeTourTarget, onSave, onNext, isFormInvalid }) => (
   <div
     data-tour-target="actions"
     className={`flex flex-wrap justify-end gap-3 pt-4 ${tourHighlightClass(activeTourTarget === 'actions')}`}
@@ -140,7 +163,10 @@ const FormActions = ({ onCancel, isEditing, activeTourTarget, onSave, onNext }) 
     <button 
       type="button" 
       onClick={onSave}
-      className="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+      disabled={isFormInvalid}
+      className={`px-4 py-2 text-white rounded-lg transition-all ${
+        isFormInvalid ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'bg-indigo-600 hover:bg-indigo-700'
+      }`}
     >
       {isEditing ? 'Actualizar' : 'Solo Guardar'}
     </button>
@@ -149,7 +175,10 @@ const FormActions = ({ onCancel, isEditing, activeTourTarget, onSave, onNext }) 
       <button 
         type="button" 
         onClick={onNext}
-        className="flex items-center gap-2 px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+        disabled={isFormInvalid}
+        className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-all ${
+          isFormInvalid ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'bg-indigo-600 hover:bg-indigo-700'
+        }`}
       >
         Guardar y Continuar <ArrowRight className="w-4 h-4" />
       </button>
@@ -310,6 +339,7 @@ const Clientes = () => {
 
     return (
       String(cliente.nombre || '').toLowerCase().includes(term) ||
+      String(cliente.correo || '').toLowerCase().includes(term) || // Añadida búsqueda por correo electrónico
       String(cliente.contacto_secundario || '').toLowerCase().includes(term) ||
       (phoneTerm && (telefono.includes(phoneTerm) || contactoSecundario.includes(phoneTerm)))
     );
@@ -407,7 +437,7 @@ const Clientes = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar por nombre o telefono..."
+            placeholder="Buscar por nombre, telefono o correo..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"

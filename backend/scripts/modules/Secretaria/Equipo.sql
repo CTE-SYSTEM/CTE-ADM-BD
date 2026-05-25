@@ -62,7 +62,7 @@ CREATE OR REPLACE FUNCTION actualizar_equipo_proc(
 ) RETURNS TABLE (data JSONB) AS $$
 BEGIN
     UPDATE "Equipos"
-    SET cliente_id = p_cliente_id,
+    SET cliente_id = COALESCE(p_cliente_id, cliente_id),
         tipo = p_tipo,
         marca = p_marca,
         modelo = p_modelo,
@@ -82,5 +82,14 @@ BEGIN
     FROM "Equipos" e
     INNER JOIN "Clientes" c ON e.cliente_id = c.id_cliente
     WHERE e.id_equipo = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 4. Eliminar equipo
+CREATE OR REPLACE FUNCTION eliminar_equipo_proc(p_id INT)
+RETURNS VOID AS $$
+BEGIN
+    DELETE FROM "Equipos"
+    WHERE id_equipo = p_id;
 END;
 $$ LANGUAGE plpgsql;

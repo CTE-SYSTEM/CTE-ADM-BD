@@ -35,6 +35,112 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION asignar_tecnico_orden_proc(
+    p_id_orden INT,
+    p_id_tecnico INT
+) RETURNS VOID AS $$
+BEGIN
+    UPDATE "Ordenes"
+    SET tecnico_id = p_id_tecnico,
+        estado = 'EN_REPARACION'
+    WHERE id_orden = p_id_orden;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION get_ordenes_aprobadas_jefe()
+RETURNS TABLE (data JSONB) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT jsonb_build_object(
+        'id_orden', o.id_orden,
+        'diagnostico_id', o.diagnostico_id,
+        'tecnico_id', o.tecnico_id,
+        'prioridad', o.prioridad,
+        'estado', o.estado,
+        'fecha_ingreso', o.fecha_ingreso,
+        'tecnico', to_jsonb(t.*),
+        'diagnostico', to_jsonb(d.*) || jsonb_build_object(
+            'tecnico', to_jsonb(dt.*),
+            'equipo', to_jsonb(e.*) || jsonb_build_object('cliente', to_jsonb(c.*))
+        )
+    )
+    FROM "Ordenes" o
+    JOIN "Diagnosticos" d ON o.diagnostico_id = d.id_diagnostico
+    JOIN "Equipos" e ON d.equipo_id = e.id_equipo
+    JOIN "Clientes" c ON e.cliente_id = c.id_cliente
+    LEFT JOIN "Tecnicos" t ON o.tecnico_id = t.id_tecnico
+    LEFT JOIN "Tecnicos" dt ON d.tecnico_id = dt.id_tecnico
+    WHERE o.tecnico_id IS NULL
+      AND (o.estado IN ('APROBADO', 'EN_REPARACION', 'PENDIENTE') OR d.estado_del_diagnostico = 'APROBADO')
+    ORDER BY o.fecha_ingreso ASC;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION corregir_diagnostico_jefe_proc(
+    p_id INT,
+    p_tecnico_id INT,
+    p_cambiar_tecnico BOOLEAN,
+    p_prioridad TEXT,
+    p_estado_diag TEXT,
+    p_estado_aprob TEXT
+) RETURNS VOID AS $$
+BEGIN
+    UPDATE "Diagnosticos"
+    SET tecnico_id = CASE WHEN p_cambiar_tecnico THEN p_tecnico_id ELSE tecnico_id END,
+        fecha_asignacion = CASE WHEN p_cambiar_tecnico THEN CASE WHEN p_tecnico_id IS NULL THEN NULL ELSE NOW() END ELSE fecha_asignacion END,
+        prioridad = COALESCE(p_prioridad, prioridad),
+        estado_del_diagnostico = COALESCE(p_estado_diag, estado_del_diagnostico),
+        "Estado_aprobacion" = COALESCE(p_estado_aprob, "Estado_aprobacion")
+    WHERE id_diagnostico = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION corregir_orden_jefe_proc(
+    p_id INT,
+    p_tecnico_id INT,
+    p_cambiar_tecnico BOOLEAN,
+    p_prioridad TEXT,
+    p_estado TEXT
+) RETURNS VOID AS $$
+BEGIN
+    UPDATE "Ordenes"
+    SET tecnico_id = CASE WHEN p_cambiar_tecnico THEN p_tecnico_id ELSE tecnico_id END,
+        prioridad = COALESCE(p_prioridad, prioridad),
+        estado = COALESCE(p_estado, estado)
+    WHERE id_orden = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION corregir_repuesto_jefe_proc(
+    p_id INT,
+    p_repuesto_id INT,
+    p_cambiar_repuesto BOOLEAN,
+    p_pieza_solicitada TEXT,
+    p_cambiar_pieza BOOLEAN,
+    p_cantidad INT,
+    p_estado_aprobacion TEXT
+) RETURNS VOID AS $$
+BEGIN
+    UPDATE "Ordenes_Repuestos"
+    SET repuesto_id = CASE WHEN p_cambiar_repuesto THEN p_repuesto_id ELSE repuesto_id END,
+        pieza_solicitada = CASE WHEN p_cambiar_pieza THEN NULLIF(p_pieza_solicitada, '') ELSE pieza_solicitada END,
+        cantidad_usada = COALESCE(p_cantidad, cantidad_usada),
+        estado_aprobacion = COALESCE(p_estado_aprobacion, estado_aprobacion)
+    WHERE id_detalle_repuesto = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION actualizar_estado_solicitud_repuesto_jefe_proc(
+    p_id INT,
+    p_estado_aprobacion TEXT
+) RETURNS VOID AS $$
+BEGIN
+    UPDATE "Ordenes_Repuestos"
+    SET estado_aprobacion = p_estado_aprobacion
+    WHERE id_detalle_repuesto = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
 -- 3. Obtener Repuestos Pendientes de Aprobación
 CREATE OR REPLACE FUNCTION get_repuestos_pendientes_aprobacion()
 RETURNS TABLE (data JSONB) AS $$

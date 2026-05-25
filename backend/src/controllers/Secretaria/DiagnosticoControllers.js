@@ -1,5 +1,6 @@
 // backend/src/controllers/Secretaria/diagnosticosController.js
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 import {
   DIAGNOSTICO_ESTADOS,
   PRIORIDADES,
@@ -10,14 +11,8 @@ import {
 
 export const getDiagnosticos = async (req, res) => {
   try {
-    const diagnosticos = await prisma.diagnosticos.findMany({
-      include: {
-        equipo: { include: { cliente: true } },
-        tecnico: true,
-        ordenes: true,
-      },
-      orderBy: { id_diagnostico: 'desc' },
-    });
+    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_diagnosticos_formateados()`);
+    const diagnosticos = rows.map((row) => row.data);
     res.json({ data: diagnosticos });
   } catch (error) {
     console.error('Error en getDiagnosticos:', error.message);
@@ -42,25 +37,22 @@ export const createDiagnostico = async (req, res) => {
       return res.status(400).json({ error: 'El equipo es obligatorio' });
     }
 
-    const diagnostico = await prisma.diagnosticos.create({
-      data: {
-        equipo_id: equipoId,
-        tecnico_id: tecnico_id ? parsePositiveId(tecnico_id) : null,
-        falla_reportada: falla_reportada.trim(),
-        diagnostico_real,
-        presupuesto_estimado: presupuesto_estimado ? parseNonNegativeMoney(presupuesto_estimado, 'Presupuesto estimado') : null,
-        prioridad: assertInList(prioridad || 'Normal', PRIORIDADES, 'Prioridad'),
-        estado_del_diagnostico: assertInList(estado_del_diagnostico || 'PENDIENTE', DIAGNOSTICO_ESTADOS, 'Estado del diagnostico'),
-        Estado_aprobacion: Estado_aprobacion || 'Pendiente',
-        deja_cargador: deja_cargador === true || deja_cargador === 'true',
-        enciende: enciende === true || enciende === 'true',
-        usa_corriente_ac: usa_corriente_ac === true || usa_corriente_ac === 'true',
-      },
-      include: {
-        equipo: { include: { cliente: true } },
-        tecnico: true,
-      },
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT data FROM crear_diagnostico_proc(
+        ${equipoId},
+        ${tecnico_id ? parsePositiveId(tecnico_id) : null},
+        ${falla_reportada.trim()},
+        ${diagnostico_real || null},
+        ${presupuesto_estimado ? parseNonNegativeMoney(presupuesto_estimado, 'Presupuesto estimado') : null},
+        ${assertInList(prioridad || 'Normal', PRIORIDADES, 'Prioridad')},
+        ${assertInList(estado_del_diagnostico || 'PENDIENTE', DIAGNOSTICO_ESTADOS, 'Estado del diagnostico')},
+        ${Estado_aprobacion || 'Pendiente'},
+        ${deja_cargador === true || deja_cargador === 'true'},
+        ${enciende === true || enciende === 'true'},
+        ${usa_corriente_ac === true || usa_corriente_ac === 'true'}
+      )
+    `);
+    const diagnostico = row?.data;
 
     res.status(201).json({ data: diagnostico });
   } catch (error) {
@@ -88,26 +80,25 @@ export const updateDiagnostico = async (req, res) => {
 
     const estadoNuevo = estado_del_diagnostico || estado;
 
-    const diagnostico = await prisma.diagnosticos.update({
-      where: { id_diagnostico: Number(id) },
-      data: {
-        equipo_id: equipo_id ? parsePositiveId(equipo_id) : undefined,
-        tecnico_id: tecnico_id ? parsePositiveId(tecnico_id) : undefined,
-        falla_reportada: falla_reportada?.trim(),
-        diagnostico_real,
-        presupuesto_estimado: presupuesto_estimado ? parseNonNegativeMoney(presupuesto_estimado, 'Presupuesto estimado') : undefined,
-        prioridad: prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : undefined,
-        estado_del_diagnostico: estadoNuevo ? assertInList(estadoNuevo, DIAGNOSTICO_ESTADOS, 'Estado del diagnostico') : undefined,
-        Estado_aprobacion,
-        deja_cargador: deja_cargador === undefined ? undefined : deja_cargador === true || deja_cargador === 'true',
-        enciende: enciende === undefined ? undefined : enciende === true || enciende === 'true',
-        usa_corriente_ac: usa_corriente_ac === undefined ? undefined : usa_corriente_ac === true || usa_corriente_ac === 'true',
-      },
-      include: {
-        equipo: { include: { cliente: true } },
-        tecnico: true,
-      },
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT data FROM actualizar_diagnostico_proc(
+        ${Number(id)},
+        ${equipo_id ? parsePositiveId(equipo_id) : null},
+        ${tecnico_id ? parsePositiveId(tecnico_id) : null},
+        ${falla_reportada?.trim() || null},
+        ${diagnostico_real ?? null},
+        ${presupuesto_estimado ? parseNonNegativeMoney(presupuesto_estimado, 'Presupuesto estimado') : null},
+        ${prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : null},
+        ${estadoNuevo ? assertInList(estadoNuevo, DIAGNOSTICO_ESTADOS, 'Estado del diagnostico') : null},
+        ${Estado_aprobacion ?? null},
+        ${deja_cargador === undefined ? null : deja_cargador === true || deja_cargador === 'true'},
+        ${enciende === undefined ? null : enciende === true || enciende === 'true'},
+        ${usa_corriente_ac === undefined ? null : usa_corriente_ac === true || usa_corriente_ac === 'true'}
+      )
+    `);
+    const diagnostico = row?.data;
+
+    if (!diagnostico) return res.status(404).json({ error: 'Diagnostico no encontrado' });
 
     res.json({ data: diagnostico });
   } catch (error) {
@@ -129,14 +120,12 @@ export const updateEstadoDiagnostico = async (req, res) => {
     const { estado, estado_del_diagnostico } = req.body;
     const estadoNuevo = assertInList(estado_del_diagnostico || estado, DIAGNOSTICO_ESTADOS, 'Estado del diagnostico');
 
-    const diagnostico = await prisma.diagnosticos.update({
-      where: { id_diagnostico: Number(id) },
-      data: { estado_del_diagnostico: estadoNuevo },
-      include: {
-        equipo: { include: { cliente: true } },
-        tecnico: true,
-      },
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT data FROM actualizar_diagnostico_proc(${Number(id)}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${estadoNuevo}, ${null}, ${null}, ${null}, ${null})
+    `);
+    const diagnostico = row?.data;
+
+    if (!diagnostico) return res.status(404).json({ error: 'Diagnostico no encontrado' });
 
     res.json({ data: diagnostico });
   } catch (error) {

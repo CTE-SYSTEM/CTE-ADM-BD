@@ -32,6 +32,23 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url || '';
+
+    if (status === 401 && !url.includes('/auth/login')) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('cte_user');
+      clearGetCache();
+      window.dispatchEvent(new Event('auth:unauthorized'));
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 const originalGet = api.get.bind(api);
 
 api.get = (url, config = {}) => {

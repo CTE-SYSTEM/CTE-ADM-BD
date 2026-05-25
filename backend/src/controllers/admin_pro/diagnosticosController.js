@@ -1,4 +1,5 @@
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 import { DIAGNOSTICO_ESTADOS } from '../../utils/domainValidation.js';
 
 export const updateDiagnosticoEstadoAdmin = async (req, res) => {
@@ -13,10 +14,12 @@ export const updateDiagnosticoEstadoAdmin = async (req, res) => {
       });
     }
 
-    const diagnostico = await prisma.diagnosticos.update({
-      where: { id_diagnostico: Number(id) },
-      data: { estado_del_diagnostico },
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT admin_pro.actualizar_estado_diagnostico(${Number(id)}, ${estado_del_diagnostico}) AS data
+    `);
+    const diagnostico = row?.data;
+
+    if (diagnostico?.error) return res.status(404).json({ error: diagnostico.error });
 
     res.json({ data: diagnostico });
   } catch (error) {

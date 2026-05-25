@@ -95,3 +95,23 @@ BEGIN
       ADD CONSTRAINT uq_garantias_factura UNIQUE (factura_id);
   END IF;
 END $$;
+
+CREATE OR REPLACE FUNCTION crear_tecnico_proc(
+  p_nombre TEXT,
+  p_especialidad TEXT DEFAULT NULL,
+  p_horario TEXT DEFAULT NULL,
+  p_contacto TEXT DEFAULT NULL,
+  p_usuario_id INT DEFAULT NULL,
+  p_activo BOOLEAN DEFAULT TRUE
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_row JSONB;
+BEGIN
+  INSERT INTO "Tecnicos" (nombre, especialidad, horario, contacto, usuario_id, activo)
+  VALUES (p_nombre, p_especialidad, p_horario, p_contacto, p_usuario_id, COALESCE(p_activo, TRUE))
+  RETURNING to_jsonb("Tecnicos".*) INTO v_row;
+
+  RETURN v_row;
+END;
+$$ LANGUAGE plpgsql;

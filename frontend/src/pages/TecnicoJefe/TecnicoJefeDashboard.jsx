@@ -5,18 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   Bell,
-  CheckCircle2,
-  Eye,
   History,
-  LogOut,
   Package,
-  Save,
   Search,
   Settings,
   ShieldCheck,
-  Users,
-  X,
-  XCircle,
 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { diagnosticoService } from '../../services/JefeTecnico/DiagnosticoService';
@@ -24,19 +17,18 @@ import { ordenesService } from '../../services/secretaria/ordenesService';
 import { repuestoService } from '../../services/secretaria/repuestosService';
 import { createNotificationsSocket } from '../../services/notificationsSocket';
 import Table from '../../components/Table';
-import BrandLogo from '../../components/BrandLogo';
-import { PrioridadBadge } from '../Secretaria/Diagnostico';
-
-const TAB_DIAGNOSTICOS = 'asignar_diagnostico';
-const TAB_ORDENES = 'asignar_orden';
-const TAB_REPUESTOS = 'repuestos';
-const TAB_ALERTAS = 'alertas';
-const TAB_CORRECCIONES = 'correcciones';
-
-const DIAGNOSTICO_ESTADOS = ['PENDIENTE', 'INGRESADO', 'EN_REVISION', 'DIAGNOSTICADO', 'COMPLETADO', 'APROBADO', 'RECHAZADO'];
-const ORDEN_ESTADOS = ['PENDIENTE', 'APROBADO', 'EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'IRREPARABLE', 'ENTREGADO'];
-const REPUESTO_ESTADOS = ['PENDIENTE', 'APROBADO', 'DENEGADO'];
-const PRIORIDADES = ['Normal', 'Alta', 'Urgente'];
+import { buildAsignacionColumns, buildCorreccionesColumns, buildRepuestosColumns } from './columns';
+import { CorrectionModal, DashboardHeader, DetailModal, NotificationTray, StatCard, TabButton } from './components';
+import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_ORDENES, TAB_REPUESTOS } from './constants';
+import { 
+  getCorreccionId, 
+  getCorreccionTipo, 
+  getData, 
+  getMinutosDesdeUltimoAvance, 
+  getRowKey, 
+  getTecnicoId,
+  getEquipo 
+} from './utils';
 
 const JefeDashboard = () => {
   const { user, logout } = useContext(AuthContext);
@@ -64,6 +56,9 @@ const JefeDashboard = () => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  
+  // Buscador de la pestaña de correcciones
+  const [searchTermCorrecciones, setSearchTermCorrecciones] = useState('');
 
   const rolNormalizado = String(user?.rol || '').toLowerCase();
   const esJefeTecnico = rolNormalizado.includes('jefe');
@@ -102,8 +97,6 @@ const JefeDashboard = () => {
     const id = selectedItem.id_diagnostico || selectedItem.id_orden;
     if (id) fetchDetalles(selectedItem);
   }, [selectedItem]);
-
-  const getData = (response) => response?.data?.data || response?.data || [];
 
   const fetchData = async () => {
     setLoading(true);
@@ -145,47 +138,52 @@ const JefeDashboard = () => {
     }
   };
 
-  const getRowKey = (row) => {
-    if (row.id_diagnostico) return `diagnostico-${row.id_diagnostico}`;
-    if (row.id_orden) return `orden-${row.id_orden}`;
-    return `repuesto-${row.id_detalle_repuesto}`;
-  };
-
-  const getTecnicoId = (row) => row.tecnico_id ?? row.id_tecnico ?? row.tecnico?.id_tecnico ?? '';
-
-  const getEquipo = (row) => row.equipo || row.diagnostico?.equipo || row.orden?.diagnostico?.equipo;
-
-  const getCorreccionTipo = (row) => row.__tipo || (row.id_detalle_repuesto ? 'repuesto' : row.id_orden ? 'orden' : 'diagnostico');
-
-  const getCorreccionId = (row) => row.id_diagnostico || row.id_orden || row.id_detalle_repuesto;
-
   const correccionesData = useMemo(() => [
     ...(correcciones.diagnosticos || []).map((item) => ({ ...item, __tipo: 'diagnostico' })),
     ...(correcciones.ordenes || []).map((item) => ({ ...item, __tipo: 'orden' })),
     ...(correcciones.repuestos || []).map((item) => ({ ...item, __tipo: 'repuesto' })),
   ], [correcciones]);
 
-  const getFechaBase = (row) =>
-    row.fecha_asignacion ||
-    row.updatedAt ||
-    row.fecha_ingreso ||
-    row.fecha_hora ||
-    row.createdAt ||
-    row.diagnostico?.fecha_hora;
+  // 👉 LÓGICA DE FILTRADO COMPLETA (Filtra "Sin Técnico", controla el trigger de 1 hora y busca)
+  const correccionesFiltradas = useMemo(() => {
+    const LIMITE_MINUTOS = 60; // 1 Hora exacta de gracia
 
-  const getHorasDesdeUltimoAvance = (row) => {
-    const fechaBase = getFechaBase(row);
-    if (!fechaBase) return null;
+    return correccionesData.filter((row) => {
+      // REGLA 1: Excluir estrictamente si no tiene técnico asignado (Evita falsos positivos en la lista)
+      if (!getTecnicoId(row)) return false; 
 
-    const fecha = new Date(fechaBase);
-    if (Number.isNaN(fecha.getTime())) return null;
+      // REGLA 2: Trigger de tiempo límite (Máximo 60 minutos)
+      const minutosTranscurridos = getMinutosDesdeUltimoAvance(row);
+      if (minutosTranscurridos !== null && minutosTranscurridos >= LIMITE_MINUTOS) {
+        return false; 
+      }
 
-    return (new Date() - fecha) / (1000 * 60 * 60);
-  };
+      // REGLA 3: Buscador de texto
+      if (!searchTermCorrecciones) return true;
 
+      const term = searchTermCorrecciones.toLowerCase();
+      const tipo = getCorreccionTipo(row);
+      const id = String(getCorreccionId(row));
+      const tecnicoNombre = (row.tecnico?.nombre || row.orden?.tecnico?.nombre || row.diagnostico?.tecnico?.nombre || '').toLowerCase();
+      
+      // Obtener la descripción del equipo usando tu helper getEquipo
+      const infoEquipo = getEquipo(row);
+      const equipoNombre = (infoEquipo?.descripcion || infoEquipo?.marca || '').toLowerCase();
+      
+      return (
+        id.includes(term) || 
+        tipo.toLowerCase().includes(term) || 
+        tecnicoNombre.includes(term) || 
+        equipoNombre.includes(term)
+      );
+    });
+  }, [correccionesData, searchTermCorrecciones]);
+
+  // Modificada para usar los minutos actuales de margen
   const puedeEditar = (row) => {
-    const horas = getHorasDesdeUltimoAvance(row);
-    return horas === null || horas < 24 || !getTecnicoId(row);
+    if (!getTecnicoId(row)) return true;
+    const minutos = getMinutosDesdeUltimoAvance(row);
+    return minutos === null || minutos < 60;
   };
 
   const getTecnicoDisplay = (id) => {
@@ -333,12 +331,13 @@ const JefeDashboard = () => {
     }
   };
 
+  // Mantenemos la lógica de alertas viejas (+72 horas = 4320 minutos)
   const alertasRetraso = useMemo(() => {
     const items = [...diagnosticosPendientes, ...ordenesAprobadas];
     return items.filter((item) => {
       const estado = String(item.estado_del_diagnostico || item.estado || '').toUpperCase();
-      const horas = getHorasDesdeUltimoAvance(item);
-      return horas !== null && horas > 72 && !['COMPLETADO', 'FINALIZADO', 'RECHAZADO'].includes(estado);
+      const minutos = getMinutosDesdeUltimoAvance(item);
+      return minutos !== null && minutos > 4320 && !['COMPLETADO', 'FINALIZADO', 'RECHAZADO'].includes(estado);
     });
   }, [diagnosticosPendientes, ordenesAprobadas]);
 
@@ -348,257 +347,28 @@ const JefeDashboard = () => {
     return [...diagnosticos, ...ordenes];
   }, [diagnosticosPendientes, ordenesAprobadas]);
 
-  const asignacionColumns = [
-    {
-      header: 'Referencia',
-      accessor: 'id',
-      render: (row) => (
-        <div className="py-2">
-          <span className="font-black text-indigo-600 block text-base leading-none">
-            #{row.id_diagnostico || row.id_orden}
-          </span>
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-            {row.id_orden ? 'Orden aprobada' : 'Diagnostico'}
-          </span>
-        </div>
-      ),
+  const asignacionColumns = buildAsignacionColumns({
+    tecnicos,
+    savingId,
+    tecnicosSeleccionados,
+    puedeEditar,
+    getTecnicoDisplay,
+    onTecnicoChange: handleTecnicoChange,
+    onSaveAsignacion: handleSaveAsignacion,
+    onView: (row) => {
+      setSelectedItem(row);
+      setShowModal(true);
     },
-    {
-      header: 'Equipo / Cliente',
-      accessor: 'equipo',
-      render: (row) => {
-        const equipo = getEquipo(row);
-        return (
-          <div className="flex flex-col">
-            <span className="font-bold text-slate-800 uppercase text-xs">
-              {equipo?.marca || 'S/M'} {equipo?.modelo || 'S/M'}
-            </span>
-            <span className="text-[10px] text-slate-400 font-black uppercase italic tracking-tighter">
-              {equipo?.cliente?.nombre || 'Particular'}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      header: 'Tecnico y Especialidad',
-      accessor: 'asignar',
-      render: (row) => {
-        const isSaving = savingId === getRowKey(row);
-        const tecnicoId = tecnicosSeleccionados[getRowKey(row)] ?? getTecnicoId(row);
-        const edicionPermitida = puedeEditar(row);
+  });
 
-        return (
-          <div className="relative flex items-center gap-3 min-w-[280px]">
-            <select
-              value={tecnicoId}
-              disabled={!edicionPermitida || isSaving}
-              title={tecnicoId ? getTecnicoDisplay(tecnicoId) : 'Seleccionar tecnico'}
-              className={`flex-1 px-3 py-2.5 bg-white border-2 ${isSaving ? 'border-amber-400' : 'border-slate-100'} rounded-xl text-[10px] font-bold uppercase outline-none focus:border-indigo-500 transition-all ${edicionPermitida ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
-              onChange={(event) => handleTecnicoChange(row, event.target.value)}
-            >
-              <option value="">Seleccionar tecnico...</option>
-              {tecnicos.map((tecnico) => (
-                <option key={tecnico.id_tecnico} value={tecnico.id_tecnico}>
-                  {tecnico.nombre} - {tecnico.especialidad || 'GENERAL'}
-                </option>
-              ))}
-            </select>
+  const repuestosColumns = buildRepuestosColumns({
+    savingId,
+    onDecisionRepuesto: handleDecisionRepuesto,
+  });
 
-            <button
-              className="group relative p-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all duration-300 shadow-sm border border-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!edicionPermitida || !tecnicoId || isSaving}
-              onClick={() => handleSaveAsignacion(row)}
-              title="Guardar asignacion"
-            >
-              {isSaving ? <Settings size={18} className="animate-spin" /> : <Save size={18} />}
-            </button>
-
-            <div className="w-6 flex justify-center">
-              {getTecnicoId(row) && !isSaving && <CheckCircle2 size={20} className="text-emerald-500" />}
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      header: 'Prioridad',
-      accessor: 'prioridad',
-      render: (row) => <PrioridadBadge prioridad={row.prioridad || 'NORMAL'} />,
-    },
-    {
-      header: 'Acciones',
-      accessor: 'acciones',
-      render: (row) => (
-        <button
-          onClick={() => {
-            setSelectedItem(row);
-            setShowModal(true);
-          }}
-          className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all font-black text-[10px] uppercase"
-        >
-          <Eye size={14} /> Ver
-        </button>
-      ),
-    },
-  ];
-
-  const repuestosColumns = [
-    {
-      header: 'Referencia de Orden',
-      accessor: 'orden',
-      render: (row) => (
-        <div className="py-2">
-          <span className="font-black text-indigo-600 block text-base leading-none">
-            #{row.orden_id || row.orden?.id_orden}
-          </span>
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-            Solicitud #{row.id_detalle_repuesto}
-          </span>
-        </div>
-      ),
-    },
-    {
-      header: 'Repuesto Solicitado',
-      accessor: 'repuesto',
-      render: (row) => (
-        <div className="flex flex-col">
-          <span className="font-bold text-slate-800 uppercase text-xs">
-            {row.repuesto?.nombre || row.pieza_solicitada || 'Pieza pendiente de registrar'}
-          </span>
-          <span className="text-[10px] text-slate-400 font-black uppercase italic tracking-tighter">
-            {row.repuesto?.descripcion || (row.repuesto_id ? 'Sin descripcion' : 'No registrada en inventario')}
-          </span>
-        </div>
-      ),
-    },
-    {
-      header: 'Cantidad',
-      accessor: 'cantidad_usada',
-      render: (row) => <span className="font-black text-slate-700">{row.cantidad_usada || 1}</span>,
-    },
-    {
-      header: 'Tecnico que solicita',
-      accessor: 'tecnico',
-      render: (row) => {
-        const tecnico = row.orden?.tecnico || row.orden?.diagnostico?.tecnico;
-        return (
-          <div className="flex flex-col">
-            <span className="font-bold text-slate-800 uppercase text-xs">
-              {tecnico?.nombre || 'Sin tecnico'}
-            </span>
-            <span className="text-[10px] text-slate-400 font-black uppercase italic tracking-tighter">
-              {tecnico?.especialidad || 'GENERAL'}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      header: 'Acciones',
-      accessor: 'acciones',
-      render: (row) => {
-        const isSaving = savingId === `repuesto-${row.id_detalle_repuesto}`;
-        return (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => handleDecisionRepuesto(row, 'aprobar')}
-              disabled={isSaving}
-              className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-600 hover:text-white transition-all font-black text-[10px] uppercase disabled:opacity-50"
-            >
-              {isSaving ? <Settings size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-              Aprobar
-            </button>
-            <button
-              onClick={() => handleDecisionRepuesto(row, 'rechazar')}
-              disabled={isSaving}
-              className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all font-black text-[10px] uppercase disabled:opacity-50"
-            >
-              <XCircle size={14} /> Rechazar
-            </button>
-          </div>
-        );
-      },
-    },
-  ];
-
-  const correccionesColumns = [
-    {
-      header: 'Referencia',
-      accessor: 'referencia',
-      render: (row) => {
-        const tipo = getCorreccionTipo(row);
-        return (
-          <div className="py-2">
-            <span className="font-black text-indigo-600 block text-base leading-none">#{getCorreccionId(row)}</span>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-              {tipo === 'diagnostico' ? 'Diagnostico asignado' : tipo === 'orden' ? 'Orden asignada' : 'Repuesto aprobado'}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      header: 'Equipo / Cliente',
-      accessor: 'equipo',
-      render: (row) => {
-        const equipo = getEquipo(row);
-        const tipo = getCorreccionTipo(row);
-        return (
-          <div className="flex flex-col">
-            <span className="font-bold text-slate-800 uppercase text-xs">
-              {tipo === 'repuesto'
-                ? row.repuesto?.nombre || row.pieza_solicitada || 'Pieza sin nombre'
-                : `${equipo?.marca || 'S/M'} ${equipo?.modelo || 'S/M'}`}
-            </span>
-            <span className="text-[10px] text-slate-400 font-black uppercase italic tracking-tighter">
-              {equipo?.cliente?.nombre || 'Particular'}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      header: 'Tecnico / Estado',
-      accessor: 'estado',
-      render: (row) => {
-        const tipo = getCorreccionTipo(row);
-        const tecnico = row.tecnico || row.orden?.tecnico || row.diagnostico?.tecnico || row.orden?.diagnostico?.tecnico;
-        const estado = tipo === 'diagnostico'
-          ? row.estado_del_diagnostico
-          : tipo === 'orden'
-            ? row.estado
-            : row.estado_aprobacion;
-        return (
-          <div className="flex flex-col">
-            <span className="font-bold text-slate-800 uppercase text-xs">{tecnico?.nombre || 'Sin tecnico'}</span>
-            <span className="text-[10px] text-indigo-500 font-black uppercase tracking-tighter">{estado || 'Sin estado'}</span>
-          </div>
-        );
-      },
-    },
-    {
-      header: 'Prioridad / Cantidad',
-      accessor: 'prioridad',
-      render: (row) => (
-        getCorreccionTipo(row) === 'repuesto'
-          ? <span className="font-black text-slate-700">{row.cantidad_usada || 1}</span>
-          : <PrioridadBadge prioridad={row.prioridad || row.diagnostico?.prioridad || 'NORMAL'} />
-      ),
-    },
-    {
-      header: 'Acciones',
-      accessor: 'acciones',
-      render: (row) => (
-        <button
-          onClick={() => openEditModal(row)}
-          className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all font-black text-[10px] uppercase"
-        >
-          <Settings size={14} /> Modificar
-        </button>
-      ),
-    },
-  ];
+  const correccionesColumns = buildCorreccionesColumns({
+    onEdit: openEditModal,
+  });
 
   const mainData =
     activeTab === TAB_DIAGNOSTICOS
@@ -608,7 +378,7 @@ const JefeDashboard = () => {
         : activeTab === TAB_REPUESTOS
           ? repuestosPendientes
           : activeTab === TAB_CORRECCIONES
-            ? correccionesData
+            ? correccionesFiltradas 
             : alertasRetraso;
 
   const mainColumns = activeTab === TAB_REPUESTOS
@@ -619,61 +389,13 @@ const JefeDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans text-slate-900">
-      <header className="bg-[#0f172a] text-white p-6 shadow-xl">
-        <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-5">
-            <BrandLogo className="h-12 w-20 shadow-lg shadow-indigo-500/20" />
-            <div>
-              <h1 className="text-xl text-white italic uppercase tracking-tight">
-                Panel <span className="text-indigo-400">Jefe Tecnico</span>
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <button
-              type="button"
-              onClick={() => setShowNotifications((value) => !value)}
-              className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/50 text-slate-200 hover:border-indigo-400 hover:text-white"
-              title={socketConnected ? 'Notificaciones conectadas' : 'Notificaciones desconectadas'}
-            >
-              <Bell size={20} />
-              {notifications.length > 0 && (
-                <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                  {notifications.length}
-                </span>
-              )}
-              <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ${socketConnected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-            </button>
-
-            <div className="text-right hidden md:block">
-              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] leading-none mb-1">
-                Usuario Conectado
-              </p>
-              <div className="flex items-center justify-end gap-2">
-                <span className="text-sm font-bold text-white uppercase tracking-tight">
-                  {user?.nombre || user?.username || 'Tecnico Jefe'}
-                </span>
-                <span className="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[9px] font-black uppercase border border-indigo-500/30">
-                  {user?.rol || 'Jefe'}
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={logout}
-              className="group flex items-center gap-3 bg-slate-800/50 hover:bg-red-500/10 p-2 pr-4 rounded-2xl transition-all border border-slate-700 hover:border-red-500/50"
-            >
-              <div className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center group-hover:text-red-500 transition-colors">
-                <LogOut size={20} />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-red-500">
-                Salir
-              </span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        user={user}
+        logout={logout}
+        socketConnected={socketConnected}
+        notificationsCount={notifications.length}
+        onToggleNotifications={() => setShowNotifications((value) => !value)}
+      />
 
       {showNotifications && (
         <NotificationTray
@@ -698,7 +420,7 @@ const JefeDashboard = () => {
                 <History size={20} />
               </div>
               <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                Asignaciones recientes (24h)
+                Asignaciones recientes (Margen de edición)
               </h2>
             </div>
             <div className="bg-white rounded-[2rem] shadow-xl border-2 border-amber-50 overflow-hidden">
@@ -712,8 +434,23 @@ const JefeDashboard = () => {
           <TabButton active={activeTab === TAB_ORDENES} onClick={() => setActiveTab(TAB_ORDENES)} icon={<Package size={16} />} label="Ordenes por aprobar" />
           <TabButton active={activeTab === TAB_REPUESTOS} onClick={() => setActiveTab(TAB_REPUESTOS)} icon={<ShieldCheck size={16} />} label="Aprobacion de Repuestos" />
           <TabButton active={activeTab === TAB_ALERTAS} onClick={() => setActiveTab(TAB_ALERTAS)} icon={<Bell size={16} />} label={`Alertas (${alertasRetraso.length})`} />
-          <TabButton active={activeTab === TAB_CORRECCIONES} onClick={() => setActiveTab(TAB_CORRECCIONES)} icon={<Settings size={16} />} label={`Correcciones (${correccionesData.length})`} />
+          <TabButton active={activeTab === TAB_CORRECCIONES} onClick={() => setActiveTab(TAB_CORRECCIONES)} icon={<Settings size={16} />} label={`Correcciones (${correccionesFiltradas.length})`} />
         </div>
+
+        {activeTab === TAB_CORRECCIONES && (
+          <div className="mb-6 px-4">
+            <div className="relative max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar corrección por ID, tipo, técnico o equipo..."
+                value={searchTermCorrecciones}
+                onChange={(e) => setSearchTermCorrecciones(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 border-2 border-slate-100 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all placeholder:font-medium shadow-sm"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden">
           {loading ? (
@@ -728,245 +465,31 @@ const JefeDashboard = () => {
       </main>
 
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Ficha Tecnica</h2>
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  setDetalles(null);
-                  setSelectedItem(null);
-                }}
-                className="p-3 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="p-8 overflow-y-auto space-y-6">
-              {loadingDetalles ? (
-                <div className="py-20 text-center">Cargando detalles...</div>
-              ) : detalles ? (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <DetailBox label="Equipo" value={`${getEquipo(detalles)?.marca || 'S/M'} ${getEquipo(detalles)?.modelo || 'S/M'}`} />
-                    <DetailBox label="Cliente" value={getEquipo(detalles)?.cliente?.nombre} />
-                  </div>
-                  <DetailBox label="Falla Reportada" value={detalles.falla_reportada || detalles.diagnostico?.falla_reportada} isFull highlight />
-                  <DetailBox label="Diagnostico Realizado" value={detalles.diagnostico_real || detalles.diagnostico?.diagnostico_real || 'Aun no se ha realizado diagnostico'} isFull />
-                </>
-              ) : (
-                <div className="py-20 text-center text-slate-400 font-bold uppercase text-xs">
-                  No se encontraron detalles.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <DetailModal
+          detalles={detalles}
+          loadingDetalles={loadingDetalles}
+          onClose={() => {
+            setShowModal(false);
+            setDetalles(null);
+            setSelectedItem(null);
+          }}
+        />
       )}
 
       {showEditModal && editItem && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[2rem] shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
-                  Correccion #{getCorreccionId(editItem)}
-                </p>
-                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">
-                  {getCorreccionTipo(editItem) === 'diagnostico'
-                    ? 'Modificar diagnostico'
-                    : getCorreccionTipo(editItem) === 'orden'
-                      ? 'Modificar orden'
-                      : 'Modificar repuesto'}
-                </h2>
-              </div>
-              <button onClick={closeEditModal} className="p-3 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="p-8 overflow-y-auto space-y-5">
-              {getCorreccionTipo(editItem) !== 'repuesto' ? (
-                <>
-                  <FormSelect label="Tecnico asignado" value={editForm.tecnico_id || ''} onChange={(value) => handleEditField('tecnico_id', value)}>
-                    <option value="">Sin tecnico</option>
-                    {tecnicos.map((tecnico) => (
-                      <option key={tecnico.id_tecnico} value={tecnico.id_tecnico}>
-                        {tecnico.nombre} - {tecnico.especialidad || 'GENERAL'}
-                      </option>
-                    ))}
-                  </FormSelect>
-                  <FormSelect label="Prioridad" value={editForm.prioridad || 'Normal'} onChange={(value) => handleEditField('prioridad', value)}>
-                    {PRIORIDADES.map((prioridad) => <option key={prioridad} value={prioridad}>{prioridad}</option>)}
-                  </FormSelect>
-                  {getCorreccionTipo(editItem) === 'diagnostico' ? (
-                    <>
-                      <FormSelect label="Estado del diagnostico" value={editForm.estado_del_diagnostico || 'EN_REVISION'} onChange={(value) => handleEditField('estado_del_diagnostico', value)}>
-                        {DIAGNOSTICO_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
-                      </FormSelect>
-                      <FormSelect label="Estado de aprobacion" value={editForm.Estado_aprobacion || 'Pendiente'} onChange={(value) => handleEditField('Estado_aprobacion', value)}>
-                        {['Pendiente', 'Aprobado', 'Rechazado'].map((estado) => <option key={estado} value={estado}>{estado}</option>)}
-                      </FormSelect>
-                    </>
-                  ) : (
-                    <FormSelect label="Estado de la orden" value={editForm.estado || 'PENDIENTE'} onChange={(value) => handleEditField('estado', value)}>
-                      {ORDEN_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
-                    </FormSelect>
-                  )}
-                </>
-              ) : (
-                <>
-                  <FormSelect label="Repuesto de inventario" value={editForm.repuesto_id || ''} onChange={(value) => handleEditField('repuesto_id', value)}>
-                    <option value="">Sin repuesto asociado</option>
-                    {repuestosCatalogo.map((repuesto) => (
-                      <option key={repuesto.id_repuesto} value={repuesto.id_repuesto}>
-                        {repuesto.nombre || `Repuesto #${repuesto.id_repuesto}`}
-                      </option>
-                    ))}
-                  </FormSelect>
-                  <FormInput label="Pieza solicitada" value={editForm.pieza_solicitada || ''} onChange={(value) => handleEditField('pieza_solicitada', value)} />
-                  <FormInput label="Cantidad" type="number" min="1" value={editForm.cantidad_usada || 1} onChange={(value) => handleEditField('cantidad_usada', value)} />
-                  <FormSelect label="Estado de aprobacion" value={editForm.estado_aprobacion || 'APROBADO'} onChange={(value) => handleEditField('estado_aprobacion', value)}>
-                    {REPUESTO_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
-                  </FormSelect>
-                </>
-              )}
-
-              {editError && (
-                <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-xs font-bold text-red-600">
-                  {editError}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/60 p-6">
-              <button onClick={closeEditModal} className="px-5 py-3 rounded-xl bg-white border border-slate-200 text-slate-500 font-black text-[10px] uppercase hover:text-slate-800">
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveCorreccion}
-                disabled={savingId === `correccion-${getCorreccionTipo(editItem)}-${getCorreccionId(editItem)}`}
-                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 text-white font-black text-[10px] uppercase hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {savingId === `correccion-${getCorreccionTipo(editItem)}-${getCorreccionId(editItem)}` ? <Settings size={16} className="animate-spin" /> : <Save size={16} />}
-                Guardar cambios
-              </button>
-            </div>
-          </div>
-        </div>
+        <CorrectionModal
+          editItem={editItem}
+          editForm={editForm}
+          editError={editError}
+          tecnicos={tecnicos}
+          repuestosCatalogo={repuestosCatalogo}
+          savingId={savingId}
+          onClose={closeEditModal}
+          onFieldChange={handleEditField}
+          onSave={handleSaveCorreccion}
+        />
       )}
     </div>
   );
 };
-
-const notificationColors = {
-  success: 'border-emerald-100 bg-emerald-50 text-emerald-800',
-  warning: 'border-amber-100 bg-amber-50 text-amber-800',
-  info: 'border-indigo-100 bg-indigo-50 text-indigo-800',
-};
-
-const NotificationTray = ({ notifications, connected, onClear }) => (
-  <aside className="fixed right-6 top-24 z-40 w-[min(380px,calc(100vw-48px))] rounded-2xl border border-slate-200 bg-white shadow-2xl">
-    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-      <div>
-        <h2 className="text-xs font-black uppercase tracking-widest text-slate-800">Notificaciones</h2>
-        <p className="text-[10px] font-bold uppercase text-slate-400">
-          {connected ? 'En vivo' : 'Sin conexion en vivo'}
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onClear}
-        className="rounded-lg px-3 py-1 text-[10px] font-black uppercase text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-      >
-        Limpiar
-      </button>
-    </div>
-    <div className="max-h-[420px] space-y-2 overflow-y-auto p-3">
-      {notifications.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs font-bold text-slate-400">
-          Sin eventos recientes.
-        </div>
-      ) : (
-        notifications.map((item) => (
-          <div
-            key={item.id}
-            className={`rounded-xl border p-3 ${notificationColors[item.severity] || notificationColors.info}`}
-          >
-            <div className="text-xs font-black uppercase">{item.title || 'Actividad'}</div>
-            <div className="mt-1 text-xs font-semibold leading-relaxed">{item.message}</div>
-            <div className="mt-2 text-[10px] font-bold uppercase opacity-60">
-              {item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  </aside>
-);
-
-const DetailBox = ({ label, value, isFull, highlight }) => (
-  <div className={`${isFull ? 'col-span-2' : ''} p-5 rounded-3xl border ${highlight ? 'bg-indigo-50 border-indigo-100' : 'bg-slate-50 border-slate-100'}`}>
-    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">{label}</span>
-    <p className={`text-sm font-bold ${highlight ? 'text-indigo-700' : 'text-slate-700'}`}>{value || 'N/A'}</p>
-  </div>
-);
-
-const FormSelect = ({ label, value, onChange, children }) => (
-  <label className="block">
-    <span className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
-    <select
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="w-full rounded-xl border-2 border-slate-100 bg-white px-4 py-3 text-xs font-bold uppercase text-slate-700 outline-none transition-all focus:border-indigo-500"
-    >
-      {children}
-    </select>
-  </label>
-);
-
-const FormInput = ({ label, value, onChange, type = 'text', min }) => (
-  <label className="block">
-    <span className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
-    <input
-      type={type}
-      min={min}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="w-full rounded-xl border-2 border-slate-100 bg-white px-4 py-3 text-xs font-bold text-slate-700 outline-none transition-all focus:border-indigo-500"
-    />
-  </label>
-);
-
-const cardColors = {
-  amber: 'bg-amber-50 text-amber-600',
-  blue: 'bg-blue-50 text-blue-600',
-  emerald: 'bg-emerald-50 text-emerald-600',
-  indigo: 'bg-indigo-50 text-indigo-600',
-  red: 'bg-red-50 text-red-600',
-};
-
-const StatCard = ({ icon, label, value, color, compact }) => (
-  <div className={`bg-white p-6 rounded-[2rem] shadow-sm border border-slate-50 ${compact ? 'md:max-w-sm' : ''}`}>
-    <div className={`w-10 h-10 ${cardColors[color] || cardColors.indigo} rounded-xl flex items-center justify-center mb-4`}>
-      {icon}
-    </div>
-    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-    <span className="text-3xl font-black text-slate-800 tracking-tighter">{value}</span>
-  </div>
-);
-
-const TabButton = ({ active, onClick, icon, label }) => (
-  <button
-    onClick={onClick}
-    className={`flex items-center gap-3 py-4 px-6 rounded-2xl font-black text-[10px] uppercase transition-all ${
-      active ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200 hover:border-indigo-200 hover:text-indigo-600'
-    }`}
-  >
-    {icon} <span>{label}</span>
-  </button>
-);
-
 export default JefeDashboard;

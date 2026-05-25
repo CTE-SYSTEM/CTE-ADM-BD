@@ -1,4 +1,3 @@
-// frontend/src/pages/Secretaria/Equipos.jsx
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Table from '../../components/Table';
@@ -63,6 +62,7 @@ const tourHighlightClass = (isActive) =>
     ? 'relative z-[60] rounded-xl bg-white ring-4 ring-indigo-400 ring-offset-4 ring-offset-white shadow-2xl transition-all'
     : '';
 
+// Ordenamiento alfabético completo de la A a la Z garantizando que no se mutile ningún dato
 const sortClientesByName = (clientes = []) =>
   [...clientes].sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { sensitivity: 'base' }));
 
@@ -295,6 +295,7 @@ const Equipos = () => {
     setLoading(true);
     try {
       const [cRes, eRes] = await Promise.all([getClientes(), getEquipos()]);
+      // Carga la lista completa de clientes de la A a la Z para el componente Autocomplete
       setClientes(sortClientesByName(cRes.data.data || []));
       setEquipos(eRes.data.data || []);
     } catch (err) { console.error("Error al cargar datos"); }
@@ -366,7 +367,6 @@ const Equipos = () => {
     finally { setLoading(false); }
   };
 
-  // COLUMNAS: Ahora el ID del cliente es visible junto al nombre
   const columnas = [
     { header: 'ID', accessor: 'id_equipo' },
     { 
@@ -396,10 +396,13 @@ const Equipos = () => {
     },
   ];
 
-  const filteredEquipos = equipos.filter(e => {
-    const term = searchTerm.toLowerCase();
-    return e.cliente?.nombre?.toLowerCase().includes(term);
-  });
+  // Filtra los equipos y los ordena inversamente (los IDs más altos o nuevos arriba de primero)
+  const filteredEquipos = equipos
+    .filter(e => {
+      const term = searchTerm.toLowerCase();
+      return e.cliente?.nombre?.toLowerCase().includes(term);
+    })
+    .sort((a, b) => Number(b.id_equipo || 0) - Number(a.id_equipo || 0));
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">

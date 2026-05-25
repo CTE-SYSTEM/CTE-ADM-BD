@@ -1,4 +1,5 @@
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 
 export const getGarantiasAdmin = async (req, res) => {
   try {
@@ -36,22 +37,10 @@ export const createGarantiaAdmin = async (req, res) => {
       return res.status(400).json({ error: 'factura_id y duracion_meses son obligatorios' });
     }
 
-    const fecha_inicio = new Date();
-    const fecha_vencimiento = new Date();
-    fecha_vencimiento.setMonth(fecha_vencimiento.getMonth() + parseInt(duracion_meses, 10));
-
-    const nuevaGarantia = await prisma.garantias.create({
-      data: {
-        factura_id: parseInt(factura_id, 10),
-        condiciones,
-        duracion_meses: parseInt(duracion_meses, 10),
-        fecha_inicio,
-        fecha_vencimiento
-      },
-      include: {
-        factura: true
-      }
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT admin_pro.crear_garantia(${Number(factura_id)}, ${condiciones || null}, ${Number(duracion_meses)}) AS data
+    `);
+    const nuevaGarantia = row?.data;
 
     res.status(201).json({ message: 'Garantía registrada exitosamente', data: nuevaGarantia });
   } catch (error) {
@@ -85,10 +74,12 @@ export const updateGarantiaAdmin = async (req, res) => {
       updatedData.fecha_vencimiento = fecha_vencimiento;
     }
 
-    const garantia = await prisma.garantias.update({
-      where: { id_garantia: Number(id) },
-      data: updatedData
-    });
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT admin_pro.actualizar_garantia(${Number(id)}, ${updatedData.condiciones ?? null}, ${updatedData.duracion_meses ?? null}, ${false}) AS data
+    `);
+    const garantia = row?.data;
+
+    if (garantia?.error) return res.status(404).json({ error: garantia.error });
 
     res.json({ data: garantia });
   } catch (error) {
@@ -117,19 +108,12 @@ export const renewGarantiaAdmin = async (req, res) => {
       return res.status(400).json({ error: 'Duración inválida. Debe ser entre 1 y 36 meses.' });
     }
 
-    const fecha_inicio = new Date();
-    const fecha_vencimiento = new Date(fecha_inicio);
-    fecha_vencimiento.setMonth(fecha_vencimiento.getMonth() + duracion);
+    const [row] = await prisma.$queryRaw(Prisma.sql`
+      SELECT admin_pro.actualizar_garantia(${Number(id)}, ${condiciones !== undefined ? condiciones : garantiaActual.condiciones}, ${duracion}, ${true}) AS data
+    `);
+    const garantia = row?.data;
 
-    const garantia = await prisma.garantias.update({
-      where: { id_garantia: Number(id) },
-      data: {
-        duracion_meses: duracion,
-        condiciones: condiciones !== undefined ? condiciones : garantiaActual.condiciones,
-        fecha_inicio,
-        fecha_vencimiento
-      }
-    });
+    if (garantia?.error) return res.status(404).json({ error: garantia.error });
 
     const vencidaAnteriormente = garantiaActual.fecha_vencimiento ? new Date(garantiaActual.fecha_vencimiento) < new Date() : true;
     const mensaje = vencidaAnteriormente

@@ -1,5 +1,6 @@
 // backend/src/controllers/JefeTecnico/DiagnosticoController.js
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 import { notifyJefeTecnico, notifyTecnico } from '../../services/notifications.js';
 import {
   DIAGNOSTICO_ESTADOS,
@@ -25,17 +26,8 @@ const esEditablePorTiempo = (fechaReferencia) => {
 
 export const getDiagnosticosPendientes = async (req, res) => {
   try {
-    const diagnosticos = await prisma.diagnosticos.findMany({
-      where: {
-        tecnico_id: null,
-        estado_del_diagnostico: { in: ['PENDIENTE', 'INGRESADO'] },
-      },
-      include: {
-        equipo: { include: { cliente: true } },
-        tecnico: true
-      },
-      orderBy: { fecha_hora: 'asc' }
-    });
+    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_diagnosticos_pendientes_jefe()`);
+    const diagnosticos = rows.map((row) => row.data);
     res.json({ data: diagnosticos });
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener diagnósticos', details: error.message });
@@ -158,15 +150,19 @@ export const corregirDiagnosticoJefeTecnico = async (req, res) => {
       return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
     }
 
-    const diagnostico = await prisma.diagnosticos.update({
+    await prisma.$executeRaw(Prisma.sql`
+      SELECT corregir_diagnostico_jefe_proc(
+        ${Number(req.params.id)},
+        ${tecnicoId},
+        ${tecnico_id !== undefined},
+        ${prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : null},
+        ${estado_del_diagnostico ? assertInList(estado_del_diagnostico, DIAGNOSTICO_ESTADOS, 'Estado del diagnostico') : null},
+        ${Estado_aprobacion || null}
+      )
+    `);
+
+    const diagnostico = await prisma.diagnosticos.findUnique({
       where: { id_diagnostico: Number(req.params.id) },
-      data: {
-        tecnico_id: tecnico_id === undefined ? undefined : tecnicoId,
-        fecha_asignacion: tecnico_id === undefined ? undefined : tecnicoId ? new Date() : null,
-        prioridad: prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : undefined,
-        estado_del_diagnostico: estado_del_diagnostico ? assertInList(estado_del_diagnostico, DIAGNOSTICO_ESTADOS, 'Estado del diagnostico') : undefined,
-        Estado_aprobacion: Estado_aprobacion || undefined,
-      },
       include: diagnosticoInclude,
     });
 
@@ -187,13 +183,18 @@ export const corregirOrdenJefeTecnico = async (req, res) => {
       return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
     }
 
-    const orden = await prisma.ordenes.update({
+    await prisma.$executeRaw(Prisma.sql`
+      SELECT corregir_orden_jefe_proc(
+        ${Number(req.params.id)},
+        ${tecnicoId},
+        ${tecnico_id !== undefined},
+        ${prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : null},
+        ${estado ? assertInList(estado, ORDEN_ESTADOS, 'Estado de la orden') : null}
+      )
+    `);
+
+    const orden = await prisma.ordenes.findUnique({
       where: { id_orden: Number(req.params.id) },
-      data: {
-        tecnico_id: tecnico_id === undefined ? undefined : tecnicoId,
-        prioridad: prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : undefined,
-        estado: estado ? assertInList(estado, ORDEN_ESTADOS, 'Estado de la orden') : undefined,
-      },
       include: ordenInclude,
     });
 
@@ -240,14 +241,20 @@ export const corregirRepuestoJefeTecnico = async (req, res) => {
       await assertStockDisponible(repuestoFinal, cantidadFinal);
     }
 
-    const solicitud = await prisma.ordenes_Repuestos.update({
+    await prisma.$executeRaw(Prisma.sql`
+      SELECT corregir_repuesto_jefe_proc(
+        ${Number(req.params.id)},
+        ${repuestoId},
+        ${repuesto_id !== undefined},
+        ${pieza_solicitada === undefined ? null : String(pieza_solicitada || '').trim()},
+        ${pieza_solicitada !== undefined},
+        ${cantidad || null},
+        ${estado_aprobacion ? estadoFinal : null}
+      )
+    `);
+
+    const solicitud = await prisma.ordenes_Repuestos.findUnique({
       where: { id_detalle_repuesto: Number(req.params.id) },
-      data: {
-        repuesto_id: repuesto_id === undefined ? undefined : repuestoId,
-        pieza_solicitada: pieza_solicitada === undefined ? undefined : String(pieza_solicitada || '').trim() || null,
-        cantidad_usada: cantidad,
-        estado_aprobacion: estado_aprobacion ? estadoFinal : undefined,
-      },
       include: repuestoSolicitudInclude,
     });
 
@@ -297,17 +304,10 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
       return res.status(403).json({ error: 'El plazo de 30 minutos para reasignar técnico ha expirado' });
     }
 
-    const diagnostico = await prisma.diagnosticos.update({
-      where: { id_diagnostico: parseInt(id) },
-      data: { 
-        tecnico_id: parseInt(id_tecnico),
-        fecha_asignacion: new Date(),
-        estado_del_diagnostico: 'EN_REVISION'
-      },
-      include: {
-        equipo: { include: { cliente: true } },
-        tecnico: true
-      }
+    await prisma.$executeRaw(Prisma.sql`SELECT asignar_tecnico_diagnostico_proc(${Number(id)}, ${Number(id_tecnico)})`);
+    const diagnostico = await prisma.diagnosticos.findUnique({
+      where: { id_diagnostico: Number(id) },
+      include: { equipo: { include: { cliente: true } }, tecnico: true },
     });
 
     notifyJefeTecnico({
@@ -338,25 +338,8 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
 
 export const getOrdenesAprobadas = async (req, res) => {
   try {
-    const ordenes = await prisma.ordenes.findMany({
-      where: {
-        tecnico_id: null,
-        OR: [
-          { estado: { in: ['APROBADO', 'EN_REPARACION', 'PENDIENTE'] } },
-          { diagnostico: { estado_del_diagnostico: 'APROBADO' } }
-        ]
-      },
-      include: {
-        tecnico: true,
-        diagnostico: {
-          include: {
-            equipo: { include: { cliente: true } },
-            tecnico: true
-          }
-        }
-      },
-      orderBy: { fecha_ingreso: 'asc' }
-    });
+    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_ordenes_aprobadas_jefe()`);
+    const ordenes = rows.map((row) => row.data);
     res.json({ data: ordenes });
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener órdenes aprobadas', details: error.message });
@@ -381,16 +364,10 @@ export const asignarTecnicoAOrden = async (req, res) => {
       return res.status(403).json({ error: 'La asignación está bloqueada: han pasado más de 30 minutos desde el ingreso' });
     }
 
-    const orden = await prisma.ordenes.update({
+    await prisma.$executeRaw(Prisma.sql`SELECT asignar_tecnico_orden_proc(${Number(id)}, ${Number(id_tecnico)})`);
+    const orden = await prisma.ordenes.findUnique({
       where: { id_orden: Number(id) },
-      data: {
-        tecnico_id: Number(id_tecnico),
-        estado: 'EN_REPARACION'
-      },
-      include: {
-        tecnico: true,
-        diagnostico: { include: { equipo: { include: { cliente: true } } } }
-      }
+      include: { tecnico: true, diagnostico: { include: { equipo: { include: { cliente: true } } } } },
     });
 
     notifyTecnico(orden.tecnico, {
@@ -411,21 +388,8 @@ export const asignarTecnicoAOrden = async (req, res) => {
 
 export const getRepuestosPendientesAprobacion = async (req, res) => {
   try {
-    const solicitudes = await prisma.ordenes_Repuestos.findMany({
-      where: { estado_aprobacion: 'PENDIENTE' },
-      include: {
-        repuesto: { select: repuestoSafeSelect },
-        orden: {
-          include: {
-            tecnico: true,
-            diagnostico: {
-              include: { tecnico: true, equipo: { include: { cliente: true } } }
-            }
-          }
-        }
-      },
-      orderBy: { id_detalle_repuesto: 'asc' }
-    });
+    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_repuestos_pendientes_aprobacion()`);
+    const solicitudes = rows.map((row) => row.data);
     res.json({ data: solicitudes });
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener solicitudes', details: error.message });
@@ -455,9 +419,12 @@ const actualizarEstadoSolicitudRepuesto = async (req, res, estado_aprobacion) =>
       await assertStockDisponible(solicitudPrevia.repuesto_id, solicitudPrevia.cantidad_usada || 1);
     }
 
-    const solicitud = await prisma.ordenes_Repuestos.update({
+    await prisma.$executeRaw(Prisma.sql`
+      SELECT actualizar_estado_solicitud_repuesto_jefe_proc(${Number(req.params.id)}, ${estado_aprobacion})
+    `);
+
+    const solicitud = await prisma.ordenes_Repuestos.findUnique({
       where: { id_detalle_repuesto: Number(req.params.id) },
-      data: { estado_aprobacion },
       include: {
         repuesto: { select: repuestoSafeSelect },
         orden: {
