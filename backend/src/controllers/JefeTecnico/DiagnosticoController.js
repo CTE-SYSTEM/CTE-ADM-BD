@@ -444,6 +444,9 @@ const actualizarEstadoSolicitudRepuesto = async (req, res, estado_aprobacion) =>
     }
 
     if (estado_aprobacion === 'APROBADO') {
+      if (!solicitudPrevia.repuesto_id) {
+        return res.status(409).json({ error: 'Registre la pieza antes de aprobar la solicitud' });
+      }
       await assertStockDisponible(solicitudPrevia.repuesto_id, solicitudPrevia.cantidad_usada || 1);
     }
 

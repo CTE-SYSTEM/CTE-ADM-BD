@@ -152,10 +152,13 @@ BEGIN
         SELECT COUNT(*) INTO v_pendientes
         FROM "Ordenes_Repuestos"
         WHERE orden_id = p_id_orden::INT
-          AND estado_aprobacion <> 'APROBADO';
+          AND (
+            estado_aprobacion <> 'APROBADO'
+            OR repuesto_id IS NULL
+          );
 
         IF v_pendientes > 0 THEN
-            RAISE EXCEPTION 'No se puede finalizar: todas las piezas solicitadas deben estar aprobadas';
+            RAISE EXCEPTION 'No se puede finalizar: todas las piezas solicitadas deben estar registradas y aprobadas';
         END IF;
     END IF;
 

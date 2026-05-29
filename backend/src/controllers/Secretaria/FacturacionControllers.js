@@ -82,6 +82,9 @@ const mapDetalleRepuestoFacturacion = (detalle) => {
 const tieneRepuestosSinAprobar = (orden) =>
   (orden.repuestos_usados || []).some((detalle) => (detalle.estado_aprobacion || '').toUpperCase() !== 'APROBADO');
 
+const tieneRepuestosSinRegistrar = (orden) =>
+  (orden.repuestos_usados || []).some((detalle) => !detalle.repuesto_id);
+
 export const getFacturas = async (req, res) => {
   try {
     const facturas = await prisma.facturas.findMany({
@@ -138,6 +141,10 @@ export const createFactura = async (req, res) => {
 
     if (estadoOrden === 'FINALIZADO' && tieneRepuestosSinAprobar(orden)) {
       return res.status(409).json({ error: 'La orden tiene repuestos pendientes de aprobacion. Apruebelos o rechacelos antes de facturar.' });
+    }
+
+    if (estadoOrden === 'FINALIZADO' && tieneRepuestosSinRegistrar(orden)) {
+      return res.status(409).json({ error: 'La orden tiene piezas pendientes de registro. Registrelas antes de facturar.' });
     }
 
     const montoRepuestos = estadoOrden === 'IRREPARABLE' ? 0 : calcularMontoRepuestos(orden.repuestos_usados);
@@ -206,14 +213,19 @@ export const getOrdenesParaFacturar = async (req, res) => {
 
     const ordenesDisponibles = ordenes
       .filter((orden) =>
-        orden.facturas.length === 0 && ['FINALIZADO', 'IRREPARABLE'].includes((orden.estado || '').toUpperCase())
+        orden.facturas.length === 0
+        && ['FINALIZADO', 'IRREPARABLE'].includes((orden.estado || '').toUpperCase())
+        && (
+          (orden.estado || '').toUpperCase() === 'IRREPARABLE'
+          || (!tieneRepuestosSinAprobar(orden) && !tieneRepuestosSinRegistrar(orden))
+        )
       )
       .map((orden) => ({
         ...orden,
         monto_repuestos_calculado: (orden.estado || '').toUpperCase() === 'IRREPARABLE' ? 0 : calcularMontoRepuestos(orden.repuestos_usados),
         repuestos_facturacion: (orden.repuestos_usados || []).map(mapDetalleRepuestoFacturacion),
         repuestos_pendientes_count: (orden.repuestos_usados || [])
-          .filter((detalle) => (detalle.estado_aprobacion || '').toUpperCase() !== 'APROBADO').length,
+          .filter((detalle) => (detalle.estado_aprobacion || '').toUpperCase() !== 'APROBADO' || !detalle.repuesto_id).length,
       }));
 
     res.json({

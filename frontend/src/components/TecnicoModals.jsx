@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { PackagePlus, X } from 'lucide-react';
 import { EstadoBadge } from './TecnicoBadges';
 
 const normalizeText = (value = '') =>
@@ -55,18 +55,27 @@ export const SolicitarRepuestoModal = ({ orden, repuestos, onClose, onSubmit }) 
   );
 
   const repuestoSeleccionado = useMemo(
-    () => repuestoOptions.find((item) => normalizeText(item.autocompleteLabel) === normalizeText(repuesto)),
+    () => repuestoOptions.find((item) => {
+      const texto = normalizeText(repuesto);
+      return normalizeText(item.autocompleteLabel) === texto || normalizeText(item.nombre) === texto;
+    }),
     [repuesto, repuestoOptions],
   );
+  const piezaSolicitada = repuestoSeleccionado?.nombre || repuesto.trim();
+  const piezaNoRegistrada = Boolean(piezaSolicitada) && !repuestoSeleccionado;
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const enviarSolicitud = async ({ solicitarSinRegistro = false } = {}) => {
     setError('');
     setLoading(true);
     try {
-      const piezaSolicitada = repuestoSeleccionado?.nombre || repuesto.trim();
       if (!piezaSolicitada) {
         setError('Indique que pieza necesita solicitar.');
+        setLoading(false);
+        return;
+      }
+
+      if (!repuestoSeleccionado && !solicitarSinRegistro) {
+        setError('esta pieza no existe');
         setLoading(false);
         return;
       }
@@ -75,6 +84,7 @@ export const SolicitarRepuestoModal = ({ orden, repuestos, onClose, onSubmit }) 
         repuesto_id: repuestoSeleccionado ? Number(repuestoSeleccionado.id_repuesto) : undefined,
         repuesto: piezaSolicitada,
         cantidad,
+        solicitar_sin_registro: solicitarSinRegistro,
       });
       onClose();
     } catch (err) {
@@ -82,6 +92,11 @@ export const SolicitarRepuestoModal = ({ orden, repuestos, onClose, onSubmit }) 
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    await enviarSolicitud();
   };
 
   return (
@@ -128,13 +143,26 @@ export const SolicitarRepuestoModal = ({ orden, repuestos, onClose, onSubmit }) 
               onChange={(event) => setCantidad(event.target.value)}
             />
           </div>
-          <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
-            Si la pieza aun no existe en inventario, quedara pedida por nombre. Cuando se compre y se registre, se puede regularizar con el repuesto ya creado.
-          </p>
+          {piezaNoRegistrada && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-bold text-amber-900">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>esta pieza no existe</span>
+                <button
+                  type="button"
+                  onClick={() => enviarSolicitud({ solicitarSinRegistro: true })}
+                  disabled={loading}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-[11px] font-black uppercase text-white hover:bg-amber-700 disabled:opacity-60"
+                >
+                  <PackagePlus size={14} />
+                  Solicitar pieza
+                </button>
+              </div>
+            </div>
+          )}
           {error && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">{error}</div>}
           <div className="flex justify-end gap-2 pt-4">
             <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold uppercase text-slate-600">Cancelar</button>
-            <button type="submit" disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase">
+            <button type="submit" disabled={loading || piezaNoRegistrada} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase disabled:opacity-60">
               {loading ? 'Enviando...' : 'Confirmar'}
             </button>
           </div>

@@ -129,7 +129,21 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
   }
 
   if (estadoNuevo === 'FINALIZADO') {
-    // La validacion de piezas aprobadas vive en actualizar_estado_orden_tecnico_proc.
+    const piezasPendientes = await prisma.ordenes_Repuestos.count({
+      where: {
+        orden_id: Number(ordenId),
+        OR: [
+          { repuesto_id: null },
+          { NOT: { estado_aprobacion: 'APROBADO' } },
+        ],
+      },
+    });
+
+    if (piezasPendientes > 0) {
+      const error = new Error('No se puede finalizar: todas las piezas solicitadas deben estar registradas y aprobadas');
+      error.statusCode = 409;
+      throw error;
+    }
   }
 
   if (estadoCierre) {
@@ -157,10 +171,11 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
 };
 
 export const solicitarRepuesto = async (ordenId, payload, username) => {
-  const { repuesto_id, repuesto, cantidad } = payload;
+  const { repuesto_id, repuesto, cantidad, solicitar_sin_registro } = payload;
   const cantidadUsada = Math.max(Number(cantidad) || 1, 1);
   let nombreSolicitado = String(repuesto || '').trim();
-  const repuestoId = Number(repuesto_id) || null;
+  let repuestoId = Number(repuesto_id) || null;
+  const esSolicitudSinRegistro = solicitar_sin_registro === true || solicitar_sin_registro === 'true';
 
   const tecnico = await getTecnicoActivoByUsername(username);
   if (!tecnico) {
@@ -201,6 +216,25 @@ export const solicitarRepuesto = async (ordenId, payload, username) => {
     const error = new Error('Indique que pieza necesita solicitar');
     error.statusCode = 400;
     throw error;
+  }
+
+  if (!repuestoId && nombreSolicitado) {
+    const repuestoEncontrado = await prisma.repuestos.findFirst({
+      where: {
+        nombre: { equals: nombreSolicitado, mode: 'insensitive' },
+        descontinuada: false,
+      },
+      select: { id_repuesto: true },
+    });
+
+    if (repuestoEncontrado) {
+      repuestoId = repuestoEncontrado.id_repuesto;
+    } else if (!esSolicitudSinRegistro) {
+      const error = new Error('esta pieza no existe');
+      error.statusCode = 404;
+      error.code = 'PIEZA_NO_EXISTE';
+      throw error;
+    }
   }
 
   const rows = await prisma.$queryRaw(Prisma.sql`
