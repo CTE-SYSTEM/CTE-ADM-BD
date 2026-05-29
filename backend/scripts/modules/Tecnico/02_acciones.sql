@@ -30,6 +30,7 @@ CREATE OR REPLACE FUNCTION solicitar_pieza_orden_tecnico_proc(
 DECLARE
     v_repuesto_id INT;
     v_id INT;
+    v_tecnico_id INT;
 BEGIN
     IF p_repuesto_id IS NULL AND TRIM(COALESCE(p_pieza_solicitada, '')) = '' THEN
         RAISE EXCEPTION 'Indique que pieza necesita solicitar';
@@ -64,8 +65,14 @@ BEGIN
         'PENDIENTE'
     ) RETURNING id_detalle_repuesto INTO v_id;
 
+    SELECT COALESCE(o.tecnico_id, d.tecnico_id) INTO v_tecnico_id
+    FROM "Ordenes" o
+    JOIN "Diagnosticos" d ON o.diagnostico_id = d.id_diagnostico
+    WHERE o.id_orden = p_id_orden::INT;
+
     UPDATE "Ordenes"
-    SET estado = 'ESPERANDO_PIEZA'
+    SET estado = 'ESPERANDO_PIEZA',
+        tecnico_id = COALESCE(tecnico_id, v_tecnico_id)
     WHERE id_orden = p_id_orden::INT
       AND UPPER(COALESCE(estado, '')) <> 'FINALIZADO';
 
@@ -77,10 +84,24 @@ BEGIN
         'pieza_solicitada', orp.pieza_solicitada,
         'cantidad_usada', orp.cantidad_usada,
         'estado_aprobacion', orp.estado_aprobacion,
-        'repuesto', to_jsonb(r.*)
+        'repuesto', to_jsonb(r.*),
+        'orden', jsonb_build_object(
+            'id_orden', o.id_orden,
+            'tecnico_id', o.tecnico_id,
+            'tecnico', to_jsonb(tord.*),
+            'diagnostico', jsonb_build_object(
+                'id_diagnostico', d.id_diagnostico,
+                'tecnico_id', d.tecnico_id,
+                'tecnico', to_jsonb(tdiag.*)
+            )
+        )
     )
     FROM "Ordenes_Repuestos" orp
+    JOIN "Ordenes" o ON orp.orden_id = o.id_orden
+    JOIN "Diagnosticos" d ON o.diagnostico_id = d.id_diagnostico
     LEFT JOIN "Repuestos" r ON orp.repuesto_id = r.id_repuesto
+    LEFT JOIN "Tecnicos" tord ON o.tecnico_id = tord.id_tecnico
+    LEFT JOIN "Tecnicos" tdiag ON d.tecnico_id = tdiag.id_tecnico
     WHERE orp.id_detalle_repuesto = v_id;
 END;
 $$ LANGUAGE plpgsql;

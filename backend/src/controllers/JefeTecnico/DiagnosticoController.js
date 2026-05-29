@@ -291,22 +291,37 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
   const { id_tecnico } = req.body;
 
   try {
-    if (!id_tecnico) return res.status(400).json({ error: 'El ID del técnico es obligatorio' });
+    const diagnosticoId = parsePositiveId(id);
+    const tecnicoId = parsePositiveId(id_tecnico);
+
+    if (!diagnosticoId) return res.status(400).json({ error: 'El diagnostico seleccionado no es valido' });
+    if (!tecnicoId) return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
 
     const diagnosticoActual = await prisma.diagnosticos.findUnique({
-      where: { id_diagnostico: parseInt(id) }
+      where: { id_diagnostico: diagnosticoId }
     });
 
-    if (!diagnosticoActual) return res.status(404).json({ error: 'Diagnóstico no encontrado' });
+    if (!diagnosticoActual) return res.status(404).json({ error: 'Diagnostico no encontrado' });
+
+    const tecnico = await prisma.tecnicos.findFirst({
+      where: { id_tecnico: tecnicoId, activo: true },
+      select: { id_tecnico: true },
+    });
+
+    if (!tecnico) return res.status(404).json({ error: 'Tecnico no encontrado o inactivo' });
 
     // Validación de 30 minutos si ya había una asignación previa
     if (diagnosticoActual.fecha_asignacion && !esEditablePorTiempo(diagnosticoActual.fecha_asignacion)) {
       return res.status(403).json({ error: 'El plazo de 30 minutos para reasignar técnico ha expirado' });
     }
 
-    await prisma.$executeRaw(Prisma.sql`SELECT asignar_tecnico_diagnostico_proc(${Number(id)}, ${Number(id_tecnico)})`);
-    const diagnostico = await prisma.diagnosticos.findUnique({
-      where: { id_diagnostico: Number(id) },
+    const diagnostico = await prisma.diagnosticos.update({
+      where: { id_diagnostico: diagnosticoId },
+      data: {
+        tecnico_id: tecnicoId,
+        fecha_asignacion: new Date(),
+        estado_del_diagnostico: 'EN_REVISION',
+      },
       include: { equipo: { include: { cliente: true } }, tecnico: true },
     });
 
@@ -351,22 +366,36 @@ export const asignarTecnicoAOrden = async (req, res) => {
   const { id_tecnico } = req.body;
 
   try {
-    if (!id_tecnico) return res.status(400).json({ error: 'El ID del técnico es obligatorio' });
+    const ordenId = parsePositiveId(id);
+    const tecnicoId = parsePositiveId(id_tecnico);
+
+    if (!ordenId) return res.status(400).json({ error: 'La orden seleccionada no es valida' });
+    if (!tecnicoId) return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
 
     const ordenActual = await prisma.ordenes.findUnique({
-      where: { id_orden: Number(id) }
+      where: { id_orden: ordenId }
     });
 
     if (!ordenActual) return res.status(404).json({ error: 'Orden no encontrada' });
+
+    const tecnico = await prisma.tecnicos.findFirst({
+      where: { id_tecnico: tecnicoId, activo: true },
+      select: { id_tecnico: true },
+    });
+
+    if (!tecnico) return res.status(404).json({ error: 'Tecnico no encontrado o inactivo' });
 
     // Validación de 30 minutos desde el ingreso de la orden
     if (!esEditablePorTiempo(ordenActual.fecha_ingreso)) {
       return res.status(403).json({ error: 'La asignación está bloqueada: han pasado más de 30 minutos desde el ingreso' });
     }
 
-    await prisma.$executeRaw(Prisma.sql`SELECT asignar_tecnico_orden_proc(${Number(id)}, ${Number(id_tecnico)})`);
-    const orden = await prisma.ordenes.findUnique({
-      where: { id_orden: Number(id) },
+    const orden = await prisma.ordenes.update({
+      where: { id_orden: ordenId },
+      data: {
+        tecnico_id: tecnicoId,
+        estado: 'EN_REPARACION',
+      },
       include: { tecnico: true, diagnostico: { include: { equipo: { include: { cliente: true } } } } },
     });
 
@@ -410,21 +439,17 @@ const actualizarEstadoSolicitudRepuesto = async (req, res, estado_aprobacion) =>
 
     if (!solicitudPrevia) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
-    // Validación de 30 minutos desde que se generó la Orden de Repuestos
-    if (!esEditablePorTiempo(solicitudPrevia.orden.fecha_ingreso)) {
-      return res.status(403).json({ error: 'No se puede modificar la aprobación: el tiempo límite de 30 min ha expirado' });
+    if (String(solicitudPrevia.estado_aprobacion || '').toUpperCase() !== 'PENDIENTE') {
+      return res.status(409).json({ error: 'Esta solicitud de repuesto ya fue revisada' });
     }
 
     if (estado_aprobacion === 'APROBADO') {
       await assertStockDisponible(solicitudPrevia.repuesto_id, solicitudPrevia.cantidad_usada || 1);
     }
 
-    await prisma.$executeRaw(Prisma.sql`
-      SELECT actualizar_estado_solicitud_repuesto_jefe_proc(${Number(req.params.id)}, ${estado_aprobacion})
-    `);
-
-    const solicitud = await prisma.ordenes_Repuestos.findUnique({
+    const solicitud = await prisma.ordenes_Repuestos.update({
       where: { id_detalle_repuesto: Number(req.params.id) },
+      data: { estado_aprobacion },
       include: {
         repuesto: { select: repuestoSafeSelect },
         orden: {

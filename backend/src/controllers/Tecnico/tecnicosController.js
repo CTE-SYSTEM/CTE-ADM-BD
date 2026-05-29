@@ -108,12 +108,12 @@ export const actualizarEstadoOrden = async (req, res) => {
 
 export const solicitarRepuesto = async (req, res) => {
   try {
-    const solicitud = await solicitarRepuestoService(req.params.id, req.body);
+    const solicitud = await solicitarRepuestoService(req.params.id, req.body, req.user?.username);
 
     notifyJefeTecnico({
       type: 'repuesto_solicitado',
       title: 'Solicitud de repuesto',
-      message: `Nueva solicitud de pieza para orden #${req.params.id}`,
+      message: `Nueva solicitud de pieza para orden #${req.params.id} de ${solicitud?.orden?.tecnico?.nombre || solicitud?.orden?.diagnostico?.tecnico?.nombre || 'tecnico'}`,
       severity: 'warning',
       entity: { kind: 'orden', id: Number(req.params.id) },
     });

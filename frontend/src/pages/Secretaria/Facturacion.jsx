@@ -174,8 +174,8 @@ const FacturacionPage = () => {
       setFacturas(facturasResponse.data.data || []);
       setGarantias(garantiasResponse.data.data || []);
       setOrdenes(ordenesResponse.data.data || []);
-    } catch {
-      setError('No se pudo cargar facturacion');
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.response?.data?.details || 'No se pudo cargar facturacion');
     } finally {
       setLoading(false);
     }
@@ -208,8 +208,8 @@ const FacturacionPage = () => {
         setTablaActiva('ticket');
       }
       await loadData();
-    } catch {
-      setError('Error al crear la factura');
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.response?.data?.details || 'Error al crear la factura');
     } finally {
       setLoading(false);
     }

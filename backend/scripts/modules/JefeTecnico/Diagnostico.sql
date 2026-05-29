@@ -27,11 +27,19 @@ CREATE OR REPLACE FUNCTION asignar_tecnico_diagnostico_proc(
     p_id_tecnico INT
 ) RETURNS VOID AS $$
 BEGIN
+    IF NOT EXISTS (SELECT 1 FROM "Tecnicos" WHERE id_tecnico = p_id_tecnico AND activo = true) THEN
+        RAISE EXCEPTION 'Tecnico no encontrado o inactivo';
+    END IF;
+
     UPDATE "Diagnosticos"
     SET tecnico_id = p_id_tecnico,
         fecha_asignacion = NOW(),
         estado_del_diagnostico = 'EN_REVISION'
     WHERE id_diagnostico = p_id_diagnostico;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Diagnostico no encontrado';
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -40,10 +48,18 @@ CREATE OR REPLACE FUNCTION asignar_tecnico_orden_proc(
     p_id_tecnico INT
 ) RETURNS VOID AS $$
 BEGIN
+    IF NOT EXISTS (SELECT 1 FROM "Tecnicos" WHERE id_tecnico = p_id_tecnico AND activo = true) THEN
+        RAISE EXCEPTION 'Tecnico no encontrado o inactivo';
+    END IF;
+
     UPDATE "Ordenes"
     SET tecnico_id = p_id_tecnico,
         estado = 'EN_REPARACION'
     WHERE id_orden = p_id_orden;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Orden no encontrada';
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -156,7 +172,12 @@ BEGIN
         'orden', jsonb_build_object(
             'id_orden', o.id_orden,
             'fecha_ingreso', o.fecha_ingreso,
+            'tecnico_id', o.tecnico_id,
+            'tecnico', to_jsonb(tord.*),
             'diagnostico', jsonb_build_object(
+                'id_diagnostico', d.id_diagnostico,
+                'tecnico_id', d.tecnico_id,
+                'tecnico', to_jsonb(tdiag.*),
                 'equipo', to_jsonb(eq.*)
             )
         )
@@ -166,6 +187,8 @@ BEGIN
     JOIN "Ordenes" o ON orp.orden_id = o.id_orden
     JOIN "Diagnosticos" d ON o.diagnostico_id = d.id_diagnostico
     JOIN "Equipos" eq ON d.equipo_id = eq.id_equipo
+    LEFT JOIN "Tecnicos" tord ON o.tecnico_id = tord.id_tecnico
+    LEFT JOIN "Tecnicos" tdiag ON d.tecnico_id = tdiag.id_tecnico
     WHERE orp.estado_aprobacion = 'PENDIENTE'
     ORDER BY o.fecha_ingreso ASC;
 END;

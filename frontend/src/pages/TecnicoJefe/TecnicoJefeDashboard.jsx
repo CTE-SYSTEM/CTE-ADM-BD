@@ -45,6 +45,10 @@ const JefeDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
   const [tecnicosSeleccionados, setTecnicosSeleccionados] = useState({});
+  const [asignacionError, setAsignacionError] = useState('');
+  const [asignacionOk, setAsignacionOk] = useState('');
+  const [repuestoDecisionError, setRepuestoDecisionError] = useState('');
+  const [repuestoDecisionOk, setRepuestoDecisionOk] = useState('');
 
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -200,6 +204,8 @@ const JefeDashboard = () => {
   };
 
   const handleTecnicoChange = (row, value) => {
+    setAsignacionError('');
+    setAsignacionOk('');
     setTecnicosSeleccionados((prev) => ({
       ...prev,
       [getRowKey(row)]: value,
@@ -222,6 +228,8 @@ const JefeDashboard = () => {
     if (!window.confirm(mensaje)) return;
 
     setSavingId(getRowKey(row));
+    setAsignacionError('');
+    setAsignacionOk('');
     try {
       if (row.id_diagnostico) {
         await diagnosticoService.asignar(row.id_diagnostico, idTecnico);
@@ -235,8 +243,10 @@ const JefeDashboard = () => {
         delete siguiente[getRowKey(row)];
         return siguiente;
       });
+      setAsignacionOk(`${tipo === 'orden' ? 'Orden' : 'Diagnostico'} #${id} asignado a ${tecnicoNombre}.`);
     } catch (error) {
       console.error('Error al guardar asignacion:', error);
+      setAsignacionError(error?.response?.data?.error || error?.response?.data?.details || 'No se pudo guardar la asignacion.');
     } finally {
       setSavingId(null);
     }
@@ -252,6 +262,8 @@ const JefeDashboard = () => {
     if (!window.confirm(`Deseas ${texto} ${cantidad} unidad(es) de ${repuesto} para la solicitud #${id}?`)) return;
 
     setSavingId(`repuesto-${id}`);
+    setRepuestoDecisionError('');
+    setRepuestoDecisionOk('');
     try {
       if (accion === 'aprobar') {
         await repuestoService.aprobar(id);
@@ -259,8 +271,10 @@ const JefeDashboard = () => {
         await repuestoService.rechazar(id);
       }
       await fetchData();
+      setRepuestoDecisionOk(`Solicitud #${id} ${accion === 'aprobar' ? 'aprobada' : 'rechazada'} correctamente.`);
     } catch (error) {
       console.error(`Error al ${texto} repuesto:`, error);
+      setRepuestoDecisionError(error?.response?.data?.error || error?.response?.data?.details || `No se pudo ${texto} el repuesto.`);
     } finally {
       setSavingId(null);
     }
@@ -475,6 +489,26 @@ const JefeDashboard = () => {
           <TabButton active={activeTab === TAB_ALERTAS} onClick={() => setActiveTab(TAB_ALERTAS)} icon={<Bell size={16} />} label={`Alertas (${alertasRetraso.length})`} />
           <TabButton active={activeTab === TAB_CORRECCIONES} onClick={() => setActiveTab(TAB_CORRECCIONES)} icon={<Settings size={16} />} label={`Correcciones (${correccionesFiltradas.length})`} />
         </div>
+
+        {(asignacionError || asignacionOk) && (
+          <div className={`mb-6 rounded-2xl border p-4 text-xs font-bold uppercase ${
+            asignacionError
+              ? 'border-red-100 bg-red-50 text-red-600'
+              : 'border-emerald-100 bg-emerald-50 text-emerald-700'
+          }`}>
+            {asignacionError || asignacionOk}
+          </div>
+        )}
+
+        {(repuestoDecisionError || repuestoDecisionOk) && (
+          <div className={`mb-6 rounded-2xl border p-4 text-xs font-bold uppercase ${
+            repuestoDecisionError
+              ? 'border-red-100 bg-red-50 text-red-600'
+              : 'border-emerald-100 bg-emerald-50 text-emerald-700'
+          }`}>
+            {repuestoDecisionError || repuestoDecisionOk}
+          </div>
+        )}
 
         {activeTab === TAB_CORRECCIONES && (
           <div className="mb-6 px-4">

@@ -156,21 +156,45 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
   return rows[0]?.data;
 };
 
-export const solicitarRepuesto = async (ordenId, payload) => {
+export const solicitarRepuesto = async (ordenId, payload, username) => {
   const { repuesto_id, repuesto, cantidad } = payload;
   const cantidadUsada = Math.max(Number(cantidad) || 1, 1);
   let nombreSolicitado = String(repuesto || '').trim();
   const repuestoId = Number(repuesto_id) || null;
 
-  const [orden] = await prisma.$queryRaw(Prisma.sql`
-    SELECT id_orden
-    FROM "Ordenes"
-    WHERE id_orden = ${Number(ordenId)}
-  `);
+  const tecnico = await getTecnicoActivoByUsername(username);
+  if (!tecnico) {
+    const error = new Error('Tecnico no encontrado o inactivo');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const orden = await prisma.ordenes.findUnique({
+    where: { id_orden: Number(ordenId) },
+    include: {
+      tecnico: true,
+      diagnostico: { include: { tecnico: true } },
+    },
+  });
+
   if (!orden) {
     const error = new Error('Orden no encontrada');
     error.statusCode = 404;
     throw error;
+  }
+
+  const tecnicoOrdenId = orden.tecnico_id || orden.diagnostico?.tecnico_id;
+  if (Number(tecnicoOrdenId) !== Number(tecnico.id_tecnico)) {
+    const error = new Error('No puede solicitar repuestos para una orden que no tiene asignado este tecnico');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  if (!orden.tecnico_id) {
+    await prisma.ordenes.update({
+      where: { id_orden: Number(ordenId) },
+      data: { tecnico_id: tecnico.id_tecnico },
+    });
   }
 
   if (!nombreSolicitado && !repuestoId) {
@@ -188,5 +212,19 @@ export const solicitarRepuesto = async (ordenId, payload) => {
     )
   `);
 
-  return rows[0]?.data;
+  const solicitudId = Number(rows[0]?.data?.id_detalle_repuesto);
+  if (!solicitudId) return rows[0]?.data;
+
+  return prisma.ordenes_Repuestos.findUnique({
+    where: { id_detalle_repuesto: solicitudId },
+    include: {
+      repuesto: { select: repuestoSafeSelect },
+      orden: {
+        include: {
+          tecnico: true,
+          diagnostico: { include: { tecnico: true } },
+        },
+      },
+    },
+  });
 };

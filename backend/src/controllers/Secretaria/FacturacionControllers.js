@@ -40,10 +40,11 @@ const repuestosUsadosInclude = {
   },
 };
 
-const calcularPrecioVentaRepuesto = (repuesto = {}) => {
-  const costo = Number(repuesto.costo_individual || 0);
-  const gananciaCordobas = Number(repuesto.ganancia_cordobas || 0);
-  const porcentajeGanancia = Number(repuesto.porcentaje_de_ganacia || 0);
+const calcularPrecioVentaRepuesto = (repuesto) => {
+  const repuestoSeguro = repuesto || {};
+  const costo = Number(repuestoSeguro.costo_individual || 0);
+  const gananciaCordobas = Number(repuestoSeguro.ganancia_cordobas || 0);
+  const porcentajeGanancia = Number(repuestoSeguro.porcentaje_de_ganacia || 0);
 
   if (gananciaCordobas > 0) return costo + gananciaCordobas;
   if (porcentajeGanancia > 0) return costo + ((costo * porcentajeGanancia) / 100);
