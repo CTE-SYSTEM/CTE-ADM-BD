@@ -96,6 +96,7 @@ const SecretariaDashboard = () => {
   const [filterType, setFilterType] = useState('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -198,7 +199,8 @@ const SecretariaDashboard = () => {
           </div>
         </div>
 
-        <div className="flex items-center bg-white border border-gray-200 p-1 rounded-xl shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex items-center bg-white border border-gray-200 p-1 rounded-xl shadow-sm">
           {[
             { id: 'all', label: 'Todo' },
             { id: 'week', label: 'Semana' },
@@ -217,8 +219,38 @@ const SecretariaDashboard = () => {
               {filter.label}
             </button>
           ))}
+          </div>
         </div>
       </div>
+
+      {showHelp && (
+        <section className="mb-8 rounded-2xl bg-slate-950 p-6 text-white shadow-sm space-y-4 animate-fade-in">
+          <div>
+            <h2 className="text-lg font-bold">Mini tutorial de Secretaria</h2>
+            <p className="mt-1 text-sm text-slate-300">
+              Usa este panel como punto de entrada para registrar clientes, equipos, diagnosticos, ordenes y facturas.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+              <p className="text-sm font-semibold text-indigo-400">1. Revisa el periodo</p>
+              <p className="mt-1 text-xs text-slate-400">Cambia entre todo, semana, mes o anio para ver actividad reciente.</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+              <p className="text-sm font-semibold text-cyan-400">2. Entra al modulo</p>
+              <p className="mt-1 text-xs text-slate-400">Las tarjetas abren clientes, equipos, diagnosticos, ordenes y facturacion.</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+              <p className="text-sm font-semibold text-amber-400">3. Atiende ordenes</p>
+              <p className="mt-1 text-xs text-slate-400">La tabla inferior muestra las ordenes mas recientes para dar seguimiento.</p>
+            </div>
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+              <p className="text-sm font-semibold text-emerald-400">4. Usa Flujo atencion</p>
+              <p className="mt-1 text-xs text-slate-400">Cuando necesites contexto completo, abre el tablero de seguimiento.</p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {error && (
         <div className="mb-6 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 text-left">

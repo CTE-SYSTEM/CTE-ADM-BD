@@ -5,8 +5,12 @@ import {
   getTiposRepuesto,
   updateTipoRepuesto,
 } from '../../../controllers/Secretaria/TipoRepuestoControllers.js';
+import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
+import { PERMISSIONS } from '../../../utils/permissions.js';
 
 const router = Router();
+
+router.use(authMiddleware, requirePermission(PERMISSIONS.REPUESTOS_GESTIONAR));
 
 router.get('/', getTiposRepuesto);
 router.post('/', createTipoRepuesto);

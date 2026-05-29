@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../app/prismaClient.js';
 import { env } from '../config/env.js';
 import { normalizeRole } from '../utils/roles.js';
+export { requirePermission } from '../utils/permissions.js';
 
 const authMiddleware = async (req, res, next) => {
   const auth = req.headers.authorization;

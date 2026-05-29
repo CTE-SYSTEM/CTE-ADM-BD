@@ -12,6 +12,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
+import PageHelp from '../../components/PageHelp';
 import { diagnosticoService } from '../../services/JefeTecnico/DiagnosticoService';
 import { ordenesService } from '../../services/secretaria/ordenesService';
 import { repuestoService } from '../../services/secretaria/repuestosService';
@@ -56,6 +57,7 @@ const JefeDashboard = () => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [showHelp, setShowHelp] = useState(false);
   
   // Buscador de la pestaña de correcciones
   const [searchTermCorrecciones, setSearchTermCorrecciones] = useState('');
@@ -406,6 +408,43 @@ const JefeDashboard = () => {
       )}
 
       <main className="flex-1 container mx-auto p-8">
+        <div className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Centro de control tecnico</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-400">Asignaciones, aprobaciones, alertas y correcciones del taller.</p>
+          </div>
+        </div>
+        <PageHelp />
+
+        {showHelp && (
+          <section className="mb-8 rounded-2xl bg-slate-950 p-6 text-white shadow-sm space-y-4 animate-fade-in">
+            <div>
+              <h2 className="text-lg font-bold">Mini tutorial del jefe tecnico</h2>
+              <p className="mt-1 text-sm text-slate-300">
+                Usa este panel para repartir trabajo, aprobar repuestos y corregir avances antes de que se acumulen retrasos.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+                <p className="text-sm font-semibold text-blue-400">1. Revisa pendientes</p>
+                <p className="mt-1 text-xs text-slate-400">Las tarjetas muestran diagnosticos, ordenes, repuestos y alertas abiertas.</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+                <p className="text-sm font-semibold text-indigo-400">2. Asigna tecnicos</p>
+                <p className="mt-1 text-xs text-slate-400">En diagnosticos y ordenes selecciona tecnico y guarda la asignacion.</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+                <p className="text-sm font-semibold text-emerald-400">3. Aprueba repuestos</p>
+                <p className="mt-1 text-xs text-slate-400">Valida solicitudes de piezas antes de que pasen a facturacion.</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+                <p className="text-sm font-semibold text-amber-400">4. Corrige a tiempo</p>
+                <p className="mt-1 text-xs text-slate-400">La pestana de correcciones permite ajustar tecnico, estado, prioridad o pieza.</p>
+              </div>
+            </div>
+          </section>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
           <StatCard icon={<Search size={22} />} label="Diag. sin asignar" value={diagnosticosPendientes.filter((d) => !getTecnicoId(d)).length} color="blue" />
           <StatCard icon={<Package size={22} />} label="Ordenes por aprobar" value={ordenesAprobadas.filter((o) => !getTecnicoId(o)).length} color="amber" />

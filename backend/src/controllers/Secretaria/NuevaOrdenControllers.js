@@ -1,11 +1,8 @@
-import prisma from '../../app/prismaClient.js';
-import { Prisma } from '@prisma/client';
-import { ORDEN_ESTADOS, PRIORIDADES, assertInList, parsePositiveId } from '../../utils/domainValidation.js';
+import ordenService from '../../services/Secretaria/ordenService.js';
 
 export const getOrdenes = async (req, res) => {
   try {
-    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_ordenes_secretaria()`);
-    const ordenes = rows.map((row) => row.data);
+    const ordenes = await ordenService.listarOrdenes();
 
     res.json({ data: ordenes });
   } catch (error) {
@@ -16,29 +13,11 @@ export const getOrdenes = async (req, res) => {
 
 export const getDiagnosticosListosParaOrden = async (req, res) => {
   try {
-    const [rows, counts] = await Promise.all([
-      prisma.$queryRaw(Prisma.sql`SELECT data FROM get_diagnosticos_listos_orden()`),
-      prisma.$queryRaw(Prisma.sql`
-        SELECT
-          COUNT(*) FILTER (WHERE estado_del_diagnostico IN ('COMPLETADO', 'DIAGNOSTICADO'))::int AS completados,
-          COUNT(*) FILTER (
-            WHERE estado_del_diagnostico IN ('COMPLETADO', 'DIAGNOSTICADO')
-            AND EXISTS (SELECT 1 FROM "Ordenes" o WHERE o.diagnostico_id = d.id_diagnostico)
-          )::int AS "completadosConOrden",
-          COUNT(*) FILTER (WHERE estado_del_diagnostico IN ('PENDIENTE', 'INGRESADO', 'EN_REVISION'))::int AS "enRevision"
-        FROM "Diagnosticos" d
-      `),
-    ]);
-    const diagnosticos = rows.map((row) => row.data);
+    const { diagnosticos, meta } = await ordenService.listarDiagnosticosListosParaOrden();
 
     res.json({
       data: diagnosticos,
-      meta: {
-        completados: counts[0]?.completados || 0,
-        completadosConOrden: counts[0]?.completadosConOrden || 0,
-        listosParaOrden: diagnosticos.length,
-        enRevision: counts[0]?.enRevision || 0,
-      },
+      meta,
     });
   } catch (error) {
     console.error('Error al obtener diagnosticos listos para orden:', error);
@@ -49,14 +28,13 @@ export const getDiagnosticosListosParaOrden = async (req, res) => {
 export const createOrden = async (req, res) => {
   try {
     const { diagnostico_id, tecnico_id, prioridad, estado } = req.body;
-    const diagnosticoId = parsePositiveId(diagnostico_id);
+    const diagnosticoId = ordenService.validarOrdenDiagnosticoId(diagnostico_id);
 
     if (!diagnosticoId) {
       return res.status(400).json({ error: 'El diagnostico es obligatorio' });
     }
 
-    const [diagRow] = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_diagnostico_validacion_orden(${diagnosticoId})`);
-    const diagnostico = diagRow?.data;
+    const diagnostico = await ordenService.obtenerDiagnosticoParaOrden(diagnosticoId);
 
     if (!diagnostico) {
       return res.status(404).json({ error: 'Diagnostico no encontrado' });
@@ -81,15 +59,7 @@ export const createOrden = async (req, res) => {
       return res.status(409).json({ error: 'Ya existe una orden para este diagnostico' });
     }
 
-    const [row] = await prisma.$queryRaw(Prisma.sql`
-      SELECT data FROM crear_orden_secretaria_proc(
-        ${diagnosticoId},
-        ${tecnico_id ? parsePositiveId(tecnico_id) : null},
-        ${assertInList(prioridad || 'Normal', PRIORIDADES, 'Prioridad')},
-        ${assertInList(estado || 'PENDIENTE', ORDEN_ESTADOS, 'Estado de la orden')}
-      )
-    `);
-    const orden = row?.data;
+    const orden = await ordenService.crearOrden({ diagnostico_id: diagnosticoId, tecnico_id, prioridad, estado });
 
     res.status(201).json({ data: orden });
   } catch (error) {
@@ -105,15 +75,7 @@ export const updateOrden = async (req, res) => {
   try {
     const { tecnico_id, prioridad, estado } = req.body;
 
-    const [row] = await prisma.$queryRaw(Prisma.sql`
-      SELECT data FROM actualizar_orden_secretaria_proc(
-        ${Number(req.params.id)},
-        ${tecnico_id ? parsePositiveId(tecnico_id) : null},
-        ${prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : null},
-        ${estado ? assertInList(estado, ORDEN_ESTADOS, 'Estado de la orden') : null}
-      )
-    `);
-    const orden = row?.data;
+    const orden = await ordenService.actualizarOrden(req.params.id, { tecnico_id, prioridad, estado });
 
     if (!orden) return res.status(404).json({ error: 'Orden no encontrada' });
 
@@ -132,7 +94,7 @@ export const updateOrden = async (req, res) => {
 
 export const deleteOrden = async (req, res) => {
   try {
-    await prisma.$executeRaw(Prisma.sql`SELECT eliminar_orden_secretaria_proc(${Number(req.params.id)})`);
+    await ordenService.eliminarOrden(req.params.id);
 
     res.status(204).send();
   } catch (error) {

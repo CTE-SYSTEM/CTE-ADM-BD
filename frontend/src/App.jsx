@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider, Outlet, Navigate, useLocation } fr
 // Componentes Globales
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
+import PageHelp from './components/PageHelp';
 
 // Contexto de Autenticación
 import { AuthProvider, AuthContext } from './context/AuthContext';
@@ -30,6 +31,7 @@ const OrdenesEstadoAvanzado = lazy(() => import('./pages/admin/OrdenesEstadoAvan
 const DiagnosticosEstadoAvanzado = lazy(() => import('./pages/admin/DiagnosticosEstadoAvanzado'));
 const ClientesAvanzado = lazy(() => import('./pages/admin/ClientesAvanzado'));
 const Ganancias = lazy(() => import('./pages/admin/Ganancias'));
+const FlujoAtencion = lazy(() => import('./pages/FlujoAtencion'));
 
 const SecretariaDashboard = lazy(() => import('./pages/Secretaria/SecretariaDashboard'));
 const ClientesSecretaria = lazy(() => import('./pages/Secretaria/Clientes'));
@@ -58,6 +60,7 @@ function MainLayout() {
         <Navbar onToggleSidebar={toggleSidebar} />
         <main className={`flex-1 overflow-auto ${isAdminRoute ? 'admin-main' : 'p-6'}`}>
           <div className={`mx-auto w-full ${isAdminRoute ? 'admin-content' : 'max-w-7xl'}`}>
+            <PageHelp />
             <Outlet />
           </div>
         </main>
@@ -113,6 +116,7 @@ const router = createBrowserRouter(
             { path: 'admin/garantias', element: <RequireAuth><Page><GarantiasAvanzado /></Page></RequireAuth> },
             { path: 'admin/historial-equipo', element: <RequireAuth><Page><HistorialEquipo /></Page></RequireAuth> },
             { path: 'admin/historial-repuesto', element: <RequireAuth><Page><HistorialRepuesto /></Page></RequireAuth> },
+            { path: 'admin/flujo-atencion', element: <RequireAuth><Page><FlujoAtencion /></Page></RequireAuth> },
 
             // Secretaria
             { path: 'secretaria', element: <RequireAuth><Page><SecretariaDashboard /></Page></RequireAuth> },
@@ -125,6 +129,7 @@ const router = createBrowserRouter(
             { path: 'secretaria/facturacion', element: <RequireAuth><Page><FacturacionSecretaria /></Page></RequireAuth> },
             { path: 'secretaria/nueva-orden', element: <RequireAuth><Page><NuevaOrden /></Page></RequireAuth> },
             { path: 'secretaria/diagnostico', element: <RequireAuth><Page><Diagnostico /></Page></RequireAuth> },
+            { path: 'secretaria/flujo-atencion', element: <RequireAuth><Page><FlujoAtencion /></Page></RequireAuth> },
           ],
         },
 

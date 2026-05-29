@@ -6,8 +6,12 @@ import {
   updateProveedor, 
   deleteProveedor 
 } from '../../../controllers/Secretaria/ProveedoresControllers.js';
+import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
+import { PERMISSIONS } from '../../../utils/permissions.js';
 
 const router = Router();
+
+router.use(authMiddleware, requirePermission(PERMISSIONS.PROVEEDORES_GESTIONAR));
 
 router.get('/', getProveedores);
 router.post('/', createProveedor);

@@ -232,3 +232,21 @@ model Garantias {
 
   @@map("Garantias")
 }
+
+model Auditoria_Movimientos {
+  id_auditoria      BigInt   @id @default(autoincrement())
+  tabla             String
+  operacion         String
+  registro_pk       Json?
+  datos_anteriores  Json?
+  datos_nuevos      Json?
+  usuario_id        Int?
+  usuario_nombre    String?
+  origen            String?  @default("database")
+  observacion       String?
+  fecha_movimiento  DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([tabla, fecha_movimiento(sort: Desc)], map: "idx_auditoria_tabla_fecha")
+  @@index([operacion, fecha_movimiento(sort: Desc)], map: "idx_auditoria_operacion_fecha")
+  @@map("Auditoria_Movimientos")
+}

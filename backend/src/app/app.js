@@ -23,6 +23,7 @@ import garantiasRoutes from '../routes/modules/secretaria/garantias.js';
 import diagnosticoRoutes from '../routes/modules/secretaria/Diagnostico.js';
 import diagnosticoRoutesJefe from '../routes/modules/JefeTecnico/Diagnostico.js';
 import adminProRoutes from '../routes/modules/admin_pro/adminPro.js';
+import flujoAtencionRoutes from '../routes/modules/flujoAtencion.js';
 import healthRoutes from '../routes/health.js';
 
 const app = express();
@@ -64,6 +65,7 @@ app.use('/api/garantias', garantiasRoutes);
 app.use('/api/secretaria/diagnostico', diagnosticoRoutes);
 app.use('/api/diagnosticos', diagnosticoRoutesJefe);
 app.use('/api/admin_pro', adminProRoutes);
+app.use('/api/flujo-atencion', flujoAtencionRoutes);
 
 app.get('/', (req, res) => {
   res.json({

@@ -45,7 +45,7 @@ export default function AdminDashboard() {
   const [productividad, setProductividad] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showHelp, setShowHelp] = useState(false);
+  const showHelp = false;
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -83,19 +83,10 @@ export default function AdminDashboard() {
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
       
       {/* Encabezado Principal */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Panel avanzado de administración</h1>
           <p className="text-gray-400 text-sm mt-0.5">Accede rápidamente a los principales indicadores de la empresa.</p>
-        </div>
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowHelp((prev) => !prev)}
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm"
-          >
-            {showHelp ? 'Ocultar ayuda' : 'Ayuda'}
-          </button>
         </div>
       </div>
 

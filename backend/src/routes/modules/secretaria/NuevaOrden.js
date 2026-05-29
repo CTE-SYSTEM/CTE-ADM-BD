@@ -8,6 +8,10 @@ import {
   getOrdenes,
   updateOrden,
 } from '../../../controllers/Secretaria/NuevaOrdenControllers.js';
+import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
+import { PERMISSIONS } from '../../../utils/permissions.js';
+
+router.use(authMiddleware, requirePermission(PERMISSIONS.ORDENES_GESTIONAR));
 
 router.get('/diagnosticos-listos', getDiagnosticosListosParaOrden);
 router.get('/', getOrdenes);

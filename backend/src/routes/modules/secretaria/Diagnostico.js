@@ -10,9 +10,12 @@ import {
     updateDiagnostico,
     updateEstadoDiagnostico
 } from '../../../controllers/Secretaria/DiagnosticoControllers.js';
+import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
+import { PERMISSIONS } from '../../../utils/permissions.js';
 
 // Rutas configuradas para /api/secretaria/diagnostico
 // --------------------------------------------------
+router.use(authMiddleware, requirePermission(PERMISSIONS.DIAGNOSTICOS_GESTIONAR));
 
 // POST /api/secretaria/diagnostico/create -> Para crear uno nuevo
 router.post('/create', createDiagnostico);

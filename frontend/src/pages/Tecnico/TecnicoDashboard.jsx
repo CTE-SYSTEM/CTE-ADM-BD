@@ -6,6 +6,7 @@ import DiagnosticosTable from "../../components/DiagnosticosTable";
 import OrdenesGrid from "../../components/OrdenesGrid";
 import RepuestosTable from "../../components/RepuestosTable";
 import SearchBox from "../../components/SearchBox";
+import PageHelp from '../../components/PageHelp';
 import { CierreOrdenModal, DiagnosticoModal, SolicitarRepuestoModal } from '../../components/TecnicoModals';
 import { TecnicoStatCard, TecnicoTabButton } from '../../components/TecnicoStats';
 import { useTecnicoDashboard } from './hooks/useTecnicoDashboard';
@@ -21,6 +22,7 @@ const TecnicoDashboard = () => {
   const [modalRepuesto, setModalRepuesto] = useState(null);
   const [modalDiagnostico, setModalDiagnostico] = useState(null);
   const [modalCierre, setModalCierre] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
   
   // Estado para controlar el filtro de tiempo de los recuadros grandes
   const [timeFilter, setTimeFilter] = useState('todos'); // 'hoy', 'mes', 'anio', 'todos'
@@ -172,6 +174,42 @@ const TecnicoDashboard = () => {
       <TecnicoHeader user={user} onLogout={logout} />
 
       <main className="mx-auto max-w-[1840px] px-6 py-10">
+        <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-left">
+            <h1 className="text-2xl font-black text-slate-800">Panel tecnico</h1>
+            <p className="text-sm font-semibold text-slate-500">Diagnosticos, ordenes activas, cierres y solicitudes de piezas.</p>
+          </div>
+        </div>
+        <PageHelp />
+
+        {showHelp && (
+          <section className="mb-6 rounded-2xl bg-slate-950 p-6 text-white shadow-sm space-y-4 animate-fade-in">
+            <div>
+              <h2 className="text-lg font-bold">Mini tutorial del tecnico</h2>
+              <p className="mt-1 text-sm text-slate-300">
+                Este panel ordena tu trabajo diario: revisar diagnosticos, mover ordenes y solicitar repuestos.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+                <p className="text-sm font-semibold text-violet-400">1. Filtra indicadores</p>
+                <p className="mt-1 text-xs text-slate-400">El selector de fecha cambia los cuatro contadores superiores.</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+                <p className="text-sm font-semibold text-blue-400">2. Trabaja por pestanas</p>
+                <p className="mt-1 text-xs text-slate-400">Usa diagnosticos, ordenes activas, finalizadas y piezas segun la tarea.</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+                <p className="text-sm font-semibold text-amber-400">3. Busca rapido</p>
+                <p className="mt-1 text-xs text-slate-400">Cada seccion tiene buscador para filtrar por cliente, equipo, falla u orden.</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+                <p className="text-sm font-semibold text-emerald-400">4. Cierra con cuidado</p>
+                <p className="mt-1 text-xs text-slate-400">Al finalizar una orden se abre el formulario de cierre tecnico.</p>
+              </div>
+            </div>
+          </section>
+        )}
         
         {/* FILTRO DE TIEMPO PARA LOS RECUADROS GRANDES */}
         <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">

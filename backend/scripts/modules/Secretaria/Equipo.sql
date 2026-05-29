@@ -63,10 +63,10 @@ CREATE OR REPLACE FUNCTION actualizar_equipo_proc(
 BEGIN
     UPDATE "Equipos"
     SET cliente_id = COALESCE(p_cliente_id, cliente_id),
-        tipo = p_tipo,
-        marca = p_marca,
-        modelo = p_modelo,
-        numero_serie = p_serie
+        tipo = COALESCE(p_tipo, tipo),
+        marca = COALESCE(p_marca, marca),
+        modelo = COALESCE(p_modelo, modelo),
+        numero_serie = COALESCE(p_serie, numero_serie)
     WHERE id_equipo = p_id;
 
     RETURN QUERY 

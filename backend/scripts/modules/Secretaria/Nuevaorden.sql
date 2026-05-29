@@ -80,7 +80,7 @@ BEGIN
     VALUES (p_diagnostico_id, p_tecnico_id, p_prioridad, p_estado)
     RETURNING id_orden INTO v_id;
 
-    RETURN QUERY SELECT data FROM get_orden_secretaria_por_id(v_id);
+    RETURN QUERY SELECT orden.data FROM get_orden_secretaria_por_id(v_id) AS orden;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -92,12 +92,12 @@ CREATE OR REPLACE FUNCTION actualizar_orden_secretaria_proc(
 ) RETURNS TABLE (data JSONB) AS $$
 BEGIN
     UPDATE "Ordenes"
-    SET tecnico_id = p_tecnico_id,
+    SET tecnico_id = COALESCE(p_tecnico_id, tecnico_id),
         prioridad = COALESCE(p_prioridad, prioridad),
         estado = COALESCE(p_estado, estado)
     WHERE id_orden = p_id;
 
-    RETURN QUERY SELECT data FROM get_orden_secretaria_por_id(p_id);
+    RETURN QUERY SELECT orden.data FROM get_orden_secretaria_por_id(p_id) AS orden;
 END;
 $$ LANGUAGE plpgsql;
 

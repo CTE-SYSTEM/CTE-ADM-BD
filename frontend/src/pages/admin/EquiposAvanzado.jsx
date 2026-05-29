@@ -70,7 +70,7 @@ export default function EquiposAvanzado() {
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [searchError, setSearchError] = useState('');
-  const [showHelp, setShowHelp] = useState(false);
+  const showHelp = false;
   const [selectedEquipo, setSelectedEquipo] = useState(null);
   const [historial, setHistorial] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -266,13 +266,6 @@ export default function EquiposAvanzado() {
           <h1 className="text-2xl font-bold text-slate-800">Gestión avanzada de equipos</h1>
           <p className="text-gray-400 text-sm mt-0.5">Busca equipos, revisa su estado actual y consulta su historial.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowHelp((prev) => !prev)}
-          className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm self-start sm:self-center"
-        >
-          {showHelp ? 'Ocultar ayuda' : 'Ayuda'}
-        </button>
       </div>
 
       {/* Banner de Ayuda */}
