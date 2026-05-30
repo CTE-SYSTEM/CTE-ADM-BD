@@ -3,9 +3,11 @@ import { FileDown, FileText } from 'lucide-react';
 import MetricBarChart from '../../components/MetricBarChart';
 import Table from '../../components/Table';
 import api from '../../services/api';
-import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf, downloadSectionedPdf } from '../../utils/csvExport';
 
 const currentYear = new Date().getFullYear();
+const padDatePart = (value) => String(value).padStart(2, '0');
+const toDateInputValue = (date) => `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
 const formatCurrency = (value) => `$ ${Number(value || 0).toFixed(2)}`;
 const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`;
 
@@ -36,6 +38,12 @@ const periodFilters = [
   { key: 'semanal', label: 'Semanal' },
   { key: 'mensual', label: 'Mensual' },
   { key: 'anual', label: 'Anual' },
+];
+
+const generalReportPeriods = [
+  { key: 'semana', label: 'Semana' },
+  { key: 'mes', label: 'Mes' },
+  { key: 'anio', label: 'Anio' },
 ];
 
 const orderMarginColumns = [
@@ -73,6 +81,23 @@ const profitabilityColumns = [
   { header: 'Ordenes', accessor: 'ordenes_procesadas' },
 ];
 
+const summaryColumns = [
+  { header: 'Indicador', accessor: 'label' },
+  { header: 'Valor', accessor: 'value' },
+  { header: 'Detalle', accessor: 'detail' },
+];
+
+const alertColumns = [
+  { header: 'Nivel', accessor: 'nivel' },
+  { header: 'Alerta', accessor: 'titulo' },
+  { header: 'Detalle', accessor: 'detalle' },
+];
+
+const assetColumns = [
+  { header: 'Activo', accessor: 'label' },
+  { header: 'Valor', accessor: 'value' },
+];
+
 const exportButtonBase = 'inline-flex h-9 min-w-[72px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 disabled:shadow-none';
 
 function ExportButton({ children, format, ...props }) {
@@ -107,6 +132,107 @@ function ExportActions({ disabled, onCsv, onPdf }) {
   );
 }
 
+const getReportRange = (period, anchorValue) => {
+  const anchor = anchorValue ? new Date(`${anchorValue}T00:00:00`) : new Date();
+
+  if (period === 'semana') {
+    const day = anchor.getDay() || 7;
+    const start = new Date(anchor);
+    start.setDate(anchor.getDate() - day + 1);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { from: toDateInputValue(start), to: toDateInputValue(end), periodKey: 'semanal', label: 'Semanal' };
+  }
+
+  if (period === 'mes') {
+    const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+    return { from: toDateInputValue(start), to: toDateInputValue(end), periodKey: 'mensual', label: 'Mensual' };
+  }
+
+  const start = new Date(anchor.getFullYear(), 0, 1);
+  const end = new Date(anchor.getFullYear(), 11, 31);
+  return { from: toDateInputValue(start), to: toDateInputValue(end), periodKey: 'anual', label: 'Anual' };
+};
+
+const buildGananciasReportSections = (reportData, periodKey) => {
+  const reportTotals = reportData?.totals || {};
+  const reportActivos = reportData?.activos || {};
+  const reportPeriodData = reportData?.periods?.[periodKey] || reportData?.monthly || [];
+  const reportMarginPercent = Number(reportTotals.ingresos || 0)
+    ? ((Number(reportTotals.ganancia_neta || 0) / Number(reportTotals.ingresos || 0)) * 100).toFixed(1)
+    : '0.0';
+
+  const summaryRows = [
+    { label: 'Ingresos', value: formatCurrency(reportTotals.ingresos), detail: `${reportTotals.facturas || 0} facturas` },
+    { label: 'Compras inventario', value: formatCurrency(reportTotals.compras_inventario), detail: `${reportTotals.compras || 0} compras capitalizadas` },
+    { label: 'Perdidas reales', value: formatCurrency(reportTotals.perdidas_reales), detail: `${reportTotals.ordenes_irreparables || 0} ordenes irreparables` },
+    { label: 'Ganancia neta', value: formatCurrency(reportTotals.ganancia_neta), detail: `Margen neto ${reportMarginPercent}%` },
+    { label: 'Margen de servicios', value: formatCurrency(reportTotals.margen_servicio), detail: `${formatPercent(reportTotals.rentabilidad_porcentaje)} rentabilidad` },
+  ];
+
+  const reportAssets = [
+    { label: 'Clientes activos', value: reportActivos.clientes_activos || 0 },
+    { label: 'Tecnicos activos', value: reportActivos.tecnicos_activos || 0 },
+    { label: 'Usuarios activos', value: reportActivos.usuarios_activos || 0 },
+    { label: 'Equipos registrados', value: reportActivos.equipos_registrados || 0 },
+    { label: 'Proveedores activos', value: reportActivos.proveedores_activos || 0 },
+    { label: 'Repuestos activos', value: reportActivos.repuestos_activos || 0 },
+    { label: 'Unidades en stock', value: reportActivos.unidades_stock || 0 },
+    { label: 'Valor inventario costo', value: formatCurrency(reportActivos.valor_inventario_costo) },
+    { label: 'Valor inventario venta', value: formatCurrency(reportActivos.valor_inventario_venta) },
+    { label: 'Margen inventario', value: formatCurrency(reportActivos.margen_inventario) },
+    { label: 'Repuestos sin stock', value: reportActivos.repuestos_sin_stock || 0 },
+  ];
+
+  const reportOrderMargins = (reportData?.orderMargins || []).map((item) => ({
+    ...item,
+    orden: `#${item.id_orden}`,
+    factura: `#${item.id_factura}`,
+    fecha: item.fecha_emision ? new Date(item.fecha_emision).toLocaleDateString() : '-',
+    total_facturado: formatCurrency(item.total_facturado),
+    mano_obra: formatCurrency(item.mano_obra),
+    ganancia_repuestos: formatCurrency(item.ganancia_repuestos),
+    costo_repuestos: formatCurrency(item.costo_repuestos),
+    ganancia_servicio: formatCurrency(item.ganancia_servicio),
+    margen_porcentaje: formatPercent(item.margen_porcentaje),
+  }));
+
+  const reportLosses = (reportData?.perdidas || []).map((item) => ({
+    ...item,
+    fecha: item.fecha ? new Date(item.fecha).toLocaleDateString() : '-',
+    monto: formatCurrency(item.monto),
+  }));
+
+  const reportProfitability = reportPeriodData.map((item) => ({
+    ...item,
+    ingresos: formatCurrency(item.ingresos),
+    compras_inventario: formatCurrency(item.compras_inventario),
+    costo_repuestos_usados: formatCurrency(item.costo_repuestos_usados),
+    perdidas_reales: formatCurrency(item.perdidas_reales),
+    ganancia_neta: formatCurrency(item.ganancia_neta),
+    margen_servicio: formatCurrency(item.margen_servicio),
+    rentabilidad_porcentaje: formatPercent(item.rentabilidad_porcentaje),
+  }));
+
+  const reportDetail = (reportData?.detail || []).map((item) => ({
+    ...item,
+    fecha: item.fecha ? new Date(item.fecha).toLocaleDateString() : '-',
+    monto: formatCurrency(item.monto),
+    metodo_pago: item.metodo_pago || '-',
+  }));
+
+  return [
+    { title: 'Resumen financiero', columns: summaryColumns, rows: summaryRows },
+    { title: 'Alertas financieras', columns: alertColumns, rows: reportData?.alertas || [] },
+    { title: 'Margen de ganancia por orden', columns: orderMarginColumns, rows: reportOrderMargins },
+    { title: 'Control de activos', columns: assetColumns, rows: reportAssets },
+    { title: 'Costos y perdidas por accion', columns: lossColumns, rows: reportLosses },
+    { title: 'Rentabilidad por etapa', columns: profitabilityColumns, rows: reportProfitability },
+    { title: 'Movimientos recientes', columns: detailColumns, rows: reportDetail },
+  ];
+};
+
 export default function Ganancias() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -119,6 +245,8 @@ export default function Ganancias() {
   const [comparePrevious, setComparePrevious] = useState(false);
   const [fromDate, setFromDate] = useState(`${currentYear}-01-01`);
   const [toDate, setToDate] = useState(`${currentYear}-12-31`);
+  const [generalReportPeriod, setGeneralReportPeriod] = useState('mes');
+  const [generalReportDate, setGeneralReportDate] = useState(toDateInputValue(new Date()));
 
   const fetchGanancias = useCallback(async (signal) => {
     setLoading(true);
@@ -233,10 +361,9 @@ export default function Ganancias() {
   ]), [activos]);
 
   const reportFilename = `ganancias_${fromDate || 'general'}_${toDate || 'general'}`;
-  const assetColumns = useMemo(() => ([
-    { header: 'Activo', accessor: 'label' },
-    { header: 'Valor', accessor: 'value' },
-  ]), []);
+  const generalReportRange = useMemo(() => (
+    getReportRange(generalReportPeriod, generalReportDate)
+  ), [generalReportDate, generalReportPeriod]);
 
   const handleQuickFilter = (filterType) => {
     setActiveFilter(filterType);
@@ -325,6 +452,39 @@ export default function Ganancias() {
       downloadJsonPdf(detail, detailColumns, `${reportFilename}.pdf`, 'Reporte de Ganancias');
     } catch {
       setError('No se pudo descargar el reporte de ganancias en PDF.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadGeneralGananciasPdf = async () => {
+    setDownloading(true);
+    setError('');
+
+    try {
+      const query = new URLSearchParams();
+      query.set('fecha_inicio', generalReportRange.from);
+      query.set('fecha_fin', generalReportRange.to);
+      query.set('detalle_limite', '100');
+
+      const res = await api.get(`/admin_pro/analitica/ganancias?${query.toString()}`);
+      const reportData = res.data?.data || {};
+      const sections = buildGananciasReportSections(reportData, generalReportRange.periodKey);
+
+      downloadSectionedPdf({
+        title: 'Reporte General de Ganancias',
+        filename: `ganancias_reporte_general_${generalReportRange.from}_${generalReportRange.to}.pdf`,
+        description: 'Reporte completo del modulo de ganancias con resumen, alertas, margenes, activos, costos, rentabilidad y movimientos.',
+        metadata: [
+          { label: 'Periodo', value: generalReportRange.label },
+          { label: 'Desde', value: generalReportRange.from },
+          { label: 'Hasta', value: generalReportRange.to },
+          { label: 'Detalle', value: 'Hasta 100 movimientos recientes' },
+        ],
+        sections,
+      });
+    } catch {
+      setError('No se pudo generar el reporte general de ganancias.');
     } finally {
       setDownloading(false);
     }
@@ -578,6 +738,60 @@ export default function Ganancias() {
               ) : (
                 <Table columns={detailColumns} data={detail} sortable />
               )}
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-indigo-500">Reporte general</p>
+                <h2 className="mt-1 text-lg font-bold text-slate-800">PDF completo del modulo de ganancias</h2>
+                <p className="mt-1 max-w-3xl text-sm text-gray-400">
+                  Genera un solo PDF con resumen financiero, alertas, margen por orden, activos, costos/perdidas, rentabilidad y movimientos recientes.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-full sm:w-auto">
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Tipo</span>
+                  <div className="mt-1.5 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
+                    {generalReportPeriods.map((period) => (
+                      <button
+                        key={period.key}
+                        type="button"
+                        onClick={() => setGeneralReportPeriod(period.key)}
+                        className={`rounded-lg px-4 py-1.5 text-xs font-bold transition ${generalReportPeriod === period.key ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-slate-800'}`}
+                      >
+                        {period.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="w-full sm:w-[170px]">
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Fecha base</span>
+                  <input
+                    type="date"
+                    value={generalReportDate}
+                    onChange={(event) => setGeneralReportDate(event.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={downloadGeneralGananciasPdf}
+                  disabled={downloading || loading || !generalReportDate}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 sm:w-auto"
+                >
+                  <FileText size={16} strokeWidth={2.4} aria-hidden="true" />
+                  Generar PDF completo
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">
+              Se exportara el rango {generalReportRange.from} al {generalReportRange.to}.
             </div>
           </section>
         </>

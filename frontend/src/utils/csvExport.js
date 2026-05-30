@@ -140,6 +140,55 @@ const drawFooter = (doc) => {
   }
 };
 
+const drawSectionTitle = (doc, title, y) => {
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  if (y > doc.internal.pageSize.getHeight() - 40) {
+    doc.addPage();
+    y = 26;
+  }
+
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(14, y, pageWidth - 28, 10, 2, 2, 'F');
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text(title, 18, y + 6.5);
+
+  return y + 14;
+};
+
+const drawMetadata = (doc, metadata, startY) => {
+  if (!metadata?.length) return startY;
+
+  autoTable(doc, {
+    body: metadata.map((item) => [item.label, item.value]),
+    startY,
+    theme: 'plain',
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: { top: 2, right: 3, bottom: 2, left: 3 },
+      textColor: [71, 85, 105],
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 44 },
+      1: { cellWidth: 'auto' },
+    },
+    margin: { left: 17, right: 17 },
+  });
+
+  return doc.lastAutoTable.finalY + 8;
+};
+
+const drawEmptySection = (doc, y) => {
+  doc.setTextColor(100, 116, 139);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.text('Sin registros para este periodo.', 18, y);
+  return y + 8;
+};
+
 export const downloadJsonCsv = (rows, columns, filename) => {
   const csv = serializeCsv(rows, columns);
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -200,6 +249,86 @@ export const downloadJsonPdf = (rows, columns, filename, title = 'Reporte') => {
         doc.text(title, 14, 10);
       }
     },
+  });
+
+  drawFooter(doc);
+  doc.save(filename);
+};
+
+export const downloadSectionedPdf = ({
+  title = 'Reporte general',
+  filename = 'reporte_general.pdf',
+  description = '',
+  metadata = [],
+  sections = [],
+}) => {
+  const doc = new jsPDF();
+  const totalRows = sections.reduce((sum, section) => sum + (section.rows?.length || 0), 0);
+  let cursorY = drawHeader(doc, title, [{ total: totalRows }], [{ header: 'Registros', accessor: 'total' }]);
+
+  if (description) {
+    doc.setTextColor(71, 85, 105);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text(description, 18, cursorY - 6, { maxWidth: doc.internal.pageSize.getWidth() - 36 });
+  }
+
+  cursorY = drawMetadata(doc, metadata, cursorY);
+
+  sections.forEach((section) => {
+    cursorY = drawSectionTitle(doc, section.title, cursorY);
+
+    if (!section.rows?.length) {
+      cursorY = drawEmptySection(doc, cursorY);
+      return;
+    }
+
+    const { headers, body } = buildPdfTableData(section.rows, section.columns);
+
+    autoTable(doc, {
+      head: [headers],
+      body,
+      startY: cursorY,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: '#ffffff',
+        fontSize: 7,
+        fontStyle: 'bold',
+        halign: 'center',
+        cellPadding: { top: 3, right: 2, bottom: 3, left: 2 },
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      bodyStyles: {
+        fontSize: 7,
+        textColor: [51, 65, 85],
+        cellPadding: { top: 2.5, right: 2, bottom: 2.5, left: 2 },
+        lineColor: [226, 232, 240],
+        lineWidth: 0.1,
+      },
+      styles: {
+        overflow: 'linebreak',
+        cellWidth: 'wrap',
+        font: 'helvetica',
+        valign: 'middle',
+      },
+      margin: { left: 14, right: 14 },
+      pageBreak: 'auto',
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) {
+          doc.setFillColor(15, 23, 42);
+          doc.rect(0, 0, doc.internal.pageSize.getWidth(), 16, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9);
+          doc.text(title, 14, 10);
+        }
+      },
+    });
+
+    cursorY = doc.lastAutoTable.finalY + 12;
   });
 
   drawFooter(doc);

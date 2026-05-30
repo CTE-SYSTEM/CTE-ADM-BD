@@ -114,7 +114,7 @@ const helpByPath = {
       ['3. Lee las tarjetas', 'Ingresos, compras de inventario, perdidas reales, ganancia neta y margen de servicios resumen la salud financiera. Toca una tarjeta para aislarla en la grafica.'],
       ['4. Cambia la etapa', 'En Balance por etapa alterna Semanal, Mensual o Anual para revisar la tendencia con la escala correcta.'],
       ['5. Revisa secciones', 'Margen por orden, control de activos, costos y perdidas, rentabilidad y movimientos recientes explican de donde salen los numeros.'],
-      ['6. Exporta evidencia', 'Cada bloque con exportacion permite descargar CSV o PDF: reporte general, margen por orden, activos, costos/perdidas y rentabilidad.'],
+      ['6. Exporta evidencia', 'Cada bloque con exportacion permite descargar CSV o PDF. El apartado Reporte general crea un PDF completo por semana, mes o anio segun la fecha base.'],
     ],
   },
   '/admin/tecnicos': {
