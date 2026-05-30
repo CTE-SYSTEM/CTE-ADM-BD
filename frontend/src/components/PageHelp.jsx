@@ -107,12 +107,14 @@ const helpByPath = {
   },
   '/admin/ganancias': {
     title: 'Mini tutorial de ganancias',
-    description: 'Analiza ingresos, costos y margen por periodo.',
+    description: 'Analiza ingresos, costos, rentabilidad, activos y exportaciones financieras por periodo.',
     steps: [
-      ['1. Selecciona periodo', 'Compara resultados por mes, anio o rango disponible.'],
-      ['2. Lee totales', 'Distingue facturacion, costos y utilidad.'],
-      ['3. Revisa detalle', 'Busca ordenes o facturas que expliquen cambios grandes.'],
-      ['4. Decide ajustes', 'Usa la informacion para ajustar mano de obra o margen de repuestos.'],
+      ['1. Define el periodo', 'Usa Semana, Mes, Trimestre, Anio o un rango manual. Periodo anterior mueve la vista al rango equivalente previo para comparar.'],
+      ['2. Consulta el reporte', 'Cambia el limite de detalle y presiona Consultar para recalcular totales, alertas, graficas y tablas del periodo.'],
+      ['3. Lee las tarjetas', 'Ingresos, compras de inventario, perdidas reales, ganancia neta y margen de servicios resumen la salud financiera. Toca una tarjeta para aislarla en la grafica.'],
+      ['4. Cambia la etapa', 'En Balance por etapa alterna Semanal, Mensual o Anual para revisar la tendencia con la escala correcta.'],
+      ['5. Revisa secciones', 'Margen por orden, control de activos, costos y perdidas, rentabilidad y movimientos recientes explican de donde salen los numeros.'],
+      ['6. Exporta evidencia', 'Cada bloque con exportacion permite descargar CSV o PDF: reporte general, margen por orden, activos, costos/perdidas y rentabilidad.'],
     ],
   },
   '/admin/tecnicos': {
@@ -269,8 +271,10 @@ const PageHelp = () => {
   const help = useMemo(() => resolveHelp(pathname), [pathname]);
 
   useEffect(() => {
-    setOpen(false);
-    setStepIndex(0);
+    Promise.resolve().then(() => {
+      setOpen(false);
+      setStepIndex(0);
+    });
   }, [pathname]);
 
   if (!help) return null;

@@ -4,6 +4,8 @@ import api from '../../services/api';
 import Table from '../../components/Table';
 import MetricBarChart from '../../components/MetricBarChart';
 
+const formatCurrency = (value) => `$ ${Number(value || 0).toFixed(2)}`;
+
 const summaryCards = [
   { title: 'Equipos', key: 'equipos', color: 'bg-sky-50 text-sky-700 border-sky-100' },
   { title: 'Repuestos', key: 'repuestos', color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
@@ -43,6 +45,7 @@ export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [equiposPreview, setEquiposPreview] = useState([]);
   const [productividad, setProductividad] = useState(null);
+  const [ganancias, setGanancias] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const showHelp = false;
@@ -51,15 +54,20 @@ export default function AdminDashboard() {
     const fetchDashboard = async () => {
       setLoading(true);
       try {
-        const [res, equiposRes, productividadRes] = await Promise.all([
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        const [res, equiposRes, productividadRes, gananciasRes] = await Promise.all([
           api.get('/admin_pro/dashboard'),
           api.get('/admin_pro/equipos'),
           api.get('/admin_pro/analitica/productividad'),
+          api.get(`/admin_pro/analitica/ganancias?fecha_inicio=${monthStart}&fecha_fin=${monthEnd}&detalle_limite=5`),
         ]);
         const data = res.data;
         if (data.data) {
           setDashboard(data.data);
           setProductividad(productividadRes.data?.data || null);
+          setGanancias(gananciasRes.data?.data || null);
           setEquiposPreview(
             (equiposRes.data?.data || []).slice(0, 6).map((equipo) => ({
               id_equipo: equipo.id_equipo,
@@ -131,6 +139,45 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
+
+          <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Resumen financiero del mes</h2>
+                <p className="text-sm text-gray-400">Acceso rapido a ganancias, rentabilidad y perdidas reales.</p>
+              </div>
+              <Link
+                to="/admin/ganancias"
+                className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700"
+              >
+                Ver ganancias
+              </Link>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                { label: 'Ganancia neta', value: formatCurrency(ganancias?.totals?.ganancia_neta), tone: 'text-indigo-600' },
+                { label: 'Rentabilidad', value: `${Number(ganancias?.totals?.rentabilidad_porcentaje || 0).toFixed(1)}%`, tone: 'text-emerald-600' },
+                { label: 'Ordenes facturadas', value: ganancias?.totals?.ordenes_procesadas || 0, tone: 'text-slate-900' },
+                { label: 'Perdidas reales', value: formatCurrency(ganancias?.totals?.perdidas_reales), tone: 'text-red-600' },
+                { label: 'Compras inventario', value: formatCurrency(ganancias?.totals?.compras_inventario), tone: 'text-sky-600' },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl border border-gray-100 bg-slate-50 p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{item.label}</p>
+                  <p className={`mt-1 text-xl font-extrabold ${item.tone}`}>{item.value}</p>
+                </div>
+              ))}
+            </div>
+            {(ganancias?.alertas || []).length > 0 && (
+              <div className="grid gap-3 lg:grid-cols-3">
+                {ganancias.alertas.slice(0, 3).map((alerta) => (
+                  <div key={`${alerta.titulo}-${alerta.detalle}`} className={`rounded-xl border p-3 ${alerta.nivel === 'alto' ? 'border-red-100 bg-red-50 text-red-800' : 'border-amber-100 bg-amber-50 text-amber-800'}`}>
+                    <p className="text-xs font-black uppercase">{alerta.titulo}</p>
+                    <p className="mt-1 text-xs font-semibold">{alerta.detalle}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
           <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
