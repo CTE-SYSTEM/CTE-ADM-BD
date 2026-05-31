@@ -10,14 +10,14 @@ import {
 } from '../middlewares/securityMiddleware.js';
 
 import authRoutes from '../routes/auth/auth.js';
-import clientesRoutes from '../routes/modules/secretaria/clientes.js';
+import clientesRoutes from '../routes/modules/secretaria/Clientes.js';
 import tecnicosRoutes from '../routes/modules/Tecnico/tecnicos.js';
-import equiposRoutes from '../routes/modules/secretaria/equipos.js';
+import equiposRoutes from '../routes/modules/secretaria/Equipos.js';
 import createOrden from '../routes/modules/secretaria/NuevaOrden.js';
 import repuestosRoutes from '../routes/modules/secretaria/Repuesto.js';
 import tiposRepuestoRoutes from '../routes/modules/secretaria/TipoRepuesto.js';
 import proveedoresRoutes from '../routes/modules/secretaria/Proveedores.js';
-import comprasRoutes from '../routes/modules/secretaria/compras.js';
+import comprasRoutes from '../routes/modules/secretaria/Compras.js';
 import facturasRoutes from '../routes/modules/secretaria/facturas.js';
 import garantiasRoutes from '../routes/modules/secretaria/garantias.js';
 import diagnosticoRoutes from '../routes/modules/secretaria/Diagnostico.js';
