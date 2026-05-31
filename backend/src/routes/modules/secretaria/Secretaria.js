@@ -4,9 +4,9 @@ import express from 'express';
 const router = express.Router();
 
 // Importamos las rutas específicas de Secretaría
-import clientesRoutes from './clientes.js';
-import equiposRoutes from './equipos.js';
-import comprasRoutes from './compras.js';
+import clientesRoutes from './Clientes.js';
+import equiposRoutes from './Equipos.js';
+import comprasRoutes from './Compras.js';
 import facturasRoutes from './facturas.js';
 import garantiasRoutes from './garantias.js';
 import diagnosticoRoutes from './Diagnostico.js';
