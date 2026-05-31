@@ -3,8 +3,30 @@ import prisma from '../../app/prismaClient.js';
 import { ORDEN_ESTADOS, PRIORIDADES, assertInList, parsePositiveId } from '../../utils/domainValidation.js';
 
 export const listarOrdenes = async () => {
-  const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_ordenes_secretaria()`);
-  return rows.map((row) => row.data);
+  try {
+    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_ordenes_secretaria()`);
+    return rows.map((row) => row.data);
+  } catch (error) {
+    console.warn('get_ordenes_secretaria() fallo; usando consulta Prisma como respaldo:', error.message);
+
+    return prisma.ordenes.findMany({
+      include: {
+        diagnostico: {
+          include: {
+            equipo: {
+              include: {
+                cliente: true,
+              },
+            },
+          },
+        },
+        tecnico: true,
+      },
+      orderBy: {
+        id_orden: 'desc',
+      },
+    });
+  }
 };
 
 export const listarDiagnosticosListosParaOrden = async () => {
