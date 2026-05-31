@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 
+// Columnas principales de la tabla de órdenes maestras
 const columns = [
   { header: 'ID', accessor: 'id_orden' },
   { header: 'Equipo', accessor: 'equipo' },
@@ -22,6 +23,16 @@ const columns = [
       </button>
     ),
   },
+];
+
+// Columnas de la tabla de repuestos vinculados a la orden
+const repuestosColumns = [
+  { header: 'Repuesto', accessor: 'nombre' },
+  { header: 'Categoría', accessor: 'categoria' },
+  { header: 'Pieza solicitada', accessor: 'pieza_solicitada' },
+  { header: 'Cantidad', accessor: 'cantidad_usada' },
+  { header: 'Aprobación', accessor: 'estado_aprobacion' },
+  { header: 'Costo Unitario', accessor: 'costo_unitario' },
 ];
 
 const statusOptions = [
@@ -54,9 +65,10 @@ const fetchOrdenes = async (setOrdenes, setLoading, setError) => {
       setError('No se pudo cargar la información de órdenes');
     }
   } catch (e) {
-    setError('Error de red o servidor');
+    setError('Error de red o servidor al intentar conectar.');
+  } finally {
+    setLoading(false);
   }
-  setLoading(false);
 };
 
 export default function OrdenesAvanzado() {
@@ -74,7 +86,6 @@ export default function OrdenesAvanzado() {
   const [repuestoError, setRepuestoError] = useState('');
   const [downloading, setDownloading] = useState(false);
 
-  // Referencia para manejar el desplazamiento automático
   const editSectionRef = useRef(null);
 
   useEffect(() => {
@@ -105,7 +116,6 @@ export default function OrdenesAvanzado() {
     setMessage('');
     loadRepuestosOrden(orden.id_orden);
 
-    // Auto-scroll suave asegurando que la sección ya exista en el DOM
     setTimeout(() => {
       editSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
@@ -155,14 +165,19 @@ export default function OrdenesAvanzado() {
     }
   };
 
-  const ordenesWithActions = ordenes.map((orden) => ({
-    ...orden,
-    onShowDetails: () => handleShowDetails(orden),
-  }));
+  // Mapeo seguro de callbacks de acción mediante memorización
+  const ordenesWithActions = useMemo(() => (
+    ordenes.map((orden) => ({
+      ...orden,
+      onShowDetails: () => handleShowDetails(orden),
+    }))
+  ), [ordenes]);
 
-  // Estadísticas simples calculadas en renderizado
-  const ordenesPendientes = ordenes.filter(o => o.estado === 'PENDIENTE').length;
-  const ordenesReparacion = ordenes.filter(o => o.estado === 'REPARACION').length;
+  // Indicadores estadísticos consolidados
+  const { ordenesPendientes, ordenesReparacion } = useMemo(() => ({
+    ordenesPendientes: ordenes.filter(o => o.estado === 'PENDIENTE').length,
+    ordenesReparacion: ordenes.filter(o => o.estado === 'REPARACION').length,
+  }), [ordenes]);
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -200,8 +215,8 @@ export default function OrdenesAvanzado() {
           <p className="text-sm text-gray-400">Listado Maestro de las hojas de servicio técnico generadas.</p>
         </div>
 
-        {loading && <div className="text-gray-400 text-center py-6">Consultando base de datos de órdenes...</div>}
-        {error && <div className="text-red-600 bg-red-50 p-4 rounded-xl">{error}</div>}
+        {loading && <div className="text-gray-400 text-center py-6 text-sm">Consultando base de datos de órdenes...</div>}
+        {error && <div className="text-red-600 bg-red-50 p-4 rounded-xl text-sm font-semibold">{error}</div>}
         
         {!loading && !error && (
           <div className="overflow-x-auto">
@@ -212,7 +227,7 @@ export default function OrdenesAvanzado() {
 
       {/* Editor y Gestión de Repuestos Avanzado */}
       {selectedOrden && (
-        <div ref={editSectionRef} className="grid gap-6 lg:grid-cols-3 pt-2 animate-fade-in">
+        <div ref={editSectionRef} className="grid gap-6 lg:grid-cols-3 pt-2 animate-fadeIn">
           
           {/* Controles de la Orden */}
           <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-5 h-fit">
@@ -223,15 +238,15 @@ export default function OrdenesAvanzado() {
 
             <div className="p-4 bg-slate-50 border border-gray-100 rounded-xl space-y-2 text-sm">
               <div>
-                <span className="text-xs text-gray-400 block font-bold uppercase">Cliente</span>
+                <span className="text-xs text-gray-400 block font-bold uppercase tracking-wide">Cliente</span>
                 <span className="font-semibold text-slate-700">{selectedOrden.cliente}</span>
               </div>
               <div>
-                <span className="text-xs text-gray-400 block font-bold uppercase">Equipo / Dispositivo</span>
+                <span className="text-xs text-gray-400 block font-bold uppercase tracking-wide">Equipo / Dispositivo</span>
                 <span className="font-semibold text-slate-700">{selectedOrden.equipo}</span>
               </div>
               <div>
-                <span className="text-xs text-gray-400 block font-bold uppercase">Estado Inicial</span>
+                <span className="text-xs text-gray-400 block font-bold uppercase tracking-wide">Estado Inicial</span>
                 <span className="inline-flex mt-1 rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 border border-indigo-100">{selectedOrden.estado}</span>
               </div>
             </div>
@@ -242,7 +257,7 @@ export default function OrdenesAvanzado() {
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 >
                   {statusOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -255,7 +270,7 @@ export default function OrdenesAvanzado() {
                 <select
                   value={assignedTechnician || ''}
                   onChange={(e) => setAssignedTechnician(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 >
                   <option value="">Sin asignar</option>
                   {technicians.map((tech) => (
@@ -270,7 +285,7 @@ export default function OrdenesAvanzado() {
                 type="button"
                 onClick={handleUpdateOrden}
                 disabled={saving}
-                className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition disabled:bg-slate-300 shadow-sm"
+                className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition disabled:bg-slate-300 shadow-sm disabled:cursor-not-allowed"
               >
                 {saving ? 'Guardando...' : 'Aplicar Cambios'}
               </button>
@@ -279,7 +294,7 @@ export default function OrdenesAvanzado() {
                 type="button"
                 onClick={handleDownloadRepuestosReport}
                 disabled={downloading}
-                className="w-full rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-200 transition disabled:bg-slate-300"
+                className="w-full rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-200 transition disabled:bg-slate-300 disabled:cursor-not-allowed"
               >
                 {downloading ? 'Exportando...' : 'Exportar CSV de repuestos'}
               </button>
@@ -305,7 +320,7 @@ export default function OrdenesAvanzado() {
             </div>
 
             {repuestoLoading && <div className="text-gray-400 text-center py-6 text-sm">Cargando lista de materiales...</div>}
-            {repuestoError && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-xl">{repuestoError}</div>}
+            {repuestoError && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-xl font-semibold">{repuestoError}</div>}
             
             {!repuestoLoading && !repuestoError && (
               <div className="overflow-x-auto">
@@ -314,16 +329,7 @@ export default function OrdenesAvanzado() {
                     Esta orden no requiere o no se le han asignado repuestos hasta el momento.
                   </div>
                 ) : (
-                  <Table
-                    columns={[
-                      { header: 'Repuesto', accessor: 'nombre' },
-                      { header: 'Categoría', accessor: 'categoria' },
-                      { header: 'Pieza solicitada', accessor: 'pieza_solicitada' },
-                      { header: 'Cantidad', accessor: 'cantidad_usada' },
-                      { header: 'Aprobación', accessor: 'estado_aprobacion' },
-                      { header: 'Costo Unitario', accessor: 'costo_unitario' },
-                    ]}
-                    data={repuestosOrden} sortable />
+                  <Table columns={repuestosColumns} data={repuestosOrden} sortable />
                 )}
               </div>
             )}

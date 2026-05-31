@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
+// Estructura estática de columnas extraída del renderizado para evitar consumo innecesario de memoria
 const columns = [
   { header: 'Técnico', accessor: 'tecnico' },
   { header: 'Diagnósticos asignados', accessor: 'diagnosticos_asignados' },
@@ -24,10 +25,13 @@ export default function RendimientoTecnicos() {
     setLoading(true);
     setError('');
     try {
-      const query = [];
-      if (fromDate) query.push(`fecha_inicio=${fromDate}`);
-      if (toDate) query.push(`fecha_fin=${toDate}`);
-      const url = `/admin_pro/reportes/tecnicos${query.length ? `?${query.join('&')}` : ''}`;
+      const params = new URLSearchParams();
+      if (fromDate) params.append('fecha_inicio', fromDate);
+      if (toDate) params.append('fecha_fin', toDate);
+
+      const queryString = params.toString();
+      const url = `/admin_pro/reportes/tecnicos${queryString ? `?${queryString}` : ''}`;
+      
       const res = await api.get(url);
       const reportData = res.data?.data || [];
       
@@ -36,11 +40,11 @@ export default function RendimientoTecnicos() {
           ...item,
           raw_facturado: Number(item.total_facturado) || 0,
           raw_completadas: Number(item.ordenes_finalizadas) || 0,
-          total_facturado: item.total_facturado ? `$ ${Number(item.total_facturado).toFixed(2)}` : '$ 0.00',
+          total_facturado: item.total_facturado ? `C$ ${Number(item.total_facturado).toFixed(2)}` : 'C$ 0.00',
         }))
       );
     } catch (err) {
-      setError('No se pudo cargar el rendimiento de técnicos.');
+      setError('No se pudo cargar el reporte de rendimiento de técnicos.');
     } finally {
       setLoading(false);
     }
@@ -72,9 +76,13 @@ export default function RendimientoTecnicos() {
     }
   };
 
-  // Cálculo dinámico de totales globales para las tarjetas informativas
-  const facturacionGlobal = data.reduce((acc, item) => acc + (item.raw_facturado || 0), 0);
-  const totalOrdenesCerradas = data.reduce((acc, item) => acc + (item.raw_completadas || 0), 0);
+  // Reducción y cálculos optimizados mediante memorización de dependencias
+  const { facturacionGlobal, totalOrdenesCerradas } = useMemo(() => {
+    return {
+      facturacionGlobal: data.reduce((acc, item) => acc + (item.raw_facturado || 0), 0),
+      totalOrdenesCerradas: data.reduce((acc, item) => acc + (item.raw_completadas || 0), 0)
+    };
+  }, [data]);
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -120,14 +128,14 @@ export default function RendimientoTecnicos() {
                 type="button"
                 onClick={fetchReport}
                 disabled={loading}
-                className="rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300"
+                className="rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed"
               >
                 Consultar
               </button>
               <button
                 type="button"
                 onClick={downloadReportCsv}
-                disabled={downloading || data.length === 0}
+                disabled={downloading || loading || data.length === 0}
                 className="rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
               >
                 CSV
@@ -135,7 +143,7 @@ export default function RendimientoTecnicos() {
               <button
                 type="button"
                 onClick={downloadReportPdf}
-                disabled={downloading || data.length === 0}
+                disabled={downloading || loading || data.length === 0}
                 className="rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
               >
                 PDF
@@ -147,10 +155,10 @@ export default function RendimientoTecnicos() {
 
       {/* Grid de Resumen de Productividad General */}
       {!loading && !error && data.length > 0 && (
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 animate-fadeIn">
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Facturación de Taller</p>
-            <p className="mt-1 text-2xl font-extrabold text-slate-900">$ {facturacionGlobal.toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">C$ {facturacionGlobal.toFixed(2)}</p>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Órdenes Finalizadas</p>

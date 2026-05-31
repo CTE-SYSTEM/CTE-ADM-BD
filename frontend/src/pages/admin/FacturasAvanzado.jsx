@@ -17,7 +17,7 @@ const columns = [
   { 
     header: 'Total', 
     accessor: 'total',
-    render: (row) => row.total ? `$ ${Number(row.total).toFixed(2)}` : '$ 0.00'
+    render: (row) => row.total ? `C$ ${Number(row.total).toFixed(2)}` : 'C$ 0.00'
   },
   { header: 'Método de Pago', accessor: 'metodo_pago' },
 ];
@@ -71,7 +71,7 @@ export default function FacturasAvanzado() {
       const exportData = facturas.map(f => ({
         ...f,
         fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '-',
-        total: `$ ${f.total.toFixed(2)}`
+        total: `C$ ${f.total.toFixed(2)}`
       }));
       downloadJsonCsv(exportData, columns, `control_facturas_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
     } catch (err) {
@@ -88,7 +88,7 @@ export default function FacturasAvanzado() {
       const exportData = facturas.map(f => ({
         ...f,
         fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '-',
-        total: `$ ${f.total.toFixed(2)}`
+        total: `C$ ${f.total.toFixed(2)}`
       }));
       downloadJsonPdf(exportData, columns, `control_facturas_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Reporte de control de facturas');
     } catch (err) {
@@ -100,14 +100,14 @@ export default function FacturasAvanzado() {
 
   const totalIngresos = facturas.reduce((acc, f) => acc + f.total, 0);
   const operacionesEfectivo = facturas.filter(f => f.metodo_pago.toLowerCase().includes('efectivo')).length;
-  const operacionesDigital = facturas.length - operacionesEfectivo;
+  const operationsDigital = facturas.length - operacionesEfectivo;
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
       
       {/* Encabezado Principal */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Visualizacion y control de facturas</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Visualización y control de facturas</h1>
         <p className="text-gray-400 text-sm mt-0.5">Analiza los ingresos percibidos del taller por rangos de fecha y métodos de pago.</p>
       </div>
 
@@ -116,7 +116,7 @@ export default function FacturasAvanzado() {
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">Ingresos Totales (Rango)</p>
-            <p className="mt-1 text-2xl font-extrabold text-slate-900">$ {totalIngresos.toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">C$ {totalIngresos.toFixed(2)}</p>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Flujo en Efectivo</p>
@@ -124,7 +124,7 @@ export default function FacturasAvanzado() {
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100 col-span-2 md:col-span-1">
             <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Bancos / Medios Digitales</p>
-            <p className="mt-1 text-2xl font-extrabold text-slate-900">{operacionesDigital} operaciones</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{operationsDigital} operaciones</p>
           </div>
         </div>
       )}
@@ -139,10 +139,9 @@ export default function FacturasAvanzado() {
             <p className="text-sm text-gray-400">Selecciona fechas de emisión para acotar los libros contables.</p>
           </div>
           
-          {/* MODIFICACIÓN: Cambiamos a estructura flex para controlar el ancho de las fechas al milímetro */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 w-full lg:w-auto dynamic-filters">
             
-            {/* Input Desde - Reducido con max-w-[150px] */}
+            {/* Input Desde */}
             <div className="w-full sm:w-[150px] shrink-0">
               <span className="text-xs font-bold text-gray-500 uppercase block">Desde</span>
               <input
@@ -153,7 +152,7 @@ export default function FacturasAvanzado() {
               />
             </div>
 
-            {/* Input Hasta - Reducido con max-w-[150px] */}
+            {/* Input Hasta */}
             <div className="w-full sm:w-[150px] shrink-0">
               <span className="text-xs font-bold text-gray-500 uppercase block">Hasta</span>
               <input
@@ -164,7 +163,7 @@ export default function FacturasAvanzado() {
               />
             </div>
             
-            {/* Grupo de Acciones Rápidas - Mantiene tamaños horizontales fijos con un padding perfecto */}
+            {/* Grupo de Acciones Rápidas */}
             <div className="flex gap-2 items-end w-full sm:w-auto mt-2 sm:mt-0">
               <button
                 type="button"

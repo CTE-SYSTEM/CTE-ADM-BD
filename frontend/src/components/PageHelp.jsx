@@ -264,7 +264,7 @@ const resolveHelp = (pathname) => {
   return helpByPath[pathname] || defaultHelp;
 };
 
-const PageHelp = () => {
+const PageHelp = ({ compact = false }) => {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
@@ -302,8 +302,8 @@ const PageHelp = () => {
   };
 
   return (
-    <section className="mb-6">
-      <div className="mb-3 flex justify-end">
+    <section className={compact ? "" : "mb-6"}>
+      <div className={compact ? "flex justify-end" : "mb-3 flex justify-end"}>
         <button
           type="button"
           onClick={startTour}

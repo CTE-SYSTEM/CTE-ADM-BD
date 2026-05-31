@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
+// Estructura de columnas fija extraída fuera de la función del componente
 const columns = [
   { header: 'Repuesto', accessor: 'repuesto' },
   { header: 'Categoría', accessor: 'categoria' },
@@ -24,10 +25,13 @@ export default function RepuestosAvanzado() {
     setLoading(true);
     setError('');
     try {
-      const query = [];
-      if (fromDate) query.push(`fecha_inicio=${fromDate}`);
-      if (toDate) query.push(`fecha_fin=${toDate}`);
-      const url = `/admin_pro/reportes/repuestos_usados${query.length ? `?${query.join('&')}` : ''}`;
+      const params = new URLSearchParams();
+      if (fromDate) params.append('fecha_inicio', fromDate);
+      if (toDate) params.append('fecha_fin', toDate);
+
+      const queryString = params.toString();
+      const url = `/admin_pro/reportes/repuestos_usados${queryString ? `?${queryString}` : ''}`;
+      
       const res = await api.get(url);
       const data = res.data?.data || [];
       
@@ -36,8 +40,8 @@ export default function RepuestosAvanzado() {
           ...item,
           raw_costo_total: Number(item.costo_estimado_total) || 0,
           raw_cantidad: Number(item.cantidad_total) || 0,
-          costo_unitario: item.costo_unitario ? `$ ${Number(item.costo_unitario).toFixed(2)}` : '$ 0.00',
-          costo_estimado_total: item.costo_estimado_total ? `$ ${Number(item.costo_estimado_total).toFixed(2)}` : '$ 0.00',
+          costo_unitario: item.costo_unitario ? `C$ ${Number(item.costo_unitario).toFixed(2)}` : 'C$ 0.00',
+          costo_estimado_total: item.costo_estimado_total ? `C$ ${Number(item.costo_estimado_total).toFixed(2)}` : 'C$ 0.00',
         }))
       );
     } catch (err) {
@@ -73,9 +77,13 @@ export default function RepuestosAvanzado() {
     }
   };
 
-  // Cálculos dinámicos para las tarjetas informativas superiores
-  const totalInversion = report.reduce((acc, item) => acc + (item.raw_costo_total || 0), 0);
-  const totalPiezas = report.reduce((acc, item) => acc + (item.raw_cantidad || 0), 0);
+  // Memorización de cálculos globales para el panel informativo superior
+  const { totalInversion, totalPiezas } = useMemo(() => {
+    return {
+      totalInversion: report.reduce((acc, item) => acc + (item.raw_costo_total || 0), 0),
+      totalPiezas: report.reduce((acc, item) => acc + (item.raw_cantidad || 0), 0),
+    };
+  }, [report]);
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -121,14 +129,14 @@ export default function RepuestosAvanzado() {
                 type="button"
                 onClick={fetchReport}
                 disabled={loading}
-                className="rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300"
+                className="rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed"
               >
                 Consultar
               </button>
               <button
                 type="button"
                 onClick={downloadReportCsv}
-                disabled={downloading || report.length === 0}
+                disabled={downloading || loading || report.length === 0}
                 className="rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
               >
                 CSV
@@ -136,7 +144,7 @@ export default function RepuestosAvanzado() {
               <button
                 type="button"
                 onClick={downloadReportPdf}
-                disabled={downloading || report.length === 0}
+                disabled={downloading || loading || report.length === 0}
                 className="rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
               >
                 PDF
@@ -148,10 +156,10 @@ export default function RepuestosAvanzado() {
 
       {/* Grid de Resumen de Totales */}
       {!loading && !error && report.length > 0 && (
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 animate-fadeIn">
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Inversión Estimada</p>
-            <p className="mt-1 text-2xl font-extrabold text-slate-900">$ {totalInversion.toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">C$ {totalInversion.toFixed(2)}</p>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Unidades Desplegadas</p>

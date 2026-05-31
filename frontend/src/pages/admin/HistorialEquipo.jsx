@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 
+// Extraídas fuera del componente para evitar recreaciones innecesarias en cada render
 const columns = [
   { 
     header: 'Fecha / Hora', 
@@ -24,7 +25,7 @@ const columns = [
     accessor: 'ordenes',
     render: (row) => (
       <span className={`inline-flex items-center justify-center px-2 py-0.5 min-w-[24px] text-xs font-bold rounded-md ${
-        row.ordenes > 0 ? 'bg-indigo-50 text-indigo-700 font-bold' : 'bg-slate-100 text-gray-400'
+        row.ordenes > 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-gray-400'
       }`}>
         {row.ordenes}
       </span>

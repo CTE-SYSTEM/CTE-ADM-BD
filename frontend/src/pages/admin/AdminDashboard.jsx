@@ -4,7 +4,7 @@ import api from '../../services/api';
 import Table from '../../components/Table';
 import MetricBarChart from '../../components/MetricBarChart';
 
-const formatCurrency = (value) => `$ ${Number(value || 0).toFixed(2)}`;
+const formatCurrency = (value) => `C$ ${Number(value || 0).toFixed(2)}`;
 
 const summaryCards = [
   { title: 'Equipos', key: 'equipos', color: 'bg-sky-50 text-sky-700 border-sky-100' },
@@ -57,12 +57,14 @@ export default function AdminDashboard() {
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        
         const [res, equiposRes, productividadRes, gananciasRes] = await Promise.all([
           api.get('/admin_pro/dashboard'),
           api.get('/admin_pro/equipos'),
           api.get('/admin_pro/analitica/productividad'),
           api.get(`/admin_pro/analitica/ganancias?fecha_inicio=${monthStart}&fecha_fin=${monthEnd}&detalle_limite=5`),
         ]);
+
         const data = res.data;
         if (data.data) {
           setDashboard(data.data);
@@ -84,6 +86,7 @@ export default function AdminDashboard() {
       }
       setLoading(false);
     };
+
     fetchDashboard();
   }, []);
 
@@ -92,16 +95,23 @@ export default function AdminDashboard() {
       
       {/* Encabezado Principal */}
       <div>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Panel avanzado de administración</h1>
-          <p className="text-gray-400 text-sm mt-0.5">Accede rápidamente a los principales indicadores de la empresa.</p>
-        </div>
+        <h1 className="text-2xl font-bold text-slate-800">Panel avanzado de administración</h1>
+        <p className="text-gray-400 text-sm mt-0.5">Accede rápidamente a los principales indicadores de la empresa.</p>
       </div>
 
-      {loading && <div className="rounded-2xl bg-white p-6 shadow-sm text-gray-400 text-center">Cargando datos del panel...</div>}
-      {error && <div className="rounded-2xl bg-red-50 p-6 text-red-700 shadow-sm">{error}</div>}
+      {/* Estados de Carga y Error */}
+      {loading && (
+        <div className="rounded-2xl bg-white p-6 shadow-sm text-gray-400 text-center">
+          Cargando datos del panel...
+        </div>
+      )}
+      {error && (
+        <div className="rounded-2xl bg-red-50 p-6 text-red-700 shadow-sm">
+          {error}
+        </div>
+      )}
 
-      {/* Banner Informativo / Ayuda (Estilo Bloque Oscuro) */}
+      {/* Banner Informativo / Ayuda */}
       {showHelp && (
         <section className="rounded-2xl bg-slate-950 p-6 text-white shadow-sm space-y-4 animate-fade-in">
           <div>
@@ -123,9 +133,10 @@ export default function AdminDashboard() {
         </section>
       )}
 
+      {/* Contenido del Dashboard */}
       {dashboard && (
         <>
-          {/* Bloques de Métricas Recortadas (Cards) */}
+          {/* Tarjetas de Métricas Globales */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {summaryCards.map((card) => (
               <div key={card.key} className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100 flex flex-col justify-between min-h-[140px]">
@@ -140,11 +151,12 @@ export default function AdminDashboard() {
             ))}
           </div>
 
+          {/* Resumen Financiero */}
           <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">Resumen financiero del mes</h2>
-                <p className="text-sm text-gray-400">Acceso rapido a ganancias, rentabilidad y perdidas reales.</p>
+                <p className="text-sm text-gray-400">Acceso rápido a ganancias, rentabilidad y pérdidas reales.</p>
               </div>
               <Link
                 to="/admin/ganancias"
@@ -153,6 +165,7 @@ export default function AdminDashboard() {
                 Ver ganancias
               </Link>
             </div>
+            
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {[
                 { label: 'Ganancia neta', value: formatCurrency(ganancias?.totals?.ganancia_neta), tone: 'text-indigo-600' },
@@ -167,6 +180,8 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+
+            {/* Alertas Financieras */}
             {(ganancias?.alertas || []).length > 0 && (
               <div className="grid gap-3 lg:grid-cols-3">
                 {ganancias.alertas.slice(0, 3).map((alerta) => (
@@ -179,17 +194,18 @@ export default function AdminDashboard() {
             )}
           </section>
 
+          {/* Gráficas de Productividad */}
           <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">Productividad mensual y anual</h2>
-                <p className="text-sm text-gray-400">Compara diagnosticos, ordenes cerradas y facturacion del equipo tecnico.</p>
+                <p className="text-sm text-gray-400">Compara diagnósticos, órdenes cerradas y facturación del equipo técnico.</p>
               </div>
               <Link
                 to="/admin/tecnicos"
                 className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
               >
-                Ver tecnicos
+                Ver técnicos
               </Link>
             </div>
 
@@ -205,8 +221,8 @@ export default function AdminDashboard() {
                   }))}
                   labelKey="etiqueta"
                   series={[
-                    { key: 'diagnosticos', label: 'Diagnosticos', color: '#4f46e5' },
-                    { key: 'ordenes_finalizadas', label: 'Ordenes cerradas', color: '#059669' },
+                    { key: 'diagnosticos', label: 'Diagnósticos', color: '#4f46e5' },
+                    { key: 'ordenes_finalizadas', label: 'Órdenes cerradas', color: '#059669' },
                   ]}
                 />
               </div>
@@ -222,15 +238,15 @@ export default function AdminDashboard() {
                   }))}
                   labelKey="etiqueta"
                   series={[
-                    { key: 'diagnosticos', label: 'Diagnosticos', color: '#4f46e5' },
-                    { key: 'ordenes_finalizadas', label: 'Ordenes cerradas', color: '#059669' },
+                    { key: 'diagnosticos', label: 'Diagnósticos', color: '#4f46e5' },
+                    { key: 'ordenes_finalizadas', label: 'Órdenes cerradas', color: '#059669' },
                   ]}
                 />
               </div>
             </div>
           </section>
 
-          {/* Grid de Contenido Principal (Tablas Balanceadas) */}
+          {/* Grid de Tablas de Monitoreo */}
           <div className="grid gap-6 lg:grid-cols-2">
             
             {/* Órdenes Recientes */}
@@ -263,7 +279,7 @@ export default function AdminDashboard() {
               </div>
             </section>
 
-            {/* Garantías por Vencer (Ocupa el ancho completo en pantallas grandes si queda sola) */}
+            {/* Garantías por Vencer */}
             <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 lg:col-span-2">
               <div className="mb-4">
                 <h2 className="text-lg font-bold text-slate-800">Garantías por vencer</h2>
@@ -275,10 +291,10 @@ export default function AdminDashboard() {
             </section>
           </div>
 
-          {/* Sección Unificada de Acciones Rápidas */}
+          {/* Módulos de Acceso Rápido */}
           <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
             <h2 className="text-lg font-bold text-slate-800 mb-4">Módulos de acceso rápido</h2>
-            <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-7">
               <Link to="/admin/usuarios" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Usuarios</Link>
               <Link to="/admin/equipos" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Equipos</Link>
               <Link to="/admin/ordenes" className="rounded-xl border border-gray-200 bg-slate-50 p-3.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition">Órdenes</Link>

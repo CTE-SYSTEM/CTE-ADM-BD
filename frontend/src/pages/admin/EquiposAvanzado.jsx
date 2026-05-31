@@ -280,7 +280,7 @@ export default function EquiposAvanzado() {
         </section>
       )}
 
-      {/* Grid Superior de Métricas (Limpio y unificado) */}
+      {/* Grid Superior de Métricas */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Encontrados</p>
@@ -368,7 +368,7 @@ export default function EquiposAvanzado() {
         )}
       </div>
 
-      {/* Panel Detalle de Historial y Diagnóstico (Se activa al seleccionar) */}
+      {/* Panel Detalle de Historial y Diagnóstico */}
       {selectedEquipo && (
         <div className="grid gap-6 lg:grid-cols-3 animate-fade-in">
           

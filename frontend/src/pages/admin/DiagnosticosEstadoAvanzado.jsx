@@ -3,7 +3,6 @@ import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
-// Definimos las columnas usando render() para formatear visualmente los presupuestos
 const columns = [
   { header: 'Estado', accessor: 'estado' },
   { header: 'Aprobación', accessor: 'aprobacion' },
@@ -11,12 +10,12 @@ const columns = [
   { 
     header: 'Presupuesto total', 
     accessor: 'presupuesto_total',
-    render: (row) => row.presupuesto_total ? `$ ${Number(row.presupuesto_total).toFixed(2)}` : '$ 0.00'
+    render: (row) => row.presupuesto_total ? `C$ ${Number(row.presupuesto_total).toFixed(2)}` : 'C$ 0.00'
   },
   { 
     header: 'Promedio', 
     accessor: 'presupuesto_promedio',
-    render: (row) => row.presupuesto_promedio ? `$ ${Number(row.presupuesto_promedio).toFixed(2)}` : '$ 0.00'
+    render: (row) => row.presupuesto_promedio ? `C$ ${Number(row.presupuesto_promedio).toFixed(2)}` : 'C$ 0.00'
   },
 ];
 
@@ -36,10 +35,10 @@ export default function DiagnosticosEstadoAvanzado() {
       if (fromDate) query.push(`fecha_inicio=${fromDate}`);
       if (toDate) query.push(`fecha_fin=${toDate}`);
       const url = `/admin_pro/reportes/diagnosticos_estado${query.length ? `?${query.join('&')}` : ''}`;
+      
       const res = await api.get(url);
       const reportData = res.data?.data || [];
       
-      // Guardamos números puros para que el sortable ordene los montos exactamente
       setData(
         reportData.map((item) => ({
           ...item,
@@ -62,11 +61,10 @@ export default function DiagnosticosEstadoAvanzado() {
     setDownloading(true);
     setError('');
     try {
-      // Formateamos temporalmente para la salida de los archivos planos
       const exportData = data.map(item => ({
         ...item,
-        presupuesto_total: `$ ${item.presupuesto_total.toFixed(2)}`,
-        presupuesto_promedio: `$ ${item.presupuesto_promedio.toFixed(2)}`
+        presupuesto_total: `C$ ${item.presupuesto_total.toFixed(2)}`,
+        presupuesto_promedio: `C$ ${item.presupuesto_promedio.toFixed(2)}`
       }));
       downloadJsonCsv(exportData, columns, `diagnosticos_estado_${fromDate || 'desde'}_${toDate || 'hasta'}.csv`);
     } catch (err) {
@@ -82,8 +80,8 @@ export default function DiagnosticosEstadoAvanzado() {
     try {
       const exportData = data.map(item => ({
         ...item,
-        presupuesto_total: `$ ${item.presupuesto_total.toFixed(2)}`,
-        presupuesto_promedio: `$ ${item.presupuesto_promedio.toFixed(2)}`
+        presupuesto_total: `C$ ${item.presupuesto_total.toFixed(2)}`,
+        presupuesto_promedio: `C$ ${item.presupuesto_promedio.toFixed(2)}`
       }));
       downloadJsonPdf(exportData, columns, `diagnosticos_estado_${fromDate || 'desde'}_${toDate || 'hasta'}.pdf`, 'Diagnósticos por estado');
     } catch (err) {
@@ -112,7 +110,6 @@ export default function DiagnosticosEstadoAvanzado() {
             <p className="text-sm text-gray-400">Selecciona el rango para ver las métricas de diagnóstico.</p>
           </div>
           
-          {/* Estructura Flex equilibrada para el manejo seguro de los anchos */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 w-full lg:w-auto">
             
             {/* Input Desde */}
@@ -137,7 +134,7 @@ export default function DiagnosticosEstadoAvanzado() {
               />
             </div>
             
-            {/* Grupo de Acciones Rápidas con protección whitespace-nowrap */}
+            {/* Grupo de Acciones Rápidas */}
             <div className="flex gap-2 items-end w-full sm:w-auto mt-2 sm:mt-0">
               <button
                 type="button"
@@ -180,7 +177,6 @@ export default function DiagnosticosEstadoAvanzado() {
                 No se encontraron diagnósticos ni presupuestos registrados en el rango seleccionado.
               </div>
             ) : (
-              /* Pasamos sortable para habilitar la ordenación interactiva */
               <Table columns={columns} data={data} sortable />
             )}
           </div>

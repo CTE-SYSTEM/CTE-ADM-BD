@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
+// Estructura estática extraída fuera del render para optimizar memoria
 const columns = [
   { header: 'ID', accessor: 'id_repuesto' },
   { header: 'Repuesto', accessor: 'repuesto' },
@@ -25,6 +26,13 @@ const columns = [
       </button>
     ),
   },
+];
+
+const historialColumns = [
+  { header: 'Fecha instalación', accessor: 'fecha_instalacion' },
+  { header: 'Equipo / Dispositivo', accessor: 'equipo' },
+  { header: 'Cliente asignado', accessor: 'cliente' },
+  { header: 'Número de Orden', accessor: 'orden' },
 ];
 
 const fetchInventario = async (setRepuestos, setLoading, setError) => {
@@ -120,26 +128,31 @@ export default function InventarioAvanzado() {
     }
   };
 
-  // Filtrado de componentes en base al buscador
-  const filteredRepuestos = repuestos.filter((repuesto) => {
+  // Filtrado optimizado de componentes
+  const filteredRepuestos = useMemo(() => {
     const term = searchText.trim().toLowerCase();
-    if (!term) return true;
-    return [
-      repuesto.repuesto,
-      repuesto.categoria,
-      repuesto.ultimo_costo,
-    ].some((field) => field?.toString().toLowerCase().includes(term));
-  });
+    if (!term) return repuestos;
+    return repuestos.filter((repuesto) => 
+      [repuesto.repuesto, repuesto.categoria, repuesto.ultimo_costo].some((field) => 
+        field?.toString().toLowerCase().includes(term)
+      )
+    );
+  }, [searchText, repuestos]);
 
-  const repuestosWithActions = filteredRepuestos.map((repuesto) => ({
-    ...repuesto,
-    onViewHistory: () => handleViewHistory(repuesto),
-  }));
+  // Inyección segura de callbacks para las acciones de la tabla
+  const repuestosWithActions = useMemo(() => (
+    filteredRepuestos.map((repuesto) => ({
+      ...repuesto,
+      onViewHistory: () => handleViewHistory(repuesto),
+    }))
+  ), [filteredRepuestos]);
 
-  // Cálculos consolidados para el panel de indicadores de control
-  const totalItemsDistintos = repuestos.length;
-  const totalStockDisponible = repuestos.reduce((acc, item) => acc + item.raw_stock, 0);
-  const totalUsosHistoricos = repuestos.reduce((acc, item) => acc + item.raw_usos, 0);
+  // KPIs consolidados de la parte superior
+  const { totalItemsDistintos, totalStockDisponible, totalUsosHistoricos } = useMemo(() => ({
+    totalItemsDistintos: repuestos.length,
+    totalStockDisponible: repuestos.reduce((acc, item) => acc + item.raw_stock, 0),
+    totalUsosHistoricos: repuestos.reduce((acc, item) => acc + item.raw_usos, 0),
+  }), [repuestos]);
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -255,14 +268,7 @@ export default function InventarioAvanzado() {
                   Este repuesto está registrado en el inventario pero no se ha instalado en ningún equipo hasta la fecha.
                 </div>
               ) : (
-                <Table
-                  columns={[
-                    { header: 'Fecha instalación', accessor: 'fecha_instalacion' },
-                    { header: 'Equipo / Dispositivo', accessor: 'equipo' },
-                    { header: 'Cliente asignado', accessor: 'cliente' },
-                    { header: 'Número de Orden', accessor: 'orden' },
-                  ]}
-                  data={historial} sortable />
+                <Table columns={historialColumns} data={historial} sortable />
               )}
             </div>
           )}

@@ -1,0 +1,42 @@
+import React from 'react';
+import { CierreOrdenModal, DiagnosticoModal, SolicitarRepuestoModal } from '../../../components/Tecnico/TecnicoModals';
+
+export const TecnicoDashboardModals = ({
+  modalRepuesto,
+  modalDiagnostico,
+  modalCierre,
+  repuestosCatalogo,
+  onCloseRepuesto,
+  onCloseDiagnostico,
+  onCloseCierre,
+  onSolicitarRepuesto,
+  onGuardarDiagnostico,
+  onCerrarOrden,
+}) => (
+  <>
+    {modalRepuesto && (
+      <SolicitarRepuestoModal
+        orden={modalRepuesto}
+        repuestos={repuestosCatalogo}
+        onClose={onCloseRepuesto}
+        onSubmit={onSolicitarRepuesto}
+      />
+    )}
+    {modalDiagnostico && (
+      <DiagnosticoModal
+        orden={modalDiagnostico}
+        readOnly={modalDiagnostico.readOnly}
+        onClose={onCloseDiagnostico}
+        onSubmit={onGuardarDiagnostico}
+      />
+    )}
+    {modalCierre && (
+      <CierreOrdenModal
+        orden={modalCierre.orden}
+        estado={modalCierre.estado}
+        onClose={onCloseCierre}
+        onSubmit={onCerrarOrden}
+      />
+    )}
+  </>
+);

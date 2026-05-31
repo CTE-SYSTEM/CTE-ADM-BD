@@ -1,35 +1,32 @@
-// frontend/src/pages/TecnicoJefe/TecnicoJefeDashboard.jsx
-
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  AlertTriangle,
-  Bell,
-  History,
-  Package,
-  Search,
-  Settings,
-  ShieldCheck,
-} from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
-import PageHelp from '../../components/PageHelp';
 import { diagnosticoService } from '../../services/JefeTecnico/DiagnosticoService';
 import { ordenesService } from '../../services/secretaria/ordenesService';
 import { repuestoService } from '../../services/secretaria/repuestosService';
 import { createNotificationsSocket } from '../../services/notificationsSocket';
-import Table from '../../components/Table';
-import { buildAsignacionColumns, buildCorreccionesColumns, buildRepuestosColumns } from './columns';
-import { CorrectionModal, DashboardHeader, DetailModal, NotificationTray, StatCard, TabButton } from './components';
-import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_ORDENES, TAB_REPUESTOS } from './constants';
-import { 
-  getCorreccionId, 
-  getCorreccionTipo, 
-  getData, 
-  getMinutosDesdeUltimoAvance, 
-  getRowKey, 
+import { buildAsignacionColumns, buildCorreccionesColumns, buildRepuestosColumns } from '../../components/TecnicoJefe/columns';
+import { DashboardHeader, NotificationTray } from '../../components/TecnicoJefe/components';
+import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_ORDENES, TAB_REPUESTOS } from '../../utils/jefeTecnicoConstants';
+import {
+  getCorreccionId,
+  getCorreccionTipo,
+  getData,
+  getEquipo,
+  getMinutosDesdeUltimoAvance,
+  getRowKey,
   getTecnicoId,
-  getEquipo 
-} from './utils';
+} from '../../utils/jefeTecnicoUtils';
+import {
+  AsignacionesRecientes,
+  CorreccionesSearch,
+  JefeTecnicoIntro,
+  JefeTecnicoMessages,
+  JefeTecnicoStats,
+  JefeTecnicoTablePanel,
+  JefeTecnicoTabs,
+} from './sections/JefeTecnicoSections';
+import { JefeTecnicoDashboardModals } from './sections/JefeTecnicoDashboardModals';
 
 const JefeDashboard = () => {
   const { user, logout } = useContext(AuthContext);
@@ -49,7 +46,6 @@ const JefeDashboard = () => {
   const [asignacionOk, setAsignacionOk] = useState('');
   const [repuestoDecisionError, setRepuestoDecisionError] = useState('');
   const [repuestoDecisionOk, setRepuestoDecisionOk] = useState('');
-
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -61,48 +57,11 @@ const JefeDashboard = () => {
   const [socketConnected, setSocketConnected] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [showHelp, setShowHelp] = useState(false);
-  
-  // Buscador de la pestaña de correcciones
+  const [showHelp] = useState(false);
   const [searchTermCorrecciones, setSearchTermCorrecciones] = useState('');
 
   const rolNormalizado = String(user?.rol || '').toLowerCase();
   const esJefeTecnico = rolNormalizado.includes('jefe');
-
-  useEffect(() => {
-    if (user && !esJefeTecnico) {
-      navigate('/');
-    }
-  }, [user, esJefeTecnico, navigate]);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (!esJefeTecnico) return undefined;
-
-    const socket = createNotificationsSocket();
-    if (!socket) return undefined;
-
-    socket.on('connect', () => setSocketConnected(true));
-    socket.on('disconnect', () => setSocketConnected(false));
-    socket.on('notificacion', (notification) => {
-      setNotifications((prev) => [notification, ...prev].slice(0, 25));
-      fetchData();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [esJefeTecnico]);
-
-  useEffect(() => {
-    if (!selectedItem || selectedItem.id_detalle_repuesto) return;
-
-    const id = selectedItem.id_diagnostico || selectedItem.id_orden;
-    if (id) fetchDetalles(selectedItem);
-  }, [selectedItem]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -144,48 +103,68 @@ const JefeDashboard = () => {
     }
   };
 
+  useEffect(() => {
+    if (user && !esJefeTecnico) {
+      navigate('/');
+    }
+  }, [user, esJefeTecnico, navigate]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (!esJefeTecnico) return undefined;
+
+    const socket = createNotificationsSocket();
+    if (!socket) return undefined;
+
+    socket.on('connect', () => setSocketConnected(true));
+    socket.on('disconnect', () => setSocketConnected(false));
+    socket.on('notificacion', (notification) => {
+      setNotifications((prev) => [notification, ...prev].slice(0, 25));
+      fetchData();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [esJefeTecnico]);
+
+  useEffect(() => {
+    if (!selectedItem || selectedItem.id_detalle_repuesto) return;
+
+    const id = selectedItem.id_diagnostico || selectedItem.id_orden;
+    if (id) fetchDetalles(selectedItem);
+  }, [selectedItem]);
+
   const correccionesData = useMemo(() => [
     ...(correcciones.diagnosticos || []).map((item) => ({ ...item, __tipo: 'diagnostico' })),
     ...(correcciones.ordenes || []).map((item) => ({ ...item, __tipo: 'orden' })),
     ...(correcciones.repuestos || []).map((item) => ({ ...item, __tipo: 'repuesto' })),
   ], [correcciones]);
 
-  // 👉 LÓGICA DE FILTRADO COMPLETA (Filtra "Sin Técnico", controla el trigger de 1 hora y busca)
   const correccionesFiltradas = useMemo(() => {
-    const LIMITE_MINUTOS = 60; // 1 Hora exacta de gracia
+    const limiteMinutos = 60;
 
     return correccionesData.filter((row) => {
-      // REGLA 1: Excluir estrictamente si no tiene técnico asignado (Evita falsos positivos en la lista)
-      if (!getTecnicoId(row)) return false; 
+      if (!getTecnicoId(row)) return false;
 
-      // REGLA 2: Trigger de tiempo límite (Máximo 60 minutos)
       const minutosTranscurridos = getMinutosDesdeUltimoAvance(row);
-      if (minutosTranscurridos !== null && minutosTranscurridos >= LIMITE_MINUTOS) {
-        return false; 
-      }
-
-      // REGLA 3: Buscador de texto
+      if (minutosTranscurridos !== null && minutosTranscurridos >= limiteMinutos) return false;
       if (!searchTermCorrecciones) return true;
 
       const term = searchTermCorrecciones.toLowerCase();
       const tipo = getCorreccionTipo(row);
       const id = String(getCorreccionId(row));
       const tecnicoNombre = (row.tecnico?.nombre || row.orden?.tecnico?.nombre || row.diagnostico?.tecnico?.nombre || '').toLowerCase();
-      
-      // Obtener la descripción del equipo usando tu helper getEquipo
       const infoEquipo = getEquipo(row);
       const equipoNombre = (infoEquipo?.descripcion || infoEquipo?.marca || '').toLowerCase();
-      
-      return (
-        id.includes(term) || 
-        tipo.toLowerCase().includes(term) || 
-        tecnicoNombre.includes(term) || 
-        equipoNombre.includes(term)
-      );
+
+      return id.includes(term) || tipo.toLowerCase().includes(term) || tecnicoNombre.includes(term) || equipoNombre.includes(term);
     });
   }, [correccionesData, searchTermCorrecciones]);
 
-  // Modificada para usar los minutos actuales de margen
   const puedeEditar = (row) => {
     if (!getTecnicoId(row)) return true;
     const minutos = getMinutosDesdeUltimoAvance(row);
@@ -215,7 +194,6 @@ const JefeDashboard = () => {
   const handleSaveAsignacion = async (row) => {
     const id = row.id_diagnostico || row.id_orden;
     const idTecnico = tecnicosSeleccionados[getRowKey(row)] || getTecnicoId(row);
-
     if (!id || !idTecnico || savingId) return;
 
     const tipo = row.id_orden ? 'orden' : 'diagnostico';
@@ -310,10 +288,6 @@ const JefeDashboard = () => {
     setShowEditModal(true);
   };
 
-  const handleEditField = (field, value) => {
-    setEditForm((prev) => ({ ...prev, [field]: value }));
-  };
-
   const closeEditModal = () => {
     setShowEditModal(false);
     setEditItem(null);
@@ -347,7 +321,6 @@ const JefeDashboard = () => {
     }
   };
 
-  // Mantenemos la lógica de alertas viejas (+72 horas = 4320 minutos)
   const alertasRetraso = useMemo(() => {
     const items = [...diagnosticosPendientes, ...ordenesAprobadas];
     return items.filter((item) => {
@@ -371,6 +344,7 @@ const JefeDashboard = () => {
     getTecnicoDisplay,
     onTecnicoChange: handleTecnicoChange,
     onSaveAsignacion: handleSaveAsignacion,
+    onEdit: openEditModal,
     onView: (row) => {
       setSelectedItem(row);
       setShowModal(true);
@@ -380,6 +354,11 @@ const JefeDashboard = () => {
   const repuestosColumns = buildRepuestosColumns({
     savingId,
     onDecisionRepuesto: handleDecisionRepuesto,
+    onViewDetalle: (row) => {
+      setSelectedItem(row);
+      setDetalles(row);
+      setShowModal(true);
+    },
   });
 
   const correccionesColumns = buildCorreccionesColumns({
@@ -394,7 +373,7 @@ const JefeDashboard = () => {
         : activeTab === TAB_REPUESTOS
           ? repuestosPendientes
           : activeTab === TAB_CORRECCIONES
-            ? correccionesFiltradas 
+            ? correccionesFiltradas
             : alertasRetraso;
 
   const mainColumns = activeTab === TAB_REPUESTOS
@@ -422,147 +401,69 @@ const JefeDashboard = () => {
       )}
 
       <main className="flex-1 container mx-auto p-8">
-        <div className="mb-8 flex flex-col gap-4 rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Centro de control tecnico</h2>
-            <p className="mt-1 text-sm font-semibold text-slate-400">Asignaciones, aprobaciones, alertas y correcciones del taller.</p>
-          </div>
-        </div>
-        <PageHelp />
+        <JefeTecnicoIntro showHelp={showHelp} />
 
-        {showHelp && (
-          <section className="mb-8 rounded-2xl bg-slate-950 p-6 text-white shadow-sm space-y-4 animate-fade-in">
-            <div>
-              <h2 className="text-lg font-bold">Mini tutorial del jefe tecnico</h2>
-              <p className="mt-1 text-sm text-slate-300">
-                Usa este panel para repartir trabajo, aprobar repuestos y corregir avances antes de que se acumulen retrasos.
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-                <p className="text-sm font-semibold text-blue-400">1. Revisa pendientes</p>
-                <p className="mt-1 text-xs text-slate-400">Las tarjetas muestran diagnosticos, ordenes, repuestos y alertas abiertas.</p>
-              </div>
-              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-                <p className="text-sm font-semibold text-indigo-400">2. Asigna tecnicos</p>
-                <p className="mt-1 text-xs text-slate-400">En diagnosticos y ordenes selecciona tecnico y guarda la asignacion.</p>
-              </div>
-              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-                <p className="text-sm font-semibold text-emerald-400">3. Aprueba repuestos</p>
-                <p className="mt-1 text-xs text-slate-400">Valida solicitudes de piezas antes de que pasen a facturacion.</p>
-              </div>
-              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-                <p className="text-sm font-semibold text-amber-400">4. Corrige a tiempo</p>
-                <p className="mt-1 text-xs text-slate-400">La pestana de correcciones permite ajustar tecnico, estado, prioridad o pieza.</p>
-              </div>
-            </div>
-          </section>
-        )}
+        <JefeTecnicoStats
+          diagnosticosPendientes={diagnosticosPendientes}
+          ordenesAprobadas={ordenesAprobadas}
+          repuestosPendientes={repuestosPendientes}
+          alertasRetraso={alertasRetraso}
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <StatCard icon={<Search size={22} />} label="Diag. sin asignar" value={diagnosticosPendientes.filter((d) => !getTecnicoId(d)).length} color="blue" />
-          <StatCard icon={<Package size={22} />} label="Ordenes por aprobar" value={ordenesAprobadas.filter((o) => !getTecnicoId(o)).length} color="amber" />
-          <StatCard icon={<ShieldCheck size={22} />} label="Repuestos por aprobar" value={repuestosPendientes.length} color="emerald" />
-          <StatCard icon={<AlertTriangle size={22} />} label="Alertas +72h" value={alertasRetraso.length} color="red" />
-        </div>
+        <AsignacionesRecientes
+          asignacionesRecientes={asignacionesRecientes}
+          asignacionColumns={asignacionColumns}
+        />
 
-        {asignacionesRecientes.length > 0 && (
-          <section className="mb-12">
-            <div className="flex items-center gap-3 mb-4 px-4">
-              <div className="p-2 bg-amber-100 text-amber-600 rounded-xl">
-                <History size={20} />
-              </div>
-              <h2 className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                Asignaciones recientes (Margen de edición)
-              </h2>
-            </div>
-            <div className="bg-white rounded-[2rem] shadow-xl border-2 border-amber-50 overflow-hidden">
-              <Table columns={asignacionColumns} data={asignacionesRecientes} />
-            </div>
-          </section>
-        )}
+        <JefeTecnicoTabs
+          activeTab={activeTab}
+          alertasRetraso={alertasRetraso}
+          correccionesFiltradas={correccionesFiltradas}
+          onChange={setActiveTab}
+        />
 
-        <div className="flex flex-wrap gap-3 mb-8">
-          <TabButton active={activeTab === TAB_DIAGNOSTICOS} onClick={() => setActiveTab(TAB_DIAGNOSTICOS)} icon={<Search size={16} />} label="Asignar Diagnosticos" />
-          <TabButton active={activeTab === TAB_ORDENES} onClick={() => setActiveTab(TAB_ORDENES)} icon={<Package size={16} />} label="Ordenes por aprobar" />
-          <TabButton active={activeTab === TAB_REPUESTOS} onClick={() => setActiveTab(TAB_REPUESTOS)} icon={<ShieldCheck size={16} />} label="Aprobacion de Repuestos" />
-          <TabButton active={activeTab === TAB_ALERTAS} onClick={() => setActiveTab(TAB_ALERTAS)} icon={<Bell size={16} />} label={`Alertas (${alertasRetraso.length})`} />
-          <TabButton active={activeTab === TAB_CORRECCIONES} onClick={() => setActiveTab(TAB_CORRECCIONES)} icon={<Settings size={16} />} label={`Correcciones (${correccionesFiltradas.length})`} />
-        </div>
+        <JefeTecnicoMessages
+          asignacionError={asignacionError}
+          asignacionOk={asignacionOk}
+          repuestoDecisionError={repuestoDecisionError}
+          repuestoDecisionOk={repuestoDecisionOk}
+        />
 
-        {(asignacionError || asignacionOk) && (
-          <div className={`mb-6 rounded-2xl border p-4 text-xs font-bold uppercase ${
-            asignacionError
-              ? 'border-red-100 bg-red-50 text-red-600'
-              : 'border-emerald-100 bg-emerald-50 text-emerald-700'
-          }`}>
-            {asignacionError || asignacionOk}
-          </div>
-        )}
+        <CorreccionesSearch
+          activeTab={activeTab}
+          searchTerm={searchTermCorrecciones}
+          onSearch={setSearchTermCorrecciones}
+        />
 
-        {(repuestoDecisionError || repuestoDecisionOk) && (
-          <div className={`mb-6 rounded-2xl border p-4 text-xs font-bold uppercase ${
-            repuestoDecisionError
-              ? 'border-red-100 bg-red-50 text-red-600'
-              : 'border-emerald-100 bg-emerald-50 text-emerald-700'
-          }`}>
-            {repuestoDecisionError || repuestoDecisionOk}
-          </div>
-        )}
-
-        {activeTab === TAB_CORRECCIONES && (
-          <div className="mb-6 px-4">
-            <div className="relative max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar corrección por ID, tipo, técnico o equipo..."
-                value={searchTermCorrecciones}
-                onChange={(e) => setSearchTermCorrecciones(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border-2 border-slate-100 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all placeholder:font-medium shadow-sm"
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden">
-          {loading ? (
-            <div className="p-40 text-center flex flex-col items-center gap-4">
-              <div className="w-14 h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-              <span className="font-black text-slate-300 uppercase text-xs tracking-widest">Cargando...</span>
-            </div>
-          ) : (
-            <Table columns={mainColumns} data={mainData} />
-          )}
-        </div>
+        <JefeTecnicoTablePanel
+          loading={loading}
+          columns={mainColumns}
+          data={mainData}
+        />
       </main>
 
-      {showModal && (
-        <DetailModal
-          detalles={detalles}
-          loadingDetalles={loadingDetalles}
-          onClose={() => {
-            setShowModal(false);
-            setDetalles(null);
-            setSelectedItem(null);
-          }}
-        />
-      )}
-
-      {showEditModal && editItem && (
-        <CorrectionModal
-          editItem={editItem}
-          editForm={editForm}
-          editError={editError}
-          tecnicos={tecnicos}
-          repuestosCatalogo={repuestosCatalogo}
-          savingId={savingId}
-          onClose={closeEditModal}
-          onFieldChange={handleEditField}
-          onSave={handleSaveCorreccion}
-        />
-      )}
+      <JefeTecnicoDashboardModals
+        showModal={showModal}
+        detalles={detalles}
+        loadingDetalles={loadingDetalles}
+        onCloseDetail={() => {
+          setShowModal(false);
+          setDetalles(null);
+          setSelectedItem(null);
+        }}
+        showEditModal={showEditModal}
+        editItem={editItem}
+        editForm={editForm}
+        editError={editError}
+        tecnicos={tecnicos}
+        repuestosCatalogo={repuestosCatalogo}
+        savingId={savingId}
+        onCloseEdit={closeEditModal}
+        onFieldChange={(field, value) => setEditForm((prev) => ({ ...prev, [field]: value }))}
+        onSave={handleSaveCorreccion}
+      />
     </div>
   );
 };
+
 export default JefeDashboard;

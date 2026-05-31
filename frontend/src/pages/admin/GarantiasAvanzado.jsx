@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
@@ -39,8 +39,40 @@ export default function GarantiasAvanzado() {
   const [downloading, setDownloading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Columnas de Listado Principal de Garantías
-  const columns = [
+  // Petición optimizada con useCallback
+  const fetchGarantias = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [garantiasRes, facturasRes, equiposRes] = await Promise.all([
+        api.get('/admin_pro/garantias'),
+        api.get('/admin_pro/facturas'),
+        api.get('/admin_pro/equipos'),
+      ]);
+      const data = garantiasRes.data?.data || [];
+      setGarantias(transformGarantias(data));
+      setFacturas(facturasRes.data?.data || []);
+      setEquiposGarantia(equiposRes.data?.data || []);
+    } catch (err) {
+      setError('No se pudieron cargar los registros de garantías.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchGarantias();
+  }, [fetchGarantias]);
+
+  // Auxiliares puros para legibilidad
+  const getFacturaEquipoId = (factura) => factura?.orden?.diagnostico?.equipo?.id_equipo;
+  const getFacturaGarantia = useCallback((factura) => (
+    garantias.find((garantia) => Number(garantia.factura_id) === Number(factura.id_factura))
+  ), [garantias]);
+  const getEquipoLabel = (equipo) => [equipo.marca, equipo.modelo, equipo.tipo].filter(Boolean).join(' ') || `Equipo #${equipo.id_equipo}`;
+
+  // Columnas del Listado Principal de Garantías
+  const columns = useMemo(() => [
     { header: 'ID Garantía', accessor: 'id_garantia' },
     { header: 'Factura', accessor: 'factura_id' },
     { header: 'Orden', accessor: 'orden_id' },
@@ -75,10 +107,10 @@ export default function GarantiasAvanzado() {
       ),
     },
     { header: 'Condiciones', accessor: 'condiciones' },
-  ];
+  ], [isProcessing]);
 
-  // Columnas de Tabla de Equipos
-  const equiposColumns = [
+  // Columnas de la Tabla de Equipos
+  const equiposColumns = useMemo(() => [
     { header: 'ID Equipo', accessor: 'id_equipo' },
     { header: 'Cliente', accessor: 'cliente' },
     { header: 'Detalle', accessor: 'equipo' },
@@ -101,60 +133,41 @@ export default function GarantiasAvanzado() {
         </button>
       ),
     },
-  ];
+  ], [isProcessing]);
 
-  const fetchGarantias = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [garantiasRes, facturasRes, equiposRes] = await Promise.all([
-        api.get('/admin_pro/garantias'),
-        api.get('/admin_pro/facturas'),
-        api.get('/admin_pro/equipos'),
-      ]);
-      const data = garantiasRes.data?.data || [];
-      setGarantias(transformGarantias(data));
-      setFacturas(facturasRes.data?.data || []);
-      setEquiposGarantia(equiposRes.data?.data || []);
-    } catch (err) {
-      setError('No se pudieron cargar los registros de garantías.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Memoización del filtrado y mapeo de equipos para evitar lag al escribir en el buscador
+  const equiposRevalidacion = useMemo(() => {
+    return equiposGarantia
+      .map((equipo) => {
+        const facturasEquipo = facturas
+          .filter((factura) => Number(getFacturaEquipoId(factura)) === Number(equipo.id_equipo))
+          .sort((a, b) => new Date(b.fecha_emision || 0) - new Date(a.fecha_emision || 0));
+        const garantia = facturasEquipo.map(getFacturaGarantia).find(Boolean);
+        const facturaAsignable = facturasEquipo.find((factura) => !getFacturaGarantia(factura)) || facturasEquipo[0] || null;
 
-  const getFacturaEquipoId = (factura) => factura?.orden?.diagnostico?.equipo?.id_equipo;
-  const getFacturaGarantia = (factura) => garantias.find((garantia) => Number(garantia.factura_id) === Number(factura.id_factura));
-  const getEquipoLabel = (equipo) => [equipo.marca, equipo.modelo, equipo.tipo].filter(Boolean).join(' ') || `Equipo #${equipo.id_equipo}`;
+        return {
+          id_equipo: equipo.id_equipo,
+          cliente: equipo.cliente?.nombre || '-',
+          equipo: getEquipoLabel(equipo),
+          factura_id: facturaAsignable?.id_factura || garantia?.factura_id || '-',
+          garantia_id: garantia?.id_garantia || '-',
+          estado: garantia ? garantia.estado : 'Sin garantía',
+          accion: garantia ? 'Revalidar' : (facturaAsignable ? 'Asignar' : 'Sin factura'),
+          garantia,
+          facturaAsignable,
+        };
+      })
+      .filter((equipo) => {
+        const term = equipoSearch.trim().toLowerCase();
+        if (!term) return true;
+        return [equipo.id_equipo, equipo.cliente, equipo.equipo, equipo.estado, equipo.factura_id]
+          .some((field) => field?.toString().toLowerCase().includes(term));
+      });
+  }, [equiposGarantia, facturas, getFacturaGarantia, equipoSearch]);
 
-  const equiposRevalidacion = equiposGarantia
-    .map((equipo) => {
-      const facturasEquipo = facturas
-        .filter((factura) => Number(getFacturaEquipoId(factura)) === Number(equipo.id_equipo))
-        .sort((a, b) => new Date(b.fecha_emision || 0) - new Date(a.fecha_emision || 0));
-      const garantia = facturasEquipo.map(getFacturaGarantia).find(Boolean);
-      const facturaAsignable = facturasEquipo.find((factura) => !getFacturaGarantia(factura)) || facturasEquipo[0] || null;
-
-      return {
-        id_equipo: equipo.id_equipo,
-        cliente: equipo.cliente?.nombre || '-',
-        equipo: getEquipoLabel(equipo),
-        factura_id: facturaAsignable?.id_factura || garantia?.factura_id || '-',
-        garantia_id: garantia?.id_garantia || '-',
-        estado: garantia ? garantia.estado : 'Sin garantía',
-        accion: garantia ? 'Revalidar' : (facturaAsignable ? 'Asignar' : 'Sin factura'),
-        garantia,
-        facturaAsignable,
-      };
-    })
-    .filter((equipo) => {
-      const term = equipoSearch.trim().toLowerCase();
-      if (!term) return true;
-      return [equipo.id_equipo, equipo.cliente, equipo.equipo, equipo.estado, equipo.factura_id]
-        .some((field) => field?.toString().toLowerCase().includes(term));
-    });
-
-  const selectedEquipo = equiposRevalidacion.find((equipo) => Number(equipo.id_equipo) === Number(selectedEquipoId));
+  const selectedEquipo = useMemo(() => (
+    equiposRevalidacion.find((equipo) => Number(equipo.id_equipo) === Number(selectedEquipoId))
+  ), [equiposRevalidacion, selectedEquipoId]);
 
   const handleEquipoGarantiaAction = async (equipo) => {
     if (!equipo) return;
@@ -262,13 +275,10 @@ export default function GarantiasAvanzado() {
     }
   };
 
-  useEffect(() => {
-    fetchGarantias();
-  }, []);
-
+  // KPIs calculados eficientemente
   const totalGarantias = garantias.length;
-  const vigentes = garantias.filter((g) => !g.isExpired).length;
-  const vencidas = garantias.filter((g) => g.isExpired).length;
+  const vigentes = useMemo(() => garantias.filter((g) => !g.isExpired).length, [garantias]);
+  const vencidas = useMemo(() => garantias.filter((g) => g.isExpired).length, [garantias]);
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">

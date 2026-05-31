@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, Search, CheckCircle, XCircle, User, Monitor, HelpCircle, X } from 'lucide-react';
+import { Loader2, Search, CheckCircle, XCircle, User, Monitor, HelpCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { updateEstadoDiagnostico } from '../../services/secretaria/diagnosticoService';
 import { createOrden, getDiagnosticosListosParaOrden } from '../../services/secretaria/ordenesService';
 
@@ -57,22 +57,20 @@ const NuevaOrden = () => {
   const [error, setError] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+  
+  // NUEVO: Estado para controlar qué tarjeta tiene el informe expandido
+  const [expandedId, setExpandedId] = useState(null);
 
-  // CORREGIDO: Mapeo limpio adaptado a la respuesta del controlador general e inclusivo
   const loadDiagnosticos = async () => {
     setLoading(true);
     setError(null);
     try {
       const diagnosticosResponse = await getDiagnosticosListosParaOrden();
-      
-      // Extrae el arreglo de órdenes directamente desde el 'data' estándar del backend unificado
       const diagnosticosData = diagnosticosResponse.data?.data || diagnosticosResponse.data || [];
       setSummary(diagnosticosResponse.data?.meta || null);
 
-      // Creamos el Set de diagnóstico_id basándonos en las órdenes existentes en el sistema
       const diagnosticosConOrden = new Set();
 
-      // Filtrado en tiempo real en el cliente
       const pendientes = diagnosticosData.filter((diagnostico) => {
         const estado = String(diagnostico.estado_del_diagnostico || diagnostico.estado || '').toUpperCase();
         const cumpleEstado = ['COMPLETADO', 'DIAGNOSTICADO'].includes(estado);
@@ -188,6 +186,11 @@ const NuevaOrden = () => {
     }
   };
 
+  // FUNCIÓN AUXILIAR: Alterna la expansión de la tarjeta seleccionada
+  const toggleExpand = (id) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {showHelp && (
@@ -245,6 +248,12 @@ const NuevaOrden = () => {
           ) : (
             diagnosticosFiltrados.map((diag) => {
               const canApprove = Boolean(diag.equipo?.cliente?.id_cliente && diag.equipo?.id_equipo && diag.diagnostico_real && Number(diag.presupuesto_estimado || 0) > 0);
+              
+              // Verificamos si esta tarjeta específica está expandida
+              const isExpanded = expandedId === diag.id_diagnostico;
+              const textoInforme = diag.diagnostico_real || 'Sin informe detallado';
+              const limiteCaracteres = 90; // Punto de corte ideal para tu diseño
+              const esLargo = textoInforme.length > limiteCaracteres;
 
               return (
                 <div key={diag.id_diagnostico} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 overflow-hidden hover:shadow-md transition-shadow">
@@ -265,10 +274,38 @@ const NuevaOrden = () => {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-3 line-clamp-2 italic break-words bg-gray-50 p-2 rounded-lg border border-gray-100">
-                        <span className="font-bold text-gray-500 not-italic block mb-0.5">Informe Técnico:</span>
-                        {diag.diagnostico_real || 'Sin informe detallado'}
-                      </p>
+                      
+                      {/* CONTENEDOR OPTIMIZADO DEL INFORME TÉCNICO */}
+                      <div className="mt-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                        <span className="font-bold text-gray-500 text-xs block mb-1">Informe Técnico:</span>
+                        <p className="text-xs text-gray-600 leading-relaxed break-words whitespace-pre-line">
+                          {isExpanded || !esLargo 
+                            ? textoInforme 
+                            : `${textoInforme.substring(0, limiteCaracteres)}...`
+                          }
+                        </p>
+                        
+                        {/* Botón dinámico "Ver más" / "Ver menos" */}
+                        {esLargo && (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(diag.id_diagnostico)}
+                            className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 focus:outline-none transition-colors"
+                          >
+                            {isExpanded ? (
+                              <>
+                                <span>Ver menos</span>
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </>
+                            ) : (
+                              <>
+                                <span>Ver informe completo</span>
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 

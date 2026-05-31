@@ -1,8 +1,8 @@
 import React from 'react';
 import { Bell, LogOut, Save, Settings, X } from 'lucide-react';
-import BrandLogo from '../../components/BrandLogo';
-import { DIAGNOSTICO_ESTADOS, ORDEN_ESTADOS, PRIORIDADES, REPUESTO_ESTADOS } from './constants';
-import { getCorreccionId, getCorreccionTipo, getEquipo } from './utils';
+import BrandLogo from '../BrandLogo';
+import { DIAGNOSTICO_ESTADOS, ORDEN_ESTADOS, PRIORIDADES, REPUESTO_ESTADOS } from '../../utils/jefeTecnicoConstants';
+import { getCorreccionId, getCorreccionTipo, getEquipo } from '../../utils/jefeTecnicoUtils';
 
 const notificationColors = {
   success: 'border-emerald-100 bg-emerald-50 text-emerald-800',
@@ -151,34 +151,59 @@ export const TabButton = ({ active, onClick, icon, label }) => (
   </button>
 );
 
-export const DetailModal = ({ detalles, loadingDetalles, onClose }) => (
-  <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-      <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-        <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Ficha Tecnica</h2>
-        <button onClick={onClose} className="p-3 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
-          <X size={24} />
-        </button>
-      </div>
-      <div className="p-8 overflow-y-auto space-y-6">
-        {loadingDetalles ? (
-          <div className="py-20 text-center">Cargando detalles...</div>
-        ) : detalles ? (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <DetailBox label="Equipo" value={`${getEquipo(detalles)?.marca || 'S/M'} ${getEquipo(detalles)?.modelo || 'S/M'}`} />
-              <DetailBox label="Cliente" value={getEquipo(detalles)?.cliente?.nombre} />
-            </div>
-            <DetailBox label="Falla Reportada" value={detalles.falla_reportada || detalles.diagnostico?.falla_reportada} isFull highlight />
-            <DetailBox label="Diagnostico Realizado" value={detalles.diagnostico_real || detalles.diagnostico?.diagnostico_real || 'Aun no se ha realizado diagnostico'} isFull />
-          </>
-        ) : (
-          <div className="py-20 text-center text-slate-400 font-bold uppercase text-xs">No se encontraron detalles.</div>
-        )}
+export const DetailModal = ({ detalles, loadingDetalles, onClose }) => {
+  const equipo = getEquipo(detalles || {}) || {};
+  const orden = detalles?.orden || detalles;
+  const diagnostico = detalles?.diagnostico || detalles?.orden?.diagnostico || {};
+  const tecnico = orden?.tecnico || diagnostico?.tecnico;
+  const esSolicitudRepuesto = Boolean(detalles?.id_detalle_repuesto);
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-[2rem] shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
+              {esSolicitudRepuesto ? `Solicitud #${detalles.id_detalle_repuesto}` : 'Detalle tecnico'}
+            </p>
+            <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Ficha Tecnica</h2>
+          </div>
+          <button onClick={onClose} className="p-3 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-8 overflow-y-auto space-y-6">
+          {loadingDetalles ? (
+            <div className="py-20 text-center">Cargando detalles...</div>
+          ) : detalles ? (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <DetailBox label="Equipo" value={`${equipo.marca || 'S/M'} ${equipo.modelo || 'S/M'}`} />
+                <DetailBox label="Cliente" value={equipo.cliente?.nombre || (equipo.cliente_id ? `Cliente #${equipo.cliente_id}` : 'Particular')} />
+                <DetailBox label="Tipo / Serie" value={[equipo.tipo, equipo.numero_serie || equipo.serie].filter(Boolean).join(' - ')} />
+                <DetailBox label="Orden" value={orden?.id_orden ? `Orden #${orden.id_orden}` : undefined} />
+                <DetailBox label="Tecnico" value={tecnico?.nombre} />
+                <DetailBox label="Fecha ingreso" value={orden?.fecha_ingreso ? new Date(orden.fecha_ingreso).toLocaleDateString() : undefined} />
+              </div>
+              <DetailBox label="Falla Reportada" value={detalles.falla_reportada || diagnostico.falla_reportada} isFull highlight />
+              <DetailBox label="Diagnostico Realizado" value={detalles.diagnostico_real || diagnostico.diagnostico_real || 'Aun no se ha realizado diagnostico'} isFull />
+              {esSolicitudRepuesto && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <DetailBox label="Pieza solicitada" value={detalles.repuesto?.nombre || detalles.pieza_solicitada} highlight />
+                  <DetailBox label="Cantidad solicitada" value={detalles.cantidad_usada || 1} highlight />
+                  <DetailBox label="Inventario" value={detalles.repuesto_id ? `Repuesto #${detalles.repuesto_id}` : 'No registrada en inventario'} />
+                  <DetailBox label="Estado aprobacion" value={detalles.estado_aprobacion} />
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="py-20 text-center text-slate-400 font-bold uppercase text-xs">No se encontraron detalles.</div>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const CorrectionModal = ({
   editItem,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle2, Eye, Save, Settings, XCircle } from 'lucide-react';
-import { PrioridadBadge } from '../Secretaria/Diagnostico';
-import { getCorreccionId, getCorreccionTipo, getEquipo, getRowKey, getTecnicoId } from './utils';
+import { PrioridadBadge } from '../../pages/Secretaria/Diagnostico';
+import { getCorreccionId, getCorreccionTipo, getEquipo, getRowKey, getTecnicoId } from '../../utils/jefeTecnicoUtils';
 
 export const buildAsignacionColumns = ({
   tecnicos,
@@ -11,6 +11,7 @@ export const buildAsignacionColumns = ({
   getTecnicoDisplay,
   onTecnicoChange,
   onSaveAsignacion,
+  onEdit,
   onView,
 }) => [
   {
@@ -41,13 +42,15 @@ export const buildAsignacionColumns = ({
   {
     header: 'Tecnico y Especialidad',
     accessor: 'asignar',
+    contentClassName: 'min-w-[300px] max-w-none pr-8',
+    cellClassName: 'pr-8',
     render: (row) => {
       const isSaving = savingId === getRowKey(row);
       const tecnicoId = tecnicosSeleccionados[getRowKey(row)] ?? getTecnicoId(row);
       const edicionPermitida = puedeEditar(row);
 
       return (
-        <div className="relative flex items-center gap-3 min-w-[200px]">
+        <div className="relative flex items-center gap-3">
           <select
             value={tecnicoId}
             disabled={!edicionPermitida || isSaving}
@@ -70,7 +73,13 @@ export const buildAsignacionColumns = ({
   {
     header: 'Prioridad',
     accessor: 'prioridad',
-    render: (row) => <PrioridadBadge prioridad={row.prioridad || 'NORMAL'} />,
+    contentClassName: 'min-w-[120px] max-w-none pl-4',
+    cellClassName: 'pl-6',
+    render: (row) => (
+      <div className="flex justify-start">
+        <PrioridadBadge prioridad={row.prioridad || 'NORMAL'} />
+      </div>
+    ),
   },
   {
     header: 'Acciones',
@@ -87,6 +96,15 @@ export const buildAsignacionColumns = ({
           </button>
           {edicionPermitida && (
             <button
+              onClick={() => onEdit(row)}
+              className="flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-700 rounded-xl hover:bg-amber-500 hover:text-white transition-all font-black text-[10px] uppercase"
+              title="Editar datos de la orden o diagnostico"
+            >
+              <Settings size={14} /> Editar
+            </button>
+          )}
+          {edicionPermitida && (
+            <button
               className="flex items-center gap-2 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all duration-300 shadow-sm border border-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed font-black text-[10px] uppercase"
               disabled={!tecnicoId || isSaving}
               onClick={() => onSaveAsignacion(row)}
@@ -101,7 +119,7 @@ export const buildAsignacionColumns = ({
   },
 ];
 
-export const buildRepuestosColumns = ({ savingId, onDecisionRepuesto }) => [
+export const buildRepuestosColumns = ({ savingId, onDecisionRepuesto, onViewDetalle }) => [
   {
     header: 'Referencia de Orden',
     accessor: 'orden',
@@ -149,6 +167,9 @@ export const buildRepuestosColumns = ({ savingId, onDecisionRepuesto }) => [
       const isSaving = savingId === `repuesto-${row.id_detalle_repuesto}`;
       return (
         <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => onViewDetalle(row)} disabled={isSaving} className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all font-black text-[10px] uppercase disabled:opacity-50">
+            <Eye size={14} /> Detalle
+          </button>
           <button onClick={() => onDecisionRepuesto(row, 'aprobar')} disabled={isSaving} className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-600 hover:text-white transition-all font-black text-[10px] uppercase disabled:opacity-50">
             {isSaving ? <Settings size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Aprobar
           </button>

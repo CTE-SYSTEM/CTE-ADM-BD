@@ -3,6 +3,7 @@ import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
+// Estructura estática extraída fuera del render para optimizar memoria
 const columns = [
   { header: 'Estado', accessor: 'estado' },
   { header: 'Cantidad', accessor: 'cantidad' },
@@ -23,10 +24,13 @@ export default function OrdenesEstadoAvanzado() {
     setLoading(true);
     setError('');
     try {
-      const query = [];
-      if (fromDate) query.push(`fecha_inicio=${fromDate}`);
-      if (toDate) query.push(`fecha_fin=${toDate}`);
-      const url = `/admin_pro/reportes/ordenes_estado${query.length ? `?${query.join('&')}` : ''}`;
+      const params = new URLSearchParams();
+      if (fromDate) params.append('fecha_inicio', fromDate);
+      if (toDate) params.append('fecha_fin', toDate);
+
+      const queryString = params.toString();
+      const url = `/admin_pro/reportes/ordenes_estado${queryString ? `?${queryString}` : ''}`;
+      
       const res = await api.get(url);
       setData(res.data?.data || []);
     } catch (err) {
@@ -88,7 +92,7 @@ export default function OrdenesEstadoAvanzado() {
             
             {/* Input Desde */}
             <div className="w-full sm:w-[150px] shrink-0">
-              <span className="text-xs font-bold text-gray-500 uppercase block">Desde</span>
+              <span className="text-xs font-bold text-gray-500 uppercase block tracking-wide">Desde</span>
               <input
                 type="date"
                 value={fromDate}
@@ -99,7 +103,7 @@ export default function OrdenesEstadoAvanzado() {
 
             {/* Input Hasta */}
             <div className="w-full sm:w-[150px] shrink-0">
-              <span className="text-xs font-bold text-gray-500 uppercase block">Hasta</span>
+              <span className="text-xs font-bold text-gray-500 uppercase block tracking-wide">Hasta</span>
               <input
                 type="date"
                 value={toDate}
@@ -114,7 +118,7 @@ export default function OrdenesEstadoAvanzado() {
                 type="button"
                 onClick={fetchReport}
                 disabled={loading}
-                className="flex-1 sm:flex-none px-5 py-2 rounded-xl bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 whitespace-nowrap"
+                className="flex-1 sm:flex-none px-5 py-2 rounded-xl bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 whitespace-nowrap disabled:cursor-not-allowed"
               >
                 Consultar
               </button>
@@ -151,7 +155,6 @@ export default function OrdenesEstadoAvanzado() {
                 No se registraron movimientos de órdenes en el rango de fechas seleccionado.
               </div>
             ) : (
-              /* Activamos el comportamiento sortable si tu tabla inteligente lo soporta */
               <Table columns={columns} data={data} sortable />
             )}
           </div>

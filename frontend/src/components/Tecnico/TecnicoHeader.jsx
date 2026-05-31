@@ -1,6 +1,6 @@
 import React from 'react';
 import { LogOut, UserRound } from 'lucide-react';
-import BrandLogo from './BrandLogo';
+import BrandLogo from '../BrandLogo';
 
 const TecnicoHeader = ({ user, onLogout }) => (
   <header className="bg-[#0f172a] text-white px-6 py-8 shadow-xl">

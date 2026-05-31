@@ -50,9 +50,9 @@ const Facturacion = () => {
           {facturas.map(factura => (
             <tr key={factura.id}>
               <td className="p-2">{factura.numeroFactura}</td>
-              <td className="p-2">${factura.subtotal}</td>
-              <td className="p-2">${factura.iva}</td>
-              <td className="p-2">${factura.total}</td>
+              <td className="p-2">C$ {factura.subtotal}</td>
+              <td className="p-2">C$ {factura.iva}</td>
+              <td className="p-2">C$ {factura.total}</td>
               <td className="p-2">{factura.estado}</td>
               <td className="p-2">{factura.clienteId}</td>
               <td className="p-2">

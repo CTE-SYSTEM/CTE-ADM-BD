@@ -8,7 +8,7 @@ import { downloadJsonCsv, downloadJsonPdf, downloadSectionedPdf } from '../../ut
 const currentYear = new Date().getFullYear();
 const padDatePart = (value) => String(value).padStart(2, '0');
 const toDateInputValue = (date) => `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
-const formatCurrency = (value) => `$ ${Number(value || 0).toFixed(2)}`;
+const formatCurrency = (value) => `C$ ${Number(value || 0).toFixed(2)}`;
 const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`;
 
 const detailColumns = [
@@ -31,7 +31,7 @@ const quickFilters = [
   { key: 'semana', label: 'Semana' },
   { key: 'mes', label: 'Mes' },
   { key: 'trimestre', label: 'Trimestre' },
-  { key: 'anio', label: 'Anio' },
+  { key: 'anio', label: 'Año' },
 ];
 
 const periodFilters = [
@@ -43,7 +43,7 @@ const periodFilters = [
 const generalReportPeriods = [
   { key: 'semana', label: 'Semana' },
   { key: 'mes', label: 'Mes' },
-  { key: 'anio', label: 'Anio' },
+  { key: 'anio', label: 'Año' },
 ];
 
 const orderMarginColumns = [
@@ -52,7 +52,7 @@ const orderMarginColumns = [
   { header: 'Fecha', accessor: 'fecha' },
   { header: 'Cliente', accessor: 'cliente' },
   { header: 'Equipo', accessor: 'equipo' },
-  { header: 'Tecnico', accessor: 'tecnico' },
+  { header: 'Técnico', accessor: 'tecnico' },
   { header: 'Estado', accessor: 'estado' },
   { header: 'Facturado', accessor: 'total_facturado' },
   { header: 'Mano obra', accessor: 'mano_obra' },
@@ -63,8 +63,8 @@ const orderMarginColumns = [
 ];
 
 const lossColumns = [
-  { header: 'Accion', accessor: 'accion' },
-  { header: 'Clasificacion', accessor: 'clasificacion' },
+  { header: 'Acción', accessor: 'accion' },
+  { header: 'Clasificación', accessor: 'clasificacion' },
   { header: 'Fecha', accessor: 'fecha' },
   { header: 'Monto', accessor: 'monto' },
 ];
@@ -74,11 +74,11 @@ const profitabilityColumns = [
   { header: 'Ingresos', accessor: 'ingresos' },
   { header: 'Compras inventario', accessor: 'compras_inventario' },
   { header: 'Costos consumidos', accessor: 'costo_repuestos_usados' },
-  { header: 'Perdidas reales', accessor: 'perdidas_reales' },
+  { header: 'Pérdidas reales', accessor: 'perdidas_reales' },
   { header: 'Ganancia neta', accessor: 'ganancia_neta' },
   { header: 'Margen servicio', accessor: 'margen_servicio' },
   { header: 'Rentabilidad', accessor: 'rentabilidad_porcentaje' },
-  { header: 'Ordenes', accessor: 'ordenes_procesadas' },
+  { header: 'Órdenes', accessor: 'ordenes_procesadas' },
 ];
 
 const summaryColumns = [
@@ -166,14 +166,14 @@ const buildGananciasReportSections = (reportData, periodKey) => {
   const summaryRows = [
     { label: 'Ingresos', value: formatCurrency(reportTotals.ingresos), detail: `${reportTotals.facturas || 0} facturas` },
     { label: 'Compras inventario', value: formatCurrency(reportTotals.compras_inventario), detail: `${reportTotals.compras || 0} compras capitalizadas` },
-    { label: 'Perdidas reales', value: formatCurrency(reportTotals.perdidas_reales), detail: `${reportTotals.ordenes_irreparables || 0} ordenes irreparables` },
+    { label: 'Pérdidas reales', value: formatCurrency(reportTotals.perdidas_reales), detail: `${reportTotals.ordenes_irreparables || 0} órdenes irreparables` },
     { label: 'Ganancia neta', value: formatCurrency(reportTotals.ganancia_neta), detail: `Margen neto ${reportMarginPercent}%` },
     { label: 'Margen de servicios', value: formatCurrency(reportTotals.margen_servicio), detail: `${formatPercent(reportTotals.rentabilidad_porcentaje)} rentabilidad` },
   ];
 
   const reportAssets = [
     { label: 'Clientes activos', value: reportActivos.clientes_activos || 0 },
-    { label: 'Tecnicos activos', value: reportActivos.tecnicos_activos || 0 },
+    { label: 'Técnicos activos', value: reportActivos.tecnicos_activos || 0 },
     { label: 'Usuarios activos', value: reportActivos.usuarios_activos || 0 },
     { label: 'Equipos registrados', value: reportActivos.equipos_registrados || 0 },
     { label: 'Proveedores activos', value: reportActivos.proveedores_activos || 0 },
@@ -227,7 +227,7 @@ const buildGananciasReportSections = (reportData, periodKey) => {
     { title: 'Alertas financieras', columns: alertColumns, rows: reportData?.alertas || [] },
     { title: 'Margen de ganancia por orden', columns: orderMarginColumns, rows: reportOrderMargins },
     { title: 'Control de activos', columns: assetColumns, rows: reportAssets },
-    { title: 'Costos y perdidas por accion', columns: lossColumns, rows: reportLosses },
+    { title: 'Costos y pérdidas por acción', columns: lossColumns, rows: reportLosses },
     { title: 'Rentabilidad por etapa', columns: profitabilityColumns, rows: reportProfitability },
     { title: 'Movimientos recientes', columns: detailColumns, rows: reportDetail },
   ];
@@ -262,7 +262,7 @@ export default function Ganancias() {
       setData(res.data?.data || null);
     } catch (err) {
       if (err.name !== 'CanceledError') {
-        setError('No se pudo cargar el modulo de ganancias.');
+        setError('No se pudo cargar el módulo de ganancias.');
       }
     } finally {
       setLoading(false);
@@ -281,8 +281,9 @@ export default function Ganancias() {
   const periodData = useMemo(() => (
     data?.periods?.[activePeriod] || data?.monthly || []
   ), [activePeriod, data]);
+  
   const isPositiveBalance = Number(totals.ganancia_neta || 0) >= 0;
-  const balanceLabel = isPositiveBalance ? 'Ganancia neta' : 'Perdida neta';
+  const balanceLabel = isPositiveBalance ? 'Ganancia neta' : 'Pérdida neta';
   const marginPercent = Number(totals.ingresos || 0)
     ? ((Number(totals.ganancia_neta || 0) / Number(totals.ingresos || 0)) * 100).toFixed(1)
     : '0.0';
@@ -296,7 +297,7 @@ export default function Ganancias() {
   const metricCards = useMemo(() => ([
     { key: 'ingresos', label: 'Ingresos', value: totals.ingresos, detail: `${totals.facturas || 0} facturas`, tone: 'emerald' },
     { key: 'compras_inventario', label: 'Compras inventario', value: totals.compras_inventario, detail: `${totals.compras || 0} compras capitalizadas`, tone: 'sky' },
-    { key: 'perdidas_reales', label: 'Perdidas reales', value: totals.perdidas_reales, detail: `${totals.ordenes_irreparables || 0} ordenes irreparables`, tone: 'red' },
+    { key: 'perdidas_reales', label: 'Pérdidas reales', value: totals.perdidas_reales, detail: `${totals.ordenes_irreparables || 0} órdenes irreparables`, tone: 'red' },
     { key: 'ganancia_neta', label: balanceLabel, value: totals.ganancia_neta, detail: `Margen neto ${marginPercent}%`, tone: 'indigo' },
     { key: 'margen_servicio', label: 'Margen de servicios', value: totals.margen_servicio, detail: `${formatPercent(totals.rentabilidad_porcentaje)} rentabilidad`, tone: 'amber' },
   ]), [balanceLabel, marginPercent, totals]);
@@ -348,7 +349,7 @@ export default function Ganancias() {
 
   const assetCards = useMemo(() => ([
     { label: 'Clientes activos', value: activos.clientes_activos || 0 },
-    { label: 'Tecnicos activos', value: activos.tecnicos_activos || 0 },
+    { label: 'Técnicos activos', value: activos.tecnicos_activos || 0 },
     { label: 'Usuarios activos', value: activos.usuarios_activos || 0 },
     { label: 'Equipos registrados', value: activos.equipos_registrados || 0 },
     { label: 'Proveedores activos', value: activos.proveedores_activos || 0 },
@@ -474,7 +475,7 @@ export default function Ganancias() {
       downloadSectionedPdf({
         title: 'Reporte General de Ganancias',
         filename: `ganancias_reporte_general_${generalReportRange.from}_${generalReportRange.to}.pdf`,
-        description: 'Reporte completo del modulo de ganancias con resumen, alertas, margenes, activos, costos, rentabilidad y movimientos.',
+        description: 'Reporte completo del módulo de ganancias con resumen, alertas, márgenes, activos, costos, rentabilidad y movimientos.',
         metadata: [
           { label: 'Periodo', value: generalReportRange.label },
           { label: 'Desde', value: generalReportRange.from },
@@ -494,13 +495,13 @@ export default function Ganancias() {
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Ganancias</h1>
-        <p className="text-gray-400 text-sm mt-0.5">Modulo financiero para ingresos, gastos, ganancias y perdidas del negocio.</p>
+        <p className="text-gray-400 text-sm mt-0.5">Módulo financiero para ingresos, gastos, ganancias y pérdidas del negocio.</p>
       </div>
 
       <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-gray-100 pb-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Parametros de reporte</h2>
+            <h2 className="text-lg font-bold text-slate-800">Parámetros de reporte</h2>
             <p className="text-sm text-gray-400">Selecciona un periodo, limita el detalle y exporta el reporte filtrado.</p>
           </div>
 
@@ -563,7 +564,7 @@ export default function Ganancias() {
         </div>
         {comparePrevious && (
           <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">
-            Vista comparativa aplicada al periodo anterior equivalente. Puedes volver a usar cualquier filtro rapido para regresar al periodo actual.
+            Vista comparativa aplicada al periodo anterior equivalente. Puedes volver a usar cualquier filtro rápido para regresar al periodo actual.
           </div>
         )}
       </section>
@@ -654,7 +655,7 @@ export default function Ganancias() {
             </div>
             <div className="overflow-x-auto">
               {orderMargins.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">No hay ordenes facturadas en el periodo seleccionado.</div>
+                <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">No hay órdenes facturadas en el periodo seleccionado.</div>
               ) : (
                 <Table columns={orderMarginColumns} data={orderMargins} sortable />
               )}
@@ -687,8 +688,8 @@ export default function Ganancias() {
             <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800">Costos y perdidas por accion</h2>
-                  <p className="text-sm text-gray-400">Distingue inventario capitalizado, costos consumidos y perdidas reales.</p>
+                  <h2 className="text-lg font-bold text-slate-800">Costos y pérdidas por acción</h2>
+                  <p className="text-sm text-gray-400">Distingue inventario capitalizado, costos consumidos y pérdidas reales.</p>
                 </div>
                 <ExportActions
                   disabled={downloading || losses.length === 0}
@@ -698,7 +699,7 @@ export default function Ganancias() {
               </div>
               <div className="overflow-x-auto">
                 {losses.length === 0 ? (
-                  <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">No hay perdidas registradas para el periodo.</div>
+                  <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">No hay pérdidas registradas para el periodo.</div>
                 ) : (
                   <Table columns={lossColumns} data={losses} sortable />
                 )}
@@ -730,7 +731,7 @@ export default function Ganancias() {
           <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
             <div>
               <h2 className="text-lg font-bold text-slate-800">Movimientos recientes</h2>
-              <p className="text-sm text-gray-400">Ultimos ingresos y gastos usados para el calculo del periodo.</p>
+              <p className="text-sm text-gray-400">Últimos ingresos y gastos usados para el cálculo del periodo.</p>
             </div>
             <div className="overflow-x-auto">
               {detail.length === 0 ? (
@@ -745,9 +746,9 @@ export default function Ganancias() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-indigo-500">Reporte general</p>
-                <h2 className="mt-1 text-lg font-bold text-slate-800">PDF completo del modulo de ganancias</h2>
+                <h2 className="mt-1 text-lg font-bold text-slate-800">PDF completo del módulo de ganancias</h2>
                 <p className="mt-1 max-w-3xl text-sm text-gray-400">
-                  Genera un solo PDF con resumen financiero, alertas, margen por orden, activos, costos/perdidas, rentabilidad y movimientos recientes.
+                  Genera un solo PDF con resumen financiero, alertas, margen por orden, activos, costos/pérdidas, rentabilidad y movimientos recientes.
                 </p>
               </div>
 
@@ -791,7 +792,7 @@ export default function Ganancias() {
             </div>
 
             <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">
-              Se exportara el rango {generalReportRange.from} al {generalReportRange.to}.
+              Se exportará el rango {generalReportRange.from} al {generalReportRange.to}.
             </div>
           </section>
         </>

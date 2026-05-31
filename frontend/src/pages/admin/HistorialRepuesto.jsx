@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 
+// Extraídas fuera del componente para evitar recreaciones redundantes en memoria
 const columns = [
   { 
     header: 'Fecha instalación', 

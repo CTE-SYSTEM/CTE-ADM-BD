@@ -18,7 +18,7 @@ export default function ClientesAvanzado() {
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
 
-  // Traer datos de la API
+  // Petición de datos a la API
   const fetchClientes = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -47,7 +47,7 @@ export default function ClientesAvanzado() {
     fetchClientes();
   }, [fetchClientes]);
 
-  // Descargar CSV
+  // Handlers para Descargas de Reportes
   const downloadClientesCsv = () => {
     setDownloading(true);
     try {
@@ -59,7 +59,6 @@ export default function ClientesAvanzado() {
     }
   };
 
-  // Descargar PDF
   const downloadClientesPdf = () => {
     setDownloading(true);
     try {
@@ -71,9 +70,9 @@ export default function ClientesAvanzado() {
     }
   };
 
-  // Cálculos en tiempo real basados en los registros mapeados
-  const totalEquiposGarantia = clientes.reduce((acc, item) => acc + (item.raw_equipos || 0), 0);
-  const totalOrdenesAsignadas = clientes.reduce((acc, item) => acc + (item.raw_ordenes || 0), 0);
+  // Cálculos derivados del estado en tiempo real
+  const totalEquiposGarantia = clientes.reduce((total, item) => total + (item.raw_equipos || 0), 0);
+  const totalOrdenesAsignadas = clientes.reduce((total, item) => total + (item.raw_ordenes || 0), 0);
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -84,7 +83,7 @@ export default function ClientesAvanzado() {
         <p className="text-gray-400 text-sm mt-0.5">Identifica clientes clave, volumen de dispositivos ingresados y la última actividad registrada en el centro.</p>
       </div>
 
-      {/* Grid Dinámico de KPIs de Carteras */}
+      {/* Grid Dinámico de KPIs */}
       {!loading && !error && clientes.length > 0 && (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
@@ -131,9 +130,18 @@ export default function ClientesAvanzado() {
           </div>
         </div>
 
-        {/* Estados de Carga, Error o Tabla */}
-        {loading && <div className="text-gray-400 text-center py-10 text-sm">Procesando registros de la cartera...</div>}
-        {error && <div className="text-red-600 bg-red-50 p-4 rounded-xl text-sm font-semibold">{error}</div>}
+        {/* Estados Dinámicos: Carga, Error o Tabla */}
+        {loading && (
+          <div className="text-gray-400 text-center py-10 text-sm">
+            Procesando registros de la cartera...
+          </div>
+        )}
+        
+        {error && (
+          <div className="text-red-600 bg-red-50 p-4 rounded-xl text-sm font-semibold">
+            {error}
+          </div>
+        )}
         
         {!loading && !error && (
           <div className="overflow-x-auto">

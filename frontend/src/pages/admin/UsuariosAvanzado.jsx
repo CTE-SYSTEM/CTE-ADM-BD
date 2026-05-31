@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState, useCallback } from 're
 import api from '../../services/api';
 import Table from '../../components/Table';
 import { AuthContext } from '../../context/AuthContext';
+import { Plus, X } from 'lucide-react';
 
 const ASSIGNABLE_ROLES = ['Secretaria', 'TecnicoJefe', 'Tecnico'];
 const PASSWORD_ADMIN_ROLES = ['admin_pro', 'Administrador', 'Admin'];
@@ -14,6 +15,9 @@ export default function UsuariosAvanzado() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
+
+  // Control del despliegue del formulario de creación
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   // Estados de formularios
   const [creating, setCreating] = useState(false);
@@ -30,7 +34,7 @@ export default function UsuariosAvanzado() {
     contacto: '',
   });
 
-  // Estados de edición y contraseña (Ahora actúan como disparadores del Modal)
+  // Estados de edición y contraseña
   const [selectedUsuario, setSelectedUsuario] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
   const [editMessage, setEditMessage] = useState('');
@@ -103,12 +107,12 @@ export default function UsuariosAvanzado() {
       const passwordNueva = String(selectedUsuario.password_nueva || '').trim();
       if (passwordNueva) {
         if (passwordNueva.length < 6) {
-          setEditMessage('El perfil se guardo, pero la contrasena debe tener al menos 6 caracteres.');
+          setEditMessage('El perfil se guardó, pero la contraseña debe tener al menos 6 caracteres.');
           return;
         }
 
         if (!String(selectedUsuario.admin_password || '').trim()) {
-          setEditMessage('Ingrese la contrasena del administrador para cambiar la contrasena del usuario.');
+          setEditMessage('Ingrese la contraseña del administrador para cambiar la contraseña del usuario.');
           return;
         }
 
@@ -118,9 +122,9 @@ export default function UsuariosAvanzado() {
         });
       }
 
-      setEditMessage(passwordNueva ? 'Usuario y contrasena actualizados correctamente.' : 'Usuario actualizado correctamente.');
+      setEditMessage(passwordNueva ? 'Usuario y contraseña actualizados correctamente.' : 'Usuario actualizado correctamente.');
       fetchUsuarios();
-      setTimeout(() => setSelectedUsuario(null), 1000); // Cierra el modal automáticamente
+      setTimeout(() => setSelectedUsuario(null), 1000);
     } catch (err) {
       setEditMessage(err.response?.data?.error || 'No se pudo actualizar el usuario.');
     } finally {
@@ -138,7 +142,7 @@ export default function UsuariosAvanzado() {
     }
 
     if (!adminPassword.trim()) {
-      setPasswordMessage('Ingrese la contrasena del administrador.');
+      setPasswordMessage('Ingrese la contraseña del administrador.');
       return;
     }
 
@@ -152,7 +156,7 @@ export default function UsuariosAvanzado() {
       setPasswordMessage(response.data?.message || 'Contraseña actualizada correctamente.');
       setNewPassword('');
       setAdminPassword('');
-      setTimeout(() => setPasswordUsuario(null), 1000); // Cierra el modal automáticamente
+      setTimeout(() => setPasswordUsuario(null), 1000);
     } catch (err) {
       setPasswordMessage(err.response?.data?.error || 'No se pudo actualizar la contraseña.');
     } finally {
@@ -196,6 +200,7 @@ export default function UsuariosAvanzado() {
           contacto: '',
         });
         fetchUsuarios();
+        setTimeout(() => setShowCreateForm(false), 1500);
       } else {
         setFormError('No se pudo crear el usuario.');
       }
@@ -256,7 +261,7 @@ export default function UsuariosAvanzado() {
     },
   ], [canResetPassword]);
 
-  // --- Filtrado ---
+  // --- Filtrado Frontend ---
   const filteredUsuarios = useMemo(() => {
     const term = searchText.trim().toLowerCase();
     if (!term) return usuarios;
@@ -270,144 +275,178 @@ export default function UsuariosAvanzado() {
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
       {/* Bloque Informativo Oscuro */}
-      <div className="rounded-2xl bg-slate-950 p-5 text-white shadow-sm">
+      <div className="rounded-2xl bg-slate-950 p-5 text-white shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <p className="text-sm text-slate-300">
           Permite editar roles, cambiar estados de cuenta y controlar perfiles en el sistema.
         </p>
+        
+        <button
+          type="button"
+          onClick={() => {
+            setShowCreateForm(!showCreateForm);
+            setFormError('');
+            setSuccessMessage('');
+          }}
+          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold shadow-sm transition-all ${
+            showCreateForm 
+              ? 'bg-rose-600 text-white hover:bg-rose-700' 
+              : 'bg-white text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          {showCreateForm ? (
+            <>
+              <X size={14} />
+              <span>Cerrar Formulario</span>
+            </>
+          ) : (
+            <>
+              <Plus size={14} />
+              <span>Añadir Usuario</span>
+            </>
+          )}
+        </button>
       </div>
 
-      {/* Flujo Principal en una Sola Columna Limpia */}
       <div className="space-y-6">
         
-        {/* 1. Formulario Crear Nuevo Usuario */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">Crear nuevo usuario</h3>
-              <p className="text-sm text-gray-400">Agrega usuarios y asigna el rol correcto para el acceso.</p>
+        {/* 1. Formulario Desplegable Nuevo Usuario */}
+        {showCreateForm && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-md transition-all duration-300 animate-in fade-in slide-in-from-top-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-6">
+              <div>
+                <h3 className="text-base font-bold text-slate-800">Crear nuevo usuario</h3>
+                <p className="text-xs text-gray-400">Agrega usuarios y asigna el rol correcto para el acceso.</p>
+              </div>
+              <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 self-start md:self-auto">
+                Rol asignado: {formData.rol}
+              </span>
             </div>
-            <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-              Rol asignado: {formData.rol}
-            </span>
+
+            {formError && <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>}
+            {successMessage && <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>}
+
+            <form onSubmit={handleCreateUsuario} className="grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="text-xs font-bold text-slate-700">Nombre de usuario</span>
+                <input
+                  type="text"
+                  name="nombre_usuario"
+                  value={formData.nombre_usuario}
+                  onChange={handleInputChange}
+                  className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                  placeholder="ejemplo123"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold text-slate-700">Correo electrónico</span>
+                <input
+                  type="email"
+                  name="correo_electronico"
+                  value={formData.correo_electronico}
+                  onChange={handleInputChange}
+                  className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                  placeholder="usuario@correo.com"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold text-slate-700">Contraseña</span>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                  placeholder="********"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold text-slate-700">Rol</span>
+                <select
+                  name="rol"
+                  value={formData.rol}
+                  onChange={handleInputChange}
+                  className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
+                >
+                  <option value="Secretaria">Secretaria</option>
+                  <option value="TecnicoJefe">Tecnico Jefe</option>
+                  <option value="Tecnico">Tecnico</option>
+                </select>
+              </label>
+
+              {formData.rol === 'Tecnico' && (
+                <>
+                  <label className="block">
+                    <span className="text-xs font-bold text-slate-700">Especialidad</span>
+                    <input
+                      type="text"
+                      name="especialidad"
+                      value={formData.especialidad}
+                      onChange={handleInputChange}
+                      className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500"
+                      placeholder="Ej: Microelectrónica"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-bold text-slate-700">Horario</span>
+                    <input
+                      type="text"
+                      name="horario"
+                      value={formData.horario}
+                      onChange={handleInputChange}
+                      className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500"
+                      placeholder="Ej: L-V 08:00-17:00"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-bold text-slate-700">Contacto</span>
+                    <input
+                      type="text"
+                      name="contacto"
+                      value={formData.contacto}
+                      onChange={handleInputChange}
+                      className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500"
+                      placeholder="Teléfono o email"
+                    />
+                  </label>
+                </>
+              )}
+
+              <div className="md:col-span-2 flex items-center gap-3 text-sm text-slate-700 py-1">
+                <input
+                  type="checkbox"
+                  name="activo"
+                  id="activo-checkbox"
+                  checked={formData.activo}
+                  onChange={handleInputChange}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="activo-checkbox" className="cursor-pointer select-none font-semibold text-xs text-slate-700">Activo</label>
+              </div>
+
+              <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  className="rounded-xl bg-slate-100 px-5 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-200 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition disabled:bg-slate-400"
+                >
+                  {creating ? 'Creando usuario...' : 'Crear usuario'}
+                </button>
+              </div>
+            </form>
           </div>
+        )}
 
-          {formError && <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>}
-          {successMessage && <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">{successMessage}</div>}
-
-          <form onSubmit={handleCreateUsuario} className="grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Nombre de usuario</span>
-              <input
-                type="text"
-                name="nombre_usuario"
-                value={formData.nombre_usuario}
-                onChange={handleInputChange}
-                className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
-                placeholder="ejemplo123"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Correo electrónico</span>
-              <input
-                type="email"
-                name="correo_electronico"
-                value={formData.correo_electronico}
-                onChange={handleInputChange}
-                className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
-                placeholder="usuario@correo.com"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Contraseña</span>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
-                placeholder="********"
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Rol</span>
-              <select
-                name="rol"
-                value={formData.rol}
-                onChange={handleInputChange}
-                className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
-              >
-                <option value="Secretaria">Secretaria</option>
-                <option value="TecnicoJefe">Tecnico Jefe</option>
-                <option value="Tecnico">Tecnico</option>
-              </select>
-            </label>
-
-            {formData.rol === 'Tecnico' && (
-              <>
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">Especialidad</span>
-                  <input
-                    type="text"
-                    name="especialidad"
-                    value={formData.especialidad}
-                    onChange={handleInputChange}
-                    className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500"
-                    placeholder="Ej: Microelectrónica"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">Horario</span>
-                  <input
-                    type="text"
-                    name="horario"
-                    value={formData.horario}
-                    onChange={handleInputChange}
-                    className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500"
-                    placeholder="Ej: L-V 08:00-17:00"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">Contacto</span>
-                  <input
-                    type="text"
-                    name="contacto"
-                    value={formData.contacto}
-                    onChange={handleInputChange}
-                    className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500"
-                    placeholder="Teléfono o email"
-                  />
-                </label>
-              </>
-            )}
-
-            <div className="md:col-span-2 flex items-center gap-3 text-sm text-slate-700 py-2">
-              <input
-                type="checkbox"
-                name="activo"
-                id="activo-checkbox"
-                checked={formData.activo}
-                onChange={handleInputChange}
-                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <label htmlFor="activo-checkbox" className="cursor-pointer select-none font-medium">Activo</label>
-            </div>
-
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                disabled={creating}
-                className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition disabled:bg-slate-400"
-              >
-                {creating ? 'Creando usuario...' : 'Crear usuario'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* 2. Barra de Búsqueda (Entre creación y listado) */}
+        {/* 2. Barra de Búsqueda */}
         <div className="flex justify-end bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
           <input
             value={searchText}
@@ -430,9 +469,7 @@ export default function UsuariosAvanzado() {
         </div>
       </div>
 
-      {/* ======================================================================= */}
-      {/* VENTANA EMERGENTE (MODAL) PARA EDICIÓN DE USUARIO */}
-      {/* ======================================================================= */}
+      {/* MODAL PARA EDICIÓN DE USUARIO */}
       {selectedUsuario && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl border border-gray-100 w-full max-w-xl p-6 shadow-2xl relative transform transition-all scale-100">
@@ -488,26 +525,26 @@ export default function UsuariosAvanzado() {
 
               {canResetPassword && (
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700">Nueva contrasena</label>
+                  <label className="block text-sm font-semibold text-slate-700">Nueva contraseña</label>
                   <input
                     type="password"
                     value={selectedUsuario.password_nueva || ''}
                     onChange={(e) => setSelectedUsuario((prev) => ({ ...prev, password_nueva: e.target.value }))}
                     className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-50"
-                    placeholder="Dejar vacio para no cambiarla"
+                    placeholder="Dejar vacío para no cambiarla"
                   />
                 </div>
               )}
 
               {canResetPassword && selectedUsuario.password_nueva && (
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700">Contrasena del administrador</label>
+                  <label className="block text-sm font-semibold text-slate-700">Contraseña del administrador</label>
                   <input
                     type="password"
                     value={selectedUsuario.admin_password || ''}
                     onChange={(e) => setSelectedUsuario((prev) => ({ ...prev, admin_password: e.target.value }))}
                     className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-50"
-                    placeholder="Confirme su contrasena"
+                    placeholder="Confirme su contraseña"
                   />
                 </div>
               )}
@@ -534,9 +571,7 @@ export default function UsuariosAvanzado() {
         </div>
       )}
 
-      {/* ======================================================================= */}
-      {/* VENTANA EMERGENTE (MODAL) PARA CAMBIO DE CONTRASEÑA */}
-      {/* ======================================================================= */}
+      {/* MODAL PARA CAMBIO DE CONTRASEÑA */}
       {canResetPassword && passwordUsuario && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl border border-gray-100 w-full max-w-md p-6 shadow-2xl relative transform transition-all scale-100">
@@ -558,13 +593,13 @@ export default function UsuariosAvanzado() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700">Contrasena del administrador</label>
+                <label className="block text-sm font-semibold text-slate-700">Contraseña del administrador</label>
                 <input
                   type="password"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
                   className="mt-1.5 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-50"
-                  placeholder="Confirme su contrasena"
+                  placeholder="Confirme su contraseña"
                 />
               </div>
 

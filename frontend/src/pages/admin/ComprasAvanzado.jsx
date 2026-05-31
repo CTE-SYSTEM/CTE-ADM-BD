@@ -31,6 +31,7 @@ export default function ComprasAvanzado() {
       if (fromDate) query.push(`fecha_inicio=${fromDate}`);
       if (toDate) query.push(`fecha_fin=${toDate}`);
       const url = `/admin_pro/reportes/compras${query.length ? `?${query.join('&')}` : ''}`;
+      
       const res = await api.get(url);
       const data = res.data?.data || [];
       
@@ -40,8 +41,8 @@ export default function ComprasAvanzado() {
           raw_costo_total: Number(item.costo_total) || 0,
           raw_cantidad: Number(item.cantidad) || 0,
           fecha_obtencion: item.fecha_obtencion ? new Date(item.fecha_obtencion).toLocaleDateString() : '-',
-          costo_unitario: item.costo_unitario ? `$ ${Number(item.costo_unitario).toFixed(2)}` : '$ 0.00',
-          costo_total: item.costo_total ? `$ ${Number(item.costo_total).toFixed(2)}` : '$ 0.00',
+          costo_unitario: item.costo_unitario ? `C$ ${Number(item.costo_unitario).toFixed(2)}` : 'C$ 0.00',
+          costo_total: item.costo_total ? `C$ ${Number(item.costo_total).toFixed(2)}` : 'C$ 0.00',
         }))
       );
     } catch (err) {
@@ -77,9 +78,8 @@ export default function ComprasAvanzado() {
     }
   };
 
-  // Cálculos dinámicos para los indicadores superiores
-  const totalInversion = compras.reduce((acc, item) => acc + (item.raw_costo_total || 0), 0);
-  const totalArticulos = compras.reduce((acc, item) => acc + (item.raw_cantidad || 0), 0);
+  const totalInversion = compras.reduce((total, item) => total + (item.raw_costo_total || 0), 0);
+  const totalArticulos = compras.reduce((total, item) => total + (item.raw_cantidad || 0), 0);
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -155,7 +155,7 @@ export default function ComprasAvanzado() {
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Egreso Total</p>
-            <p className="mt-1 text-2xl font-extrabold text-slate-900">$ {totalInversion.toFixed(2)}</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">C$ {totalInversion.toFixed(2)}</p>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Unidades Adquiridas</p>
