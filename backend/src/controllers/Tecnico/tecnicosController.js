@@ -89,13 +89,14 @@ export const actualizarEstadoOrden = async (req, res) => {
   try {
     const orden = await actualizarEstadoOrdenService(req.params.id, req.body);
     const estadoNuevo = String(orden.estado || '').toUpperCase();
-    const estadoCierre = ['FINALIZADO', 'IRREPARABLE'].includes(estadoNuevo);
+    const estadoCierre = estadoNuevo === 'FINALIZADO';
+    const estadoIrreparable = estadoNuevo === 'IRREPARABLE';
 
     notifyJefeTecnico({
-      type: estadoCierre ? 'orden_cerrada' : 'orden_estado',
-      title: estadoCierre ? 'Orden cerrada' : 'Cambio de estado',
+      type: estadoCierre ? 'orden_cerrada' : estadoIrreparable ? 'orden_irreparable_pendiente' : 'orden_estado',
+      title: estadoCierre ? 'Orden cerrada' : estadoIrreparable ? 'Irreparable pendiente de revision' : 'Cambio de estado',
       message: `Orden #${orden.id_orden} cambio a ${orden.estado}`,
-      severity: estadoNuevo === 'IRREPARABLE' ? 'warning' : 'info',
+      severity: estadoIrreparable ? 'warning' : 'info',
       entity: { kind: 'orden', id: orden.id_orden },
     });
 

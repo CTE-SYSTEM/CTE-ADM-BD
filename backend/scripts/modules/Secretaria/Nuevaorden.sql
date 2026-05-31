@@ -9,7 +9,10 @@ BEGIN
         'prioridad', o.prioridad,
         'estado', o.estado,
         'fecha_ingreso', o.fecha_ingreso,
+        'fecha_asignacion', o.fecha_asignacion,
         'resultado_final', o.resultado_final,
+        'fecha_finalizacion', o.fecha_finalizacion,
+        'requiere_piezas', o.requiere_piezas,
         'diagnostico', to_jsonb(d.*) || jsonb_build_object('equipo', to_jsonb(e.*) || jsonb_build_object('cliente', to_jsonb(c.*))),
         'tecnico', to_jsonb(t.*)
     )
@@ -71,13 +74,14 @@ CREATE OR REPLACE FUNCTION crear_orden_secretaria_proc(
     p_diagnostico_id INT,
     p_tecnico_id INT,
     p_prioridad TEXT,
-    p_estado TEXT
+    p_estado TEXT,
+    p_requiere_piezas BOOLEAN DEFAULT TRUE
 ) RETURNS TABLE (data JSONB) AS $$
 DECLARE
     v_id INT;
 BEGIN
-    INSERT INTO "Ordenes" (diagnostico_id, tecnico_id, prioridad, estado)
-    VALUES (p_diagnostico_id, p_tecnico_id, p_prioridad, p_estado)
+    INSERT INTO "Ordenes" (diagnostico_id, tecnico_id, prioridad, estado, requiere_piezas)
+    VALUES (p_diagnostico_id, p_tecnico_id, p_prioridad, p_estado, COALESCE(p_requiere_piezas, TRUE))
     RETURNING id_orden INTO v_id;
 
     RETURN QUERY SELECT orden.data FROM get_orden_secretaria_por_id(v_id) AS orden;
@@ -88,13 +92,15 @@ CREATE OR REPLACE FUNCTION actualizar_orden_secretaria_proc(
     p_id INT,
     p_tecnico_id INT,
     p_prioridad TEXT,
-    p_estado TEXT
+    p_estado TEXT,
+    p_requiere_piezas BOOLEAN DEFAULT NULL
 ) RETURNS TABLE (data JSONB) AS $$
 BEGIN
     UPDATE "Ordenes"
     SET tecnico_id = COALESCE(p_tecnico_id, tecnico_id),
         prioridad = COALESCE(p_prioridad, prioridad),
-        estado = COALESCE(p_estado, estado)
+        estado = COALESCE(p_estado, estado),
+        requiere_piezas = COALESCE(p_requiere_piezas, requiere_piezas)
     WHERE id_orden = p_id;
 
     RETURN QUERY SELECT orden.data FROM get_orden_secretaria_por_id(p_id) AS orden;
@@ -120,7 +126,10 @@ BEGIN
         'prioridad', o.prioridad,
         'estado', o.estado,
         'fecha_ingreso', o.fecha_ingreso,
+        'fecha_asignacion', o.fecha_asignacion,
         'resultado_final', o.resultado_final,
+        'fecha_finalizacion', o.fecha_finalizacion,
+        'requiere_piezas', o.requiere_piezas,
         'diagnostico', to_jsonb(d.*) || jsonb_build_object('equipo', to_jsonb(e.*) || jsonb_build_object('cliente', to_jsonb(c.*))),
         'tecnico', to_jsonb(t.*)
     )

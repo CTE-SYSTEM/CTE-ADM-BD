@@ -21,7 +21,7 @@ export const TecnicoTabContent = ({
   <>
     {activeTab === 'diagnosticos' && (
       <section className="space-y-4">
-        <h2 className="text-sm font-black uppercase text-slate-600 text-left">Diagnosticos en revision</h2>
+        <h2 className="text-sm font-black uppercase text-slate-600 text-left">Diagnosticos activos</h2>
         <SearchBox
           value={searches.diagnosticosEnRevision}
           onChange={(value) => onSearch('diagnosticosEnRevision', value)}

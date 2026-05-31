@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
+import { downloadJsonPdf } from '../../utils/csvExport';
 
 // Columnas principales de la tabla de órdenes maestras
 const columns = [
@@ -37,7 +38,7 @@ const repuestosColumns = [
 
 const statusOptions = [
   { value: 'PENDIENTE', label: 'Pendiente' },
-  { value: 'REPARACION', label: 'En reparación' },
+  { value: 'EN_REPARACION', label: 'En reparacion' },
   { value: 'FINALIZADO', label: 'Finalizado' },
 ];
 
@@ -85,6 +86,7 @@ export default function OrdenesAvanzado() {
   const [repuestoLoading, setRepuestoLoading] = useState(false);
   const [repuestoError, setRepuestoError] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   const editSectionRef = useRef(null);
 
@@ -166,26 +168,56 @@ export default function OrdenesAvanzado() {
   };
 
   // Mapeo seguro de callbacks de acción mediante memorización
+  const filteredOrdenes = useMemo(() => {
+    const term = searchText.trim().toLowerCase();
+    if (!term) return ordenes;
+    return ordenes.filter((orden) => [
+      orden.id_orden,
+      orden.equipo,
+      orden.cliente,
+      orden.estado,
+      orden.tecnico,
+      orden.prioridades,
+      orden.diagnostico?.falla_reportada,
+      orden.diagnostico?.diagnostico_real,
+    ].some((field) => String(field || '').toLowerCase().includes(term)));
+  }, [ordenes, searchText]);
+
+  const reportColumns = columns.filter((column) => column.accessor !== 'acciones');
+  const downloadGeneralReport = () => {
+    downloadJsonPdf(filteredOrdenes, reportColumns, 'ordenes_general.pdf', 'Reporte General de Ordenes');
+  };
+
   const ordenesWithActions = useMemo(() => (
-    ordenes.map((orden) => ({
+    filteredOrdenes.map((orden) => ({
       ...orden,
       onShowDetails: () => handleShowDetails(orden),
     }))
-  ), [ordenes]);
+  ), [filteredOrdenes]);
 
   // Indicadores estadísticos consolidados
   const { ordenesPendientes, ordenesReparacion } = useMemo(() => ({
     ordenesPendientes: ordenes.filter(o => o.estado === 'PENDIENTE').length,
-    ordenesReparacion: ordenes.filter(o => o.estado === 'REPARACION').length,
+    ordenesReparacion: ordenes.filter(o => o.estado === 'EN_REPARACION').length,
   }), [ordenes]);
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
       
       {/* Encabezado Principal */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Gestión avanzada de órdenes</h1>
-        <p className="text-gray-400 text-sm mt-0.5">Supervisa el estado de órdenes en taller, técnicos asignados y repuestos vinculados.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Gestión avanzada de órdenes</h1>
+          <p className="text-gray-400 text-sm mt-0.5">Supervisa el estado de órdenes en taller, técnicos asignados y repuestos vinculados.</p>
+        </div>
+        <button
+          type="button"
+          onClick={downloadGeneralReport}
+          disabled={filteredOrdenes.length === 0}
+          className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:bg-slate-300"
+        >
+          Generar Reporte General
+        </button>
       </div>
 
       {/* Grid de KPIs Superiores */}
@@ -214,6 +246,13 @@ export default function OrdenesAvanzado() {
           <h2 className="text-lg font-bold text-slate-800">Flujo de trabajo general</h2>
           <p className="text-sm text-gray-400">Listado Maestro de las hojas de servicio técnico generadas.</p>
         </div>
+        <input
+          type="search"
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          placeholder="Buscador inteligente: orden, cliente, equipo, tecnico, estado o falla..."
+          className="w-full rounded-xl border border-gray-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100/50"
+        />
 
         {loading && <div className="text-gray-400 text-center py-6 text-sm">Consultando base de datos de órdenes...</div>}
         {error && <div className="text-red-600 bg-red-50 p-4 rounded-xl text-sm font-semibold">{error}</div>}

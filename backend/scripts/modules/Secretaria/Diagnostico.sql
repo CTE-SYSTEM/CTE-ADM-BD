@@ -18,6 +18,7 @@ BEGIN
         'enciende', d.enciende,
         'usa_corriente_ac', d.usa_corriente_ac,
         'fecha_hora', d.fecha_hora,
+        'fecha_completado', d.fecha_completado,
         'tecnico', to_jsonb(t.*),
         'equipo', to_jsonb(e.*),
         'cliente', to_jsonb(c.*) -- Aplanado de shapeDiagnostico
@@ -69,6 +70,7 @@ BEGIN
         'enciende', d.enciende,
         'usa_corriente_ac', d.usa_corriente_ac,
         'fecha_hora', d.fecha_hora,
+        'fecha_completado', d.fecha_completado,
         'tecnico', to_jsonb(t.*),
         'equipo', to_jsonb(e.*),
         'cliente', to_jsonb(c.*)
@@ -99,7 +101,11 @@ BEGIN
         "Estado_aprobacion" = COALESCE(p_estado_aprob, "Estado_aprobacion"),
         deja_cargador = COALESCE(p_cargador, deja_cargador),
         enciende = COALESCE(p_enciende, enciende),
-        usa_corriente_ac = COALESCE(p_ac, usa_corriente_ac)
+        usa_corriente_ac = COALESCE(p_ac, usa_corriente_ac),
+        fecha_completado = CASE
+          WHEN COALESCE(p_estado_diag, estado_del_diagnostico) = 'COMPLETADO' THEN COALESCE(fecha_completado, NOW())
+          ELSE fecha_completado
+        END
     WHERE id_diagnostico = p_id;
 
     RETURN QUERY SELECT * FROM get_diagnosticos_por_id(p_id);

@@ -40,6 +40,12 @@ BEGIN
       CHECK (estado_aprobacion IN ('PENDIENTE', 'APROBADO', 'DENEGADO'));
   END IF;
 
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_ordenes_repuestos_entrega') THEN
+    ALTER TABLE "Ordenes_Repuestos"
+      ADD CONSTRAINT chk_ordenes_repuestos_entrega
+      CHECK (estado_entrega IN ('PENDIENTE', 'ENTREGADO'));
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_ordenes_repuestos_cantidad') THEN
     ALTER TABLE "Ordenes_Repuestos"
       ADD CONSTRAINT chk_ordenes_repuestos_cantidad

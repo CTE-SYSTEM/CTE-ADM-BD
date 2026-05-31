@@ -9,7 +9,8 @@ BEGIN
     UPDATE "Diagnosticos"
     SET diagnostico_real = TRIM(p_diagnostico_real),
         presupuesto_estimado = p_presupuesto_estimado,
-        estado_del_diagnostico = 'COMPLETADO'
+        estado_del_diagnostico = 'COMPLETADO',
+        fecha_completado = NOW()
     WHERE id_diagnostico = p_id_diagnostico::INT
       AND UPPER(COALESCE(estado_del_diagnostico, '')) <> 'COMPLETADO';
 
@@ -32,6 +33,15 @@ DECLARE
     v_id INT;
     v_tecnico_id INT;
 BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM "Ordenes"
+        WHERE id_orden = p_id_orden::INT
+          AND COALESCE(requiere_piezas, TRUE) = FALSE
+    ) THEN
+        RAISE EXCEPTION 'Esta orden fue marcada como servicio sin piezas y no admite solicitudes de repuestos';
+    END IF;
+
     IF p_repuesto_id IS NULL AND TRIM(COALESCE(p_pieza_solicitada, '')) = '' THEN
         RAISE EXCEPTION 'Indique que pieza necesita solicitar';
     END IF;
@@ -118,15 +128,14 @@ DECLARE
     v_estado TEXT := UPPER(TRIM(COALESCE(p_estado, '')));
     v_actual TEXT;
     v_pendientes INT;
-    v_rank_finalizada INT;
-    v_fecha_ingreso TIMESTAMP;
+    v_requiere_piezas BOOLEAN;
 BEGIN
-    IF v_estado NOT IN ('EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'IRREPARABLE') THEN
+    IF v_estado NOT IN ('EN_REPARACION', 'FINALIZADO', 'IRREPARABLE') THEN
         RAISE EXCEPTION 'Estado de orden invalido';
     END IF;
 
-    SELECT UPPER(COALESCE(estado, '')), fecha_ingreso
-    INTO v_actual, v_fecha_ingreso
+    SELECT UPPER(COALESCE(estado, '')), COALESCE(requiere_piezas, TRUE)
+    INTO v_actual, v_requiere_piezas
     FROM "Ordenes"
     WHERE id_orden = p_id_orden::INT;
 
@@ -134,36 +143,29 @@ BEGIN
         RAISE EXCEPTION 'Orden no encontrada';
     END IF;
 
-    IF v_actual = 'FINALIZADO' THEN
-        SELECT ranked.rn INTO v_rank_finalizada
-        FROM (
-            SELECT id_orden, ROW_NUMBER() OVER (ORDER BY fecha_ingreso DESC NULLS LAST, id_orden DESC) AS rn
-            FROM "Ordenes"
-            WHERE UPPER(COALESCE(estado, '')) = 'FINALIZADO'
-        ) ranked
-        WHERE ranked.id_orden = p_id_orden::INT;
-
-        IF COALESCE(v_rank_finalizada, 999) > 5 OR v_fecha_ingreso < NOW() - INTERVAL '1 day' THEN
-            RAISE EXCEPTION 'Esta orden finalizada ya no se puede editar';
-        END IF;
-    END IF;
-
     IF v_estado = 'FINALIZADO' THEN
-        SELECT COUNT(*) INTO v_pendientes
-        FROM "Ordenes_Repuestos"
-        WHERE orden_id = p_id_orden::INT
-          AND (
-            estado_aprobacion <> 'APROBADO'
-            OR repuesto_id IS NULL
-          );
+        IF v_requiere_piezas THEN
+            SELECT COUNT(*) INTO v_pendientes
+            FROM "Ordenes_Repuestos"
+            WHERE orden_id = p_id_orden::INT
+              AND (
+                estado_aprobacion <> 'APROBADO'
+                OR estado_entrega <> 'ENTREGADO'
+                OR repuesto_id IS NULL
+              );
 
-        IF v_pendientes > 0 THEN
-            RAISE EXCEPTION 'No se puede finalizar: todas las piezas solicitadas deben estar registradas y aprobadas';
+            IF v_pendientes > 0 THEN
+                RAISE EXCEPTION 'No se puede finalizar: todas las piezas solicitadas deben estar aprobadas y entregadas';
+            END IF;
         END IF;
     END IF;
 
-    IF v_estado IN ('FINALIZADO', 'IRREPARABLE') AND TRIM(COALESCE(p_observacion_final, '')) = '' THEN
+    IF v_estado = 'FINALIZADO' AND TRIM(COALESCE(p_observacion_final, '')) = '' THEN
         RAISE EXCEPTION 'La observacion final es obligatoria para cerrar la orden';
+    END IF;
+
+    IF v_estado = 'IRREPARABLE' AND TRIM(COALESCE(p_observacion_final, '')) = '' THEN
+        RAISE EXCEPTION 'La justificacion de irreparabilidad es obligatoria';
     END IF;
 
     UPDATE "Ordenes"
@@ -172,7 +174,10 @@ BEGIN
         enciende_salida = CASE WHEN v_estado IN ('FINALIZADO', 'IRREPARABLE') THEN p_enciende_salida ELSE enciende_salida END,
         usa_corriente_ac_salida = CASE WHEN v_estado IN ('FINALIZADO', 'IRREPARABLE') THEN p_usa_corriente_ac_salida ELSE usa_corriente_ac_salida END,
         observacion_final = CASE WHEN v_estado IN ('FINALIZADO', 'IRREPARABLE') THEN TRIM(p_observacion_final) ELSE observacion_final END,
-        fecha_cierre = CASE WHEN v_estado IN ('FINALIZADO', 'IRREPARABLE') THEN NOW() ELSE fecha_cierre END
+        fecha_cierre = CASE WHEN v_estado = 'FINALIZADO' THEN NOW() ELSE fecha_cierre END,
+        fecha_finalizacion = CASE WHEN v_estado = 'FINALIZADO' THEN NOW() ELSE fecha_finalizacion END,
+        justificacion_irreparable = CASE WHEN v_estado = 'IRREPARABLE' THEN TRIM(p_observacion_final) ELSE justificacion_irreparable END,
+        irreparable_estado = CASE WHEN v_estado = 'IRREPARABLE' THEN 'PENDIENTE' ELSE irreparable_estado END
     WHERE id_orden = p_id_orden::INT;
 
     RETURN QUERY
@@ -187,7 +192,11 @@ BEGIN
         'enciende_salida', o.enciende_salida,
         'usa_corriente_ac_salida', o.usa_corriente_ac_salida,
         'observacion_final', o.observacion_final,
-        'fecha_cierre', o.fecha_cierre
+        'fecha_cierre', o.fecha_cierre,
+        'fecha_finalizacion', o.fecha_finalizacion,
+        'requiere_piezas', o.requiere_piezas,
+        'justificacion_irreparable', o.justificacion_irreparable,
+        'irreparable_estado', o.irreparable_estado
     )
     FROM "Ordenes" o
     WHERE o.id_orden = p_id_orden::INT;

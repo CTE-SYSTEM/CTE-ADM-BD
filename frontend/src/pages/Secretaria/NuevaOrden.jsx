@@ -57,6 +57,7 @@ const NuevaOrden = () => {
   const [error, setError] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+  const [requierePiezasPorDiagnostico, setRequierePiezasPorDiagnostico] = useState({});
   
   // NUEVO: Estado para controlar qué tarjeta tiene el informe expandido
   const [expandedId, setExpandedId] = useState(null);
@@ -135,6 +136,18 @@ const NuevaOrden = () => {
     ].some((value) => String(value || '').toLowerCase().includes(term));
   });
 
+  const getRequierePiezas = (diagnosticoId) => {
+    const value = requierePiezasPorDiagnostico[diagnosticoId];
+    return value === undefined ? true : value;
+  };
+
+  const setRequierePiezas = (diagnosticoId, value) => {
+    setRequierePiezasPorDiagnostico((prev) => ({
+      ...prev,
+      [diagnosticoId]: value,
+    }));
+  };
+
   const handleAprobar = async (diagnostico) => {
     if (!diagnostico?.id_diagnostico) {
       setError('No se puede crear la orden: diagnóstico inválido.');
@@ -151,7 +164,12 @@ const NuevaOrden = () => {
       return;
     }
 
-    if (!window.confirm('¿El cliente aprobó el presupuesto? Se generará la orden de reparación.')) return;
+    const requierePiezas = getRequierePiezas(diagnostico.id_diagnostico);
+    const confirmacion = requierePiezas
+      ? '¿El cliente aprobó el presupuesto? Se generará la orden de reparación.'
+      : '¿Confirmas que esta orden no requiere repuestos? Se generará como servicio solo de mano de obra.';
+
+    if (!window.confirm(confirmacion)) return;
 
     try {
       setLoading(true);
@@ -160,6 +178,7 @@ const NuevaOrden = () => {
         diagnostico_id: diagnostico.id_diagnostico,
         monto_acordado: diagnostico.presupuesto_estimado,
         estado: 'EN_REPARACION',
+        requiere_piezas: requierePiezas,
       });
       await updateEstadoDiagnostico(diagnostico.id_diagnostico, 'APROBADO');
       await loadDiagnosticos();
@@ -275,36 +294,63 @@ const NuevaOrden = () => {
                         )}
                       </div>
                       
-                      {/* CONTENEDOR OPTIMIZADO DEL INFORME TÉCNICO */}
-                      <div className="mt-3 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                        <span className="font-bold text-gray-500 text-xs block mb-1">Informe Técnico:</span>
-                        <p className="text-xs text-gray-600 leading-relaxed break-words whitespace-pre-line">
-                          {isExpanded || !esLargo 
-                            ? textoInforme 
-                            : `${textoInforme.substring(0, limiteCaracteres)}...`
-                          }
-                        </p>
-                        
-                        {/* Botón dinámico "Ver más" / "Ver menos" */}
-                        {esLargo && (
-                          <button
-                            type="button"
-                            onClick={() => toggleExpand(diag.id_diagnostico)}
-                            className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 focus:outline-none transition-colors"
-                          >
-                            {isExpanded ? (
-                              <>
-                                <span>Ver menos</span>
-                                <ChevronUp className="w-3.5 h-3.5" />
-                              </>
-                            ) : (
-                              <>
-                                <span>Ver informe completo</span>
-                                <ChevronDown className="w-3.5 h-3.5" />
-                              </>
+                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-black uppercase tracking-wide text-slate-500">Detalles del diagnóstico</span>
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase text-slate-500">
+                            {getRequierePiezas(diag.id_diagnostico) ? 'Con repuestos' : 'Sin repuestos'}
+                          </span>
+                        </div>
+                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-lg bg-white p-3">
+                            <span className="block text-[9px] font-black uppercase text-slate-400">Falla reportada</span>
+                            <p className="mt-1 text-xs leading-5 text-slate-700">{diag.falla_reportada || 'Sin detalle de falla'}</p>
+                          </div>
+                          <div className="rounded-lg bg-white p-3">
+                            <span className="block text-[9px] font-black uppercase text-slate-400">Diagnóstico técnico</span>
+                            <p className="mt-1 text-xs leading-5 text-slate-700">
+                              {isExpanded || !esLargo
+                                ? textoInforme
+                                : `${textoInforme.substring(0, limiteCaracteres)}...`
+                              }
+                            </p>
+                            {esLargo && (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpand(diag.id_diagnostico)}
+                                className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 focus:outline-none transition-colors"
+                              >
+                                {isExpanded ? (
+                                  <>
+                                    <span>Ver menos</span>
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>Ver diagnóstico completo</span>
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  </>
+                                )}
+                              </button>
                             )}
-                          </button>
-                        )}
+                          </div>
+                        </div>
+                        <div className="mt-3 rounded-lg border border-dashed border-indigo-200 bg-white p-3">
+                          <label className="flex cursor-pointer items-start gap-3">
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              checked={!getRequierePiezas(diag.id_diagnostico)}
+                              onChange={(event) => setRequierePiezas(diag.id_diagnostico, !event.target.checked)}
+                            />
+                            <span>
+                              <span className="block text-sm font-bold text-gray-800">Orden sin repuestos</span>
+                              <span className="block text-xs font-medium leading-5 text-gray-500">
+                                Úsalo solo si este servicio se factura únicamente por mano de obra.
+                              </span>
+                            </span>
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -322,7 +368,8 @@ const NuevaOrden = () => {
                       className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm rounded-xl hover:bg-indigo-700 shadow-md transition-all font-bold whitespace-nowrap disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
                       title={canApprove ? 'Crear orden' : 'Complete informe y presupuesto antes de aprobar'}
                     >
-                      <CheckCircle className="w-4 h-4" /> Aprobar y Crear Orden
+                      <CheckCircle className="w-4 h-4" />
+                      {getRequierePiezas(diag.id_diagnostico) ? 'Aprobar y Crear Orden' : 'Aprobar y Crear Orden sin repuestos'}
                     </button>
                   </div>
                 </div>

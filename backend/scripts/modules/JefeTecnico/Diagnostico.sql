@@ -8,16 +8,18 @@ BEGIN
     SELECT jsonb_build_object(
         'id_diagnostico', d.id_diagnostico,
         'fecha_hora', d.fecha_hora,
+        'fecha_completado', d.fecha_completado,
         'falla_reportada', d.falla_reportada,
         'estado_del_diagnostico', d.estado_del_diagnostico,
+        'tecnico', to_jsonb(t.*),
         'equipo', to_jsonb(e.*) || jsonb_build_object('cliente', to_jsonb(c.*))
     )
     FROM "Diagnosticos" d
+    LEFT JOIN "Tecnicos" t ON d.tecnico_id = t.id_tecnico
     JOIN "Equipos" e ON d.equipo_id = e.id_equipo
     JOIN "Clientes" c ON e.cliente_id = c.id_cliente
-    WHERE d.tecnico_id IS NULL 
-    AND d.estado_del_diagnostico ILIKE ANY (ARRAY['PENDIENTE', 'INGRESADO'])
-    ORDER BY d.fecha_hora ASC;
+    WHERE d.estado_del_diagnostico IN ('PENDIENTE', 'INGRESADO', 'EN_REVISION', 'DIAGNOSTICADO')
+    ORDER BY d.fecha_hora ASC, d.id_diagnostico ASC;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -54,7 +56,8 @@ BEGIN
 
     UPDATE "Ordenes"
     SET tecnico_id = p_id_tecnico,
-        estado = 'EN_REPARACION'
+        estado = 'EN_REPARACION',
+        fecha_asignacion = NOW()
     WHERE id_orden = p_id_orden;
 
     IF NOT FOUND THEN
@@ -74,6 +77,11 @@ BEGIN
         'prioridad', o.prioridad,
         'estado', o.estado,
         'fecha_ingreso', o.fecha_ingreso,
+        'fecha_asignacion', o.fecha_asignacion,
+        'fecha_finalizacion', o.fecha_finalizacion,
+        'requiere_piezas', o.requiere_piezas,
+        'justificacion_irreparable', o.justificacion_irreparable,
+        'irreparable_estado', o.irreparable_estado,
         'tecnico', to_jsonb(t.*),
         'diagnostico', to_jsonb(d.*) || jsonb_build_object(
             'tecnico', to_jsonb(dt.*),
@@ -86,9 +94,8 @@ BEGIN
     JOIN "Clientes" c ON e.cliente_id = c.id_cliente
     LEFT JOIN "Tecnicos" t ON o.tecnico_id = t.id_tecnico
     LEFT JOIN "Tecnicos" dt ON d.tecnico_id = dt.id_tecnico
-    WHERE o.tecnico_id IS NULL
-      AND (o.estado IN ('APROBADO', 'EN_REPARACION', 'PENDIENTE') OR d.estado_del_diagnostico = 'APROBADO')
-    ORDER BY o.fecha_ingreso ASC;
+    WHERE o.estado NOT IN ('FINALIZADO', 'ENTREGADO', 'IRREPARABLE')
+    ORDER BY o.fecha_ingreso ASC, o.id_orden ASC;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -141,7 +148,15 @@ BEGIN
     SET repuesto_id = CASE WHEN p_cambiar_repuesto THEN p_repuesto_id ELSE repuesto_id END,
         pieza_solicitada = CASE WHEN p_cambiar_pieza THEN NULLIF(p_pieza_solicitada, '') ELSE pieza_solicitada END,
         cantidad_usada = COALESCE(p_cantidad, cantidad_usada),
-        estado_aprobacion = COALESCE(p_estado_aprobacion, estado_aprobacion)
+        estado_aprobacion = COALESCE(p_estado_aprobacion, estado_aprobacion),
+        estado_entrega = CASE
+          WHEN p_estado_aprobacion = 'APROBADO' THEN 'ENTREGADO'
+          ELSE estado_entrega
+        END,
+        fecha_entrega = CASE
+          WHEN p_estado_aprobacion = 'APROBADO' THEN COALESCE(fecha_entrega, NOW())
+          ELSE fecha_entrega
+        END
     WHERE id_detalle_repuesto = p_id;
 END;
 $$ LANGUAGE plpgsql;
@@ -152,7 +167,9 @@ CREATE OR REPLACE FUNCTION actualizar_estado_solicitud_repuesto_jefe_proc(
 ) RETURNS VOID AS $$
 BEGIN
     UPDATE "Ordenes_Repuestos"
-    SET estado_aprobacion = p_estado_aprobacion
+    SET estado_aprobacion = p_estado_aprobacion,
+        estado_entrega = CASE WHEN p_estado_aprobacion = 'APROBADO' THEN 'ENTREGADO' ELSE estado_entrega END,
+        fecha_entrega = CASE WHEN p_estado_aprobacion = 'APROBADO' THEN COALESCE(fecha_entrega, NOW()) ELSE fecha_entrega END
     WHERE id_detalle_repuesto = p_id;
 END;
 $$ LANGUAGE plpgsql;
@@ -168,6 +185,8 @@ BEGIN
         'cantidad_usada', orp.cantidad_usada,
         'repuesto_id', orp.repuesto_id,
         'pieza_solicitada', orp.pieza_solicitada,
+        'estado_entrega', orp.estado_entrega,
+        'fecha_entrega', orp.fecha_entrega,
         'repuesto', to_jsonb(r.*),
         'orden', jsonb_build_object(
             'id_orden', o.id_orden,

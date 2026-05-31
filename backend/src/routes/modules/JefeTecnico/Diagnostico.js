@@ -16,7 +16,9 @@ import {
   getCorreccionesJefeTecnico,
   corregirDiagnosticoJefeTecnico,
   corregirOrdenJefeTecnico,
-  corregirRepuestoJefeTecnico
+  corregirRepuestoJefeTecnico,
+  aprobarIrreparableOrden,
+  rechazarIrreparableOrden
 } from '../../../controllers/JefeTecnico/DiagnosticoController.js';
 import authMiddleware, { requireRole } from '../../../middlewares/authMiddleware.js';
 
@@ -27,6 +29,8 @@ router.use(authMiddleware, requireRole('TecnicoJefe', 'Administrador', 'admin_pr
 router.get('/correcciones', getCorreccionesJefeTecnico);
 router.patch('/correcciones/diagnosticos/:id', corregirDiagnosticoJefeTecnico);
 router.patch('/correcciones/ordenes/:id', corregirOrdenJefeTecnico);
+router.patch('/correcciones/ordenes/:id/irreparable/aprobar', aprobarIrreparableOrden);
+router.patch('/correcciones/ordenes/:id/irreparable/rechazar', rechazarIrreparableOrden);
 router.patch('/correcciones/repuestos/:id', corregirRepuestoJefeTecnico);
 router.get('/todos', getTodosDiagnosticos);
 router.get('/pendientes-asignar', getDiagnosticosPendientes);

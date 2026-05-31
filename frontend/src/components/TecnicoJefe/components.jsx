@@ -18,7 +18,17 @@ const cardColors = {
   red: 'bg-red-50 text-red-600',
 };
 
-export const DashboardHeader = ({ user, logout, socketConnected, notificationsCount, onToggleNotifications }) => (
+export const DashboardHeader = ({
+  user,
+  logout,
+  socketConnected,
+  notifications,
+  notificationsCount,
+  showNotifications,
+  onToggleNotifications,
+  onClearNotifications,
+  onCloseNotifications,
+}) => (
   <header className="bg-[#0f172a] text-white p-6 shadow-xl">
     <div className="container mx-auto flex justify-between items-center">
       <div className="flex items-center gap-5">
@@ -29,20 +39,31 @@ export const DashboardHeader = ({ user, logout, socketConnected, notificationsCo
       </div>
 
       <div className="flex items-center gap-6">
-        <button
-          type="button"
-          onClick={onToggleNotifications}
-          className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/50 text-slate-200 hover:border-indigo-400 hover:text-white"
-          title={socketConnected ? 'Notificaciones conectadas' : 'Notificaciones desconectadas'}
-        >
-          <Bell size={20} />
-          {notificationsCount > 0 && (
-            <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-              {notificationsCount}
-            </span>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={onToggleNotifications}
+            className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/50 text-slate-200 hover:border-indigo-400 hover:text-white"
+            title={socketConnected ? 'Notificaciones conectadas' : 'Notificaciones desconectadas'}
+          >
+            <Bell size={20} />
+            {notificationsCount > 0 && (
+              <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                {notificationsCount}
+              </span>
+            )}
+            <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ${notificationsCount > 0 ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+          </button>
+
+          {showNotifications && (
+            <NotificationTray
+              notifications={notifications}
+              connected={socketConnected}
+              onClear={onClearNotifications}
+              onClose={onCloseNotifications}
+            />
           )}
-          <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ${socketConnected ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-        </button>
+        </div>
 
         <div className="text-right hidden md:block">
           <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] leading-none mb-1">
@@ -74,8 +95,9 @@ export const DashboardHeader = ({ user, logout, socketConnected, notificationsCo
   </header>
 );
 
-export const NotificationTray = ({ notifications, connected, onClear }) => (
-  <aside className="fixed right-6 top-24 z-40 w-[min(380px,calc(100vw-48px))] rounded-2xl border border-slate-200 bg-white shadow-2xl">
+export const NotificationTray = ({ notifications, connected, onClear, onClose }) => (
+  <aside className="absolute right-0 top-full z-40 mt-3 w-[min(380px,calc(100vw-48px))] rounded-2xl border border-slate-200 bg-white text-slate-800 shadow-2xl">
+    <div className="absolute -top-2 right-4 h-4 w-4 rotate-45 border-l border-t border-slate-200 bg-white" />
     <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
       <div>
         <h2 className="text-xs font-black uppercase tracking-widest text-slate-800">Notificaciones</h2>
@@ -83,9 +105,14 @@ export const NotificationTray = ({ notifications, connected, onClear }) => (
           {connected ? 'En vivo' : 'Sin conexion en vivo'}
         </p>
       </div>
-      <button type="button" onClick={onClear} className="rounded-lg px-3 py-1 text-[10px] font-black uppercase text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-        Limpiar
-      </button>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={onClear} className="rounded-lg px-3 py-1 text-[10px] font-black uppercase text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+          Limpiar
+        </button>
+        <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Cerrar notificaciones">
+          <X size={14} />
+        </button>
+      </div>
     </div>
     <div className="max-h-[420px] space-y-2 overflow-y-auto p-3">
       {notifications.length === 0 ? (
@@ -157,6 +184,8 @@ export const DetailModal = ({ detalles, loadingDetalles, onClose }) => {
   const diagnostico = detalles?.diagnostico || detalles?.orden?.diagnostico || {};
   const tecnico = orden?.tecnico || diagnostico?.tecnico;
   const esSolicitudRepuesto = Boolean(detalles?.id_detalle_repuesto);
+  const irreparableEstado = String(orden?.irreparable_estado || '').toUpperCase();
+  const tieneIrreparable = Boolean(orden?.justificacion_irreparable || orden?.observacion_final || irreparableEstado);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -187,6 +216,22 @@ export const DetailModal = ({ detalles, loadingDetalles, onClose }) => {
               </div>
               <DetailBox label="Falla Reportada" value={detalles.falla_reportada || diagnostico.falla_reportada} isFull highlight />
               <DetailBox label="Diagnostico Realizado" value={detalles.diagnostico_real || diagnostico.diagnostico_real || 'Aun no se ha realizado diagnostico'} isFull />
+              {tieneIrreparable && (
+                <div className="rounded-[2rem] border border-red-100 bg-red-50/70 p-6 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Revision de irreparabilidad</p>
+                    <span className="rounded-full border border-red-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-red-700">
+                      {irreparableEstado || 'PENDIENTE'}
+                    </span>
+                  </div>
+                  <DetailBox
+                    label="Hallazgo o justificacion"
+                    value={orden.justificacion_irreparable || orden.observacion_final || 'Sin justificacion registrada'}
+                    isFull
+                    highlight
+                  />
+                </div>
+              )}
               {esSolicitudRepuesto && (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <DetailBox label="Pieza solicitada" value={detalles.repuesto?.nombre || detalles.pieza_solicitada} highlight />

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
@@ -17,6 +17,10 @@ export default function ClientesAvanzado() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
+
+  // Estados para el buscador multiparámetro
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParam, setSearchParam] = useState('global'); // 'global', 'cliente', 'telefono'
 
   // Petición de datos a la API
   const fetchClientes = useCallback(async () => {
@@ -47,11 +51,32 @@ export default function ClientesAvanzado() {
     fetchClientes();
   }, [fetchClientes]);
 
-  // Handlers para Descargas de Reportes
+  // Lógica de filtrado multiparámetro (Optimizada con useMemo)
+  const clientesFiltrados = useMemo(() => {
+    if (!searchTerm.trim()) return clientes;
+
+    const normalizeText = (text) => 
+      String(text || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    const term = normalizeText(searchTerm);
+
+    return clientes.filter((item) => {
+      const clienteMatch = normalizeText(item.cliente).includes(term);
+      const telefonoMatch = normalizeText(item.telefono).includes(term);
+
+      if (searchParam === 'cliente') return clienteMatch;
+      if (searchParam === 'telefono') return telefonoMatch;
+      
+      // 'global' -> Busca en cualquiera de los dos campos
+      return clienteMatch || telefonoMatch;
+    });
+  }, [clientes, searchTerm, searchParam]);
+
+  // Handlers para Descargas de Reportes utilizando la lista filtrada
   const downloadClientesCsv = () => {
     setDownloading(true);
     try {
-      downloadJsonCsv(clientes, COLUMNS, 'clientes_equipos.csv');
+      downloadJsonCsv(clientesFiltrados, COLUMNS, 'clientes_equipos.csv');
     } catch (err) {
       setError('No se pudo descargar el reporte en CSV.');
     } finally {
@@ -62,7 +87,7 @@ export default function ClientesAvanzado() {
   const downloadClientesPdf = () => {
     setDownloading(true);
     try {
-      downloadJsonPdf(clientes, COLUMNS, 'clientes_equipos.pdf', 'Clientes y equipos');
+      downloadJsonPdf(clientesFiltrados, COLUMNS, 'clientes_equipos.pdf', 'Clientes y equipos');
     } catch (err) {
       setError('No se pudo descargar el reporte en PDF.');
     } finally {
@@ -70,9 +95,9 @@ export default function ClientesAvanzado() {
     }
   };
 
-  // Cálculos derivados del estado en tiempo real
-  const totalEquiposGarantia = clientes.reduce((total, item) => total + (item.raw_equipos || 0), 0);
-  const totalOrdenesAsignadas = clientes.reduce((total, item) => total + (item.raw_ordenes || 0), 0);
+  // Cálculos derivados del estado en tiempo real (basados en los datos filtrados)
+  const totalEquiposGarantia = clientesFiltrados.reduce((total, item) => total + (item.raw_equipos || 0), 0);
+  const totalOrdenesAsignadas = clientesFiltrados.reduce((total, item) => total + (item.raw_ordenes || 0), 0);
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -88,7 +113,7 @@ export default function ClientesAvanzado() {
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Base de Clientes</p>
-            <p className="mt-1 text-2xl font-extrabold text-slate-900">{clientes.length} usuarios</p>
+            <p className="mt-1 text-2xl font-extrabold text-slate-900">{clientesFiltrados.length} usuarios</p>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Historial de Equipos</p>
@@ -103,30 +128,62 @@ export default function ClientesAvanzado() {
 
       {/* Contenedor Principal de la Tabla */}
       <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-50 pb-4">
+        
+        {/* Barra de Herramientas: Título, Buscador y Exportaciones */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-gray-50 pb-4">
           <div>
             <h2 className="text-lg font-bold text-slate-800">Resumen de clientes</h2>
             <p className="text-sm text-gray-400">Auditoría de activos, diagnósticos parciales y flujos de trabajo.</p>
           </div>
-          
-          {/* Botones de Acción de Reportes */}
-          <div className="flex w-full gap-2 sm:w-auto">
-            <button
-              type="button"
-              onClick={downloadClientesCsv}
-              disabled={downloading || loading || clientes.length === 0}
-              className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
-            >
-              Exportar CSV
-            </button>
-            <button
-              type="button"
-              onClick={downloadClientesPdf}
-              disabled={downloading || loading || clientes.length === 0}
-              className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
-            >
-              Exportar PDF
-            </button>
+
+          {/* Bloque de Búsqueda y Filtros */}
+          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+            <div className="flex flex-1 items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 focus-within:border-indigo-500 focus-within:bg-white transition">
+              <select
+                value={searchParam}
+                onChange={(e) => setSearchParam(e.target.value)}
+                className="bg-transparent text-xs font-semibold text-gray-600 outline-none cursor-pointer border-r border-gray-200 pr-2 mr-1 h-full"
+              >
+                <option value="global">Todo</option>
+                <option value="cliente">Cliente</option>
+                <option value="telefono">Teléfono</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Buscar..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-transparent text-sm text-slate-700 outline-none"
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="text-gray-400 hover:text-gray-600 text-xs px-1"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            
+            {/* Botones de Acción de Reportes */}
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={downloadClientesCsv}
+                disabled={downloading || loading || clientesFiltrados.length === 0}
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+              >
+                Exportar CSV
+              </button>
+              <button
+                type="button"
+                onClick={downloadClientesPdf}
+                disabled={downloading || loading || clientesFiltrados.length === 0}
+                className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+              >
+                Exportar PDF
+              </button>
+            </div>
           </div>
         </div>
 
@@ -145,12 +202,14 @@ export default function ClientesAvanzado() {
         
         {!loading && !error && (
           <div className="overflow-x-auto">
-            {clientes.length === 0 ? (
+            {clientesFiltrados.length === 0 ? (
               <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
-                No se registran datos o movimientos de clientes disponibles en este momento.
+                {clientes.length === 0 
+                  ? "No se registran datos o movimientos de clientes disponibles en este momento."
+                  : "No se encontraron resultados que coincidan con la búsqueda."}
               </div>
             ) : (
-              <Table columns={COLUMNS} data={clientes} sortable />
+              <Table columns={COLUMNS} data={clientesFiltrados} sortable />
             )}
           </div>
         )}

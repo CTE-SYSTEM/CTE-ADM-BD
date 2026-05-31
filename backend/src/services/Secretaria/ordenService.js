@@ -43,27 +43,29 @@ export const obtenerDiagnosticoParaOrden = async (diagnosticoId) => {
   return diagRow?.data;
 };
 
-export const crearOrden = async ({ diagnostico_id, tecnico_id, prioridad, estado }) => {
+export const crearOrden = async ({ diagnostico_id, tecnico_id, prioridad, estado, requiere_piezas }) => {
   const diagnosticoId = parsePositiveId(diagnostico_id);
   const [row] = await prisma.$queryRaw(Prisma.sql`
     SELECT data FROM crear_orden_secretaria_proc(
       ${diagnosticoId}::int,
       ${tecnico_id ? parsePositiveId(tecnico_id) : null}::int,
       ${assertInList(prioridad || 'Normal', PRIORIDADES, 'Prioridad')},
-      ${assertInList(estado || 'PENDIENTE', ORDEN_ESTADOS, 'Estado de la orden')}
+      ${assertInList(estado || 'PENDIENTE', ORDEN_ESTADOS, 'Estado de la orden')},
+      ${requiere_piezas === undefined ? null : requiere_piezas === true || requiere_piezas === 'true'}
     )
   `);
 
   return row?.data;
 };
 
-export const actualizarOrden = async (id, { tecnico_id, prioridad, estado }) => {
+export const actualizarOrden = async (id, { tecnico_id, prioridad, estado, requiere_piezas }) => {
   const [row] = await prisma.$queryRaw(Prisma.sql`
     SELECT data FROM actualizar_orden_secretaria_proc(
       ${Number(id)}::int,
       ${tecnico_id ? parsePositiveId(tecnico_id) : null}::int,
       ${prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : null},
-      ${estado ? assertInList(estado, ORDEN_ESTADOS, 'Estado de la orden') : null}
+      ${estado ? assertInList(estado, ORDEN_ESTADOS, 'Estado de la orden') : null},
+      ${requiere_piezas === undefined ? null : requiere_piezas === true || requiere_piezas === 'true'}
     )
   `);
 

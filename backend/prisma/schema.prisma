@@ -79,6 +79,7 @@ model Diagnosticos {
   prioridad               String?   @default("Normal") // Urgente - Alta - Normal
   fecha_hora              DateTime? @default(now())
   fecha_asignacion        DateTime?
+  fecha_completado        DateTime?
   
   // Estados
   estado_del_diagnostico  String    @default("PENDIENTE") // PENDIENTE, EN_REVISION, COMPLETADO
@@ -102,13 +103,18 @@ model Ordenes {
   diagnostico_id          Int
   tecnico_id              Int?      // Permite que sea nulo al inicio
   prioridad               String?   // Urgente - Alta - Normal
-  estado                  String?   @default("PENDIENTE") // INGRESADO, REPARACION, FINALIZADO
+  estado                  String?   @default("PENDIENTE") // PENDIENTE, EN_REVISION, EN_REPARACION, FINALIZADO, IRREPARABLE, ENTREGADO
   fecha_ingreso           DateTime? @default(now())
+  fecha_asignacion        DateTime?
   resultado_final         String?
   enciende_salida         Boolean?
   usa_corriente_ac_salida Boolean?
   observacion_final       String?
   fecha_cierre            DateTime?
+  fecha_finalizacion      DateTime?
+  requiere_piezas         Boolean   @default(true)
+  justificacion_irreparable String?
+  irreparable_estado      String    @default("PENDIENTE")
   
   // Relaciones
   diagnostico             Diagnosticos @relation(fields: [diagnostico_id], references: [id_diagnostico])
@@ -158,6 +164,8 @@ model Ordenes_Repuestos {
   repuesto_id         Int?
   pieza_solicitada    String?
   cantidad_usada      Int?      @default(1)
+  estado_entrega      String    @default("PENDIENTE") // PENDIENTE, ENTREGADO
+  fecha_entrega       DateTime?
   
   // El Check de aprobación del Jefe Técnico 
   estado_aprobacion   String    @default("PENDIENTE") // PENDIENTE, APROBADO, DENEGADO

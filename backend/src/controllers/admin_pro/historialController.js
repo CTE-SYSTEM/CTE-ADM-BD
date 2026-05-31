@@ -31,7 +31,8 @@ export const getHistorialEquipo = async (req, res) => {
     const diagnosticos = await prisma.diagnosticos.findMany({
       where: { equipo_id: Number(id) },
       include: {
-        ordenes: true,
+        equipo: { include: { cliente: true } },
+        ordenes: { include: { tecnico: true, repuestos_usados: true, facturas: true }, orderBy: { id_orden: 'desc' } },
         tecnico: true
       },
       orderBy: { fecha_hora: 'desc' }

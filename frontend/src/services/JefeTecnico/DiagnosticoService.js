@@ -34,6 +34,10 @@ export const diagnosticoService = {
     api.patch(`/diagnosticos/correcciones/ordenes/${id_orden}`, data),
   corregirRepuesto: (id_detalle_repuesto, data) =>
     api.patch(`/diagnosticos/correcciones/repuestos/${id_detalle_repuesto}`, data),
+  aprobarIrreparableOrden: (id_orden) =>
+    api.patch(`/diagnosticos/correcciones/ordenes/${id_orden}/irreparable/aprobar`),
+  rechazarIrreparableOrden: (id_orden) =>
+    api.patch(`/diagnosticos/correcciones/ordenes/${id_orden}/irreparable/rechazar`),
   asignar: (id_diagnostico, id_tecnico) => 
     api.patch(`/diagnosticos/${id_diagnostico}/asignar`, { id_tecnico }),
   asignarOrden: (id_orden, id_tecnico) => 

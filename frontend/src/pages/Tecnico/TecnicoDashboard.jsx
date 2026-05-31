@@ -2,6 +2,7 @@ import React, { useContext, useMemo, useState } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import TecnicoHeader from '../../components/Tecnico/TecnicoHeader';
 import { useTecnicoDashboard } from '../../hooks/useTecnicoDashboard';
+import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import { filterItems } from '../../utils/textFilters';
 import { TecnicoDashboardModals } from './sections/TecnicoDashboardModals';
 import { TecnicoIntro, TecnicoStatsGrid, TecnicoTimeFilter } from './sections/TecnicoOverview';
@@ -15,6 +16,7 @@ const TecnicoDashboard = () => {
   const [modalDiagnostico, setModalDiagnostico] = useState(null);
   const [modalCierre, setModalCierre] = useState(null);
   const [showHelp] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [timeFilter, setTimeFilter] = useState('todos');
   const [searches, setSearches] = useState({
     diagnosticosEnRevision: '',
@@ -35,6 +37,17 @@ const TecnicoDashboard = () => {
     solicitudesRepuestos,
   } = data;
   const { loading, error } = state;
+
+  const {
+    notifications,
+    connected: socketConnected,
+    clearNotifications,
+  } = useRealtimeNotifications({
+    enabled: Boolean(user?.username),
+    onNotification: () => setShowNotifications(true),
+    onRefresh: () => actions.loadTecnicoData(),
+    refreshIntervalMs: 90000,
+  });
 
   const filterByTime = (items) => {
     if (timeFilter === 'todos') return items;
@@ -167,7 +180,20 @@ const TecnicoDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-900">
-      <TecnicoHeader user={user} onLogout={logout} />
+      <TecnicoHeader
+        user={user}
+        onLogout={logout}
+        socketConnected={socketConnected}
+        notificationsCount={notifications.length}
+        notifications={notifications}
+        showNotifications={showNotifications}
+        onToggleNotifications={() => setShowNotifications((value) => !value)}
+        onClearNotifications={() => {
+          clearNotifications();
+          setShowNotifications(false);
+        }}
+        onCloseNotifications={() => setShowNotifications(false)}
+      />
 
       <main className="mx-auto max-w-[1840px] px-6 py-10">
         <TecnicoIntro showHelp={showHelp} />

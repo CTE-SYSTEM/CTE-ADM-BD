@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
@@ -29,6 +29,9 @@ export default function FacturasAvanzado() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [downloading, setDownloading] = useState(false);
+  
+  // Nuevo estado para la búsqueda global multiparámetro
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchFacturas = async () => {
     setLoading(true);
@@ -64,11 +67,33 @@ export default function FacturasAvanzado() {
     fetchFacturas();
   }, []);
 
+  // Motor de filtrado en tiempo real en múltiples propiedades (Ignora mayúsculas y acentos)
+  const facturasFiltradas = useMemo(() => {
+    if (!searchTerm.trim()) return facturas;
+
+    const normalizeText = (text) => 
+      String(text || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    const term = normalizeText(searchTerm);
+
+    return facturas.filter((f) => {
+      return (
+        normalizeText(f.id_factura).includes(term) ||
+        normalizeText(f.id_orden).includes(term) ||
+        normalizeText(f.cliente).includes(term) ||
+        normalizeText(f.equipo).includes(term) ||
+        normalizeText(f.tecnico).includes(term) ||
+        normalizeText(f.metodo_pago).includes(term)
+      );
+    });
+  }, [facturas, searchTerm]);
+
+  // Handlers para descargas utilizando los datos filtrados en pantalla
   const downloadFacturasCsv = async () => {
     setDownloading(true);
     setError('');
     try {
-      const exportData = facturas.map(f => ({
+      const exportData = facturasFiltradas.map(f => ({
         ...f,
         fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '-',
         total: `C$ ${f.total.toFixed(2)}`
@@ -85,7 +110,7 @@ export default function FacturasAvanzado() {
     setDownloading(true);
     setError('');
     try {
-      const exportData = facturas.map(f => ({
+      const exportData = facturasFiltradas.map(f => ({
         ...f,
         fecha_emision: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString() : '-',
         total: `C$ ${f.total.toFixed(2)}`
@@ -98,9 +123,10 @@ export default function FacturasAvanzado() {
     }
   };
 
-  const totalIngresos = facturas.reduce((acc, f) => acc + f.total, 0);
-  const operacionesEfectivo = facturas.filter(f => f.metodo_pago.toLowerCase().includes('efectivo')).length;
-  const operationsDigital = facturas.length - operacionesEfectivo;
+  // Cálculos reactivos basados estrictamente en el array filtrado
+  const totalIngresos = facturasFiltradas.reduce((acc, f) => acc + f.total, 0);
+  const operacionesEfectivo = facturasFiltradas.filter(f => f.metodo_pago.toLowerCase().includes('efectivo')).length;
+  const operationsDigital = facturasFiltradas.length - operacionesEfectivo;
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -115,7 +141,7 @@ export default function FacturasAvanzado() {
       {!loading && !error && facturas.length > 0 && (
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
-            <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">Ingresos Totales (Rango)</p>
+            <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">Ingresos Totales (Filtrado)</p>
             <p className="mt-1 text-2xl font-extrabold text-slate-900">C$ {totalIngresos.toFixed(2)}</p>
           </div>
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-100">
@@ -132,17 +158,29 @@ export default function FacturasAvanzado() {
       {/* Tarjeta de Filtros y Tabla */}
       <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-6">
         
-        {/* Fila superior: Título e Inputs de Fecha */}
+        {/* Barra de Filtros de Fecha e Input de Texto */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between border-b border-gray-50 pb-4">
           <div className="shrink-0">
             <h2 className="text-lg font-bold text-slate-800">Parámetros de conciliación</h2>
-            <p className="text-sm text-gray-400">Selecciona fechas de emisión para acotar los libros contables.</p>
+            <p className="text-sm text-gray-400">Digita cualquier valor para buscar o acota los libros contables por fecha.</p>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 w-full lg:w-auto dynamic-filters">
+          <div className="flex flex-col md:flex-row items-stretch md:items-end gap-3 w-full lg:w-auto">
             
+            {/* Input de Búsqueda de Texto Abierto */}
+            <div className="flex-1 lg:w-[280px]">
+              <span className="text-xs font-bold text-gray-500 uppercase block">Búsqueda rápida</span>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="ID, orden, cliente, técnico, pago..."
+                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder-gray-400"
+              />
+            </div>
+
             {/* Input Desde */}
-            <div className="w-full sm:w-[150px] shrink-0">
+            <div className="w-full md:w-[140px] shrink-0">
               <span className="text-xs font-bold text-gray-500 uppercase block">Desde</span>
               <input
                 type="date"
@@ -153,7 +191,7 @@ export default function FacturasAvanzado() {
             </div>
 
             {/* Input Hasta */}
-            <div className="w-full sm:w-[150px] shrink-0">
+            <div className="w-full md:w-[140px] shrink-0">
               <span className="text-xs font-bold text-gray-500 uppercase block">Hasta</span>
               <input
                 type="date"
@@ -164,30 +202,30 @@ export default function FacturasAvanzado() {
             </div>
             
             {/* Grupo de Acciones Rápidas */}
-            <div className="flex gap-2 items-end w-full sm:w-auto mt-2 sm:mt-0">
+            <div className="flex gap-2 items-end w-full md:w-auto mt-2 md:mt-0">
               <button
                 type="button"
                 onClick={fetchFacturas}
                 disabled={loading}
-                className="flex-1 sm:flex-none px-5 py-2 rounded-xl bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 whitespace-nowrap"
+                className="flex-1 md:flex-none px-5 py-2 rounded-xl bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 whitespace-nowrap"
               >
                 Consultar
               </button>
               <button
                 type="button"
                 onClick={downloadFacturasCsv}
-                disabled={downloading || loading || facturas.length === 0}
+                disabled={downloading || loading || facturasFiltradas.length === 0}
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
-                title="Exportar a Excel / CSV"
+                title="Exportar filtrados a Excel / CSV"
               >
                 CSV
               </button>
               <button
                 type="button"
                 onClick={downloadFacturasPdf}
-                disabled={downloading || loading || facturas.length === 0}
+                disabled={downloading || loading || facturasFiltradas.length === 0}
                 className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
-                title="Exportar a PDF impreso"
+                title="Exportar filtrados a PDF impreso"
               >
                 PDF
               </button>
@@ -201,12 +239,14 @@ export default function FacturasAvanzado() {
         
         {!loading && !error && (
           <div className="overflow-x-auto">
-            {facturas.length === 0 ? (
+            {facturasFiltradas.length === 0 ? (
               <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
-                No se encontraron facturas ni cobros registrados en el rango de fechas seleccionado.
+                {facturas.length === 0 
+                  ? "No se encontraron facturas ni cobros registrados en el rango de fechas seleccionado."
+                  : "No hay registros que coincidan con los términos de búsqueda ingresados."}
               </div>
             ) : (
-              <Table columns={columns} data={facturas} sortable />
+              <Table columns={columns} data={facturasFiltradas} sortable />
             )}
           </div>
         )}

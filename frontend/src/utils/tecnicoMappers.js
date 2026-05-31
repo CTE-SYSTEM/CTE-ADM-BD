@@ -32,5 +32,10 @@ export const mapOrden = (orden) => {
     enciende_salida: orden.enciende_salida,
     usa_corriente_ac_salida: orden.usa_corriente_ac_salida,
     observacion_final: orden.observacion_final || '',
+    justificacion_irreparable: orden.justificacion_irreparable || '',
+    irreparable_estado: orden.irreparable_estado || 'PENDIENTE',
+    requiere_piezas: orden.requiere_piezas !== false,
+    fecha_asignacion: orden.fecha_asignacion || null,
+    fecha_finalizacion: orden.fecha_finalizacion || orden.fecha_cierre || null,
   };
 };

@@ -4,10 +4,10 @@ import { AuthContext } from '../../context/AuthContext';
 import { diagnosticoService } from '../../services/JefeTecnico/DiagnosticoService';
 import { ordenesService } from '../../services/secretaria/ordenesService';
 import { repuestoService } from '../../services/secretaria/repuestosService';
-import { createNotificationsSocket } from '../../services/notificationsSocket';
-import { buildAsignacionColumns, buildCorreccionesColumns, buildRepuestosColumns } from '../../components/TecnicoJefe/columns';
-import { DashboardHeader, NotificationTray } from '../../components/TecnicoJefe/components';
-import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_ORDENES, TAB_REPUESTOS } from '../../utils/jefeTecnicoConstants';
+import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
+import { buildAsignacionColumns, buildCorreccionesColumns, buildIrreparablesColumns, buildRepuestosColumns } from '../../components/TecnicoJefe/columns';
+import { DashboardHeader } from '../../components/TecnicoJefe/components';
+import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_IRREPARABLES, TAB_ORDENES, TAB_REPUESTOS } from '../../utils/jefeTecnicoConstants';
 import {
   getCorreccionId,
   getCorreccionTipo,
@@ -46,6 +46,8 @@ const JefeDashboard = () => {
   const [asignacionOk, setAsignacionOk] = useState('');
   const [repuestoDecisionError, setRepuestoDecisionError] = useState('');
   const [repuestoDecisionOk, setRepuestoDecisionOk] = useState('');
+  const [irreparableDecisionError, setIrreparableDecisionError] = useState('');
+  const [irreparableDecisionOk, setIrreparableDecisionOk] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -54,19 +56,28 @@ const JefeDashboard = () => {
   const [editError, setEditError] = useState('');
   const [detalles, setDetalles] = useState(null);
   const [loadingDetalles, setLoadingDetalles] = useState(false);
-  const [socketConnected, setSocketConnected] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   const [showHelp] = useState(false);
   const [searchTermCorrecciones, setSearchTermCorrecciones] = useState('');
 
   const rolNormalizado = String(user?.rol || '').toLowerCase();
   const esJefeTecnico = rolNormalizado.includes('jefe');
 
+  const {
+    notifications,
+    connected: socketConnected,
+    clearNotifications,
+  } = useRealtimeNotifications({
+    enabled: Boolean(user?.username) && esJefeTecnico,
+    onNotification: () => setShowNotifications(true),
+    onRefresh: () => fetchData(),
+    refreshIntervalMs: 90000,
+  });
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [diagRes, ordenesRes, repuestosRes, tecRes, correccionesRes, repuestosCatalogoRes] = await Promise.all([
+      const requests = await Promise.allSettled([
         diagnosticoService.getPendientes(),
         ordenesService.getAprobadas(),
         repuestoService.getPendientesAprobacion(),
@@ -74,6 +85,11 @@ const JefeDashboard = () => {
         diagnosticoService.getCorrecciones(),
         diagnosticoService.getRepuestos(),
       ]);
+      const [diagRes, ordenesRes, repuestosRes, tecRes, correccionesRes, repuestosCatalogoRes] = requests.map((result, index) => {
+        if (result.status === 'fulfilled') return result.value;
+        console.error('Error en la carga de datos del jefe tecnico:', index, result.reason);
+        return null;
+      });
 
       setDiagnosticosPendientes(getData(diagRes));
       setOrdenesAprobadas(getData(ordenesRes));
@@ -114,29 +130,38 @@ const JefeDashboard = () => {
   }, []);
 
   useEffect(() => {
-    if (!esJefeTecnico) return undefined;
-
-    const socket = createNotificationsSocket();
-    if (!socket) return undefined;
-
-    socket.on('connect', () => setSocketConnected(true));
-    socket.on('disconnect', () => setSocketConnected(false));
-    socket.on('notificacion', (notification) => {
-      setNotifications((prev) => [notification, ...prev].slice(0, 25));
-      fetchData();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [esJefeTecnico]);
-
-  useEffect(() => {
     if (!selectedItem || selectedItem.id_detalle_repuesto) return;
 
     const id = selectedItem.id_diagnostico || selectedItem.id_orden;
     if (id) fetchDetalles(selectedItem);
   }, [selectedItem]);
+
+  useEffect(() => {
+    if (!asignacionError && !asignacionOk) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setAsignacionError('');
+      setAsignacionOk('');
+    }, 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [asignacionError, asignacionOk]);
+
+  useEffect(() => {
+    if (!repuestoDecisionError && !repuestoDecisionOk) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setRepuestoDecisionError('');
+      setRepuestoDecisionOk('');
+    }, 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [repuestoDecisionError, repuestoDecisionOk]);
+
+  useEffect(() => {
+    if (!irreparableDecisionError && !irreparableDecisionOk) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setIrreparableDecisionError('');
+      setIrreparableDecisionOk('');
+    }, 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [irreparableDecisionError, irreparableDecisionOk]);
 
   const correccionesData = useMemo(() => [
     ...(correcciones.diagnosticos || []).map((item) => ({ ...item, __tipo: 'diagnostico' })),
@@ -144,10 +169,13 @@ const JefeDashboard = () => {
     ...(correcciones.repuestos || []).map((item) => ({ ...item, __tipo: 'repuesto' })),
   ], [correcciones]);
 
+  const esIrreparablePendiente = (row) => String(row.irreparable_estado || '').toUpperCase() === 'PENDIENTE';
+
   const correccionesFiltradas = useMemo(() => {
     const limiteMinutos = 60;
 
     return correccionesData.filter((row) => {
+      if (getCorreccionTipo(row) === 'orden' && esIrreparablePendiente(row)) return false;
       if (!getTecnicoId(row)) return false;
 
       const minutosTranscurridos = getMinutosDesdeUltimoAvance(row);
@@ -165,6 +193,26 @@ const JefeDashboard = () => {
     });
   }, [correccionesData, searchTermCorrecciones]);
 
+  const irreparablesPendientes = useMemo(() => (
+    correccionesData.filter((row) => getCorreccionTipo(row) === 'orden' && esIrreparablePendiente(row))
+  ), [correccionesData]);
+
+  const irreparablesFiltrados = useMemo(() => {
+    if (!searchTermCorrecciones) return irreparablesPendientes;
+
+    const term = searchTermCorrecciones.toLowerCase();
+    return irreparablesPendientes.filter((row) => {
+      const id = String(row.id_orden || '');
+      const tecnicoNombre = (row.tecnico?.nombre || row.diagnostico?.tecnico?.nombre || '').toLowerCase();
+      const infoEquipo = getEquipo(row);
+      const equipoNombre = (infoEquipo?.descripcion || infoEquipo?.marca || '').toLowerCase();
+      const hallazgo = String(row.justificacion_irreparable || row.observacion_final || row.diagnostico_real || row.falla_reportada || '').toLowerCase();
+      const estado = String(row.irreparable_estado || '').toLowerCase();
+
+      return id.includes(term) || tecnicoNombre.includes(term) || equipoNombre.includes(term) || hallazgo.includes(term) || estado.includes(term);
+    });
+  }, [irreparablesPendientes, searchTermCorrecciones]);
+
   const puedeEditar = (row) => {
     if (!getTecnicoId(row)) return true;
     const minutos = getMinutosDesdeUltimoAvance(row);
@@ -180,6 +228,26 @@ const JefeDashboard = () => {
   const getTecnicoNombre = (id) => {
     const tecnico = tecnicos.find((t) => String(t.id_tecnico) === String(id));
     return tecnico?.nombre || 'el tecnico seleccionado';
+  };
+
+  const removeAsignacionPendiente = (row) => {
+    const id = row.id_diagnostico || row.id_orden;
+    if (row.id_diagnostico) {
+      setDiagnosticosPendientes((prev) => prev.filter((item) => String(item.id_diagnostico) !== String(id)));
+    } else {
+      setOrdenesAprobadas((prev) => prev.filter((item) => String(item.id_orden) !== String(id)));
+    }
+  };
+
+  const removeRepuestoPendiente = (id) => {
+    setRepuestosPendientes((prev) => prev.filter((item) => String(item.id_detalle_repuesto) !== String(id)));
+  };
+
+  const removeIrreparablePendiente = (id) => {
+    setCorrecciones((prev) => ({
+      ...prev,
+      ordenes: (prev.ordenes || []).filter((item) => String(item.id_orden) !== String(id)),
+    }));
   };
 
   const handleTecnicoChange = (row, value) => {
@@ -215,16 +283,24 @@ const JefeDashboard = () => {
         await ordenesService.asignarOrden(row.id_orden, idTecnico);
       }
 
-      await fetchData();
+      removeAsignacionPendiente(row);
+      fetchData();
       setTecnicosSeleccionados((prev) => {
         const siguiente = { ...prev };
         delete siguiente[getRowKey(row)];
         return siguiente;
       });
-      setAsignacionOk(`${tipo === 'orden' ? 'Orden' : 'Diagnostico'} #${id} asignado a ${tecnicoNombre}.`);
+      setAsignacionOk(
+        `${tipo === 'orden' ? 'La orden' : 'El diagnostico'} #${id} quedó asignado a ${tecnicoNombre}. `
+        + 'La bandeja se actualizó para que el cambio quede visible de inmediato y el técnico pueda seguir el flujo sin esperar una recarga manual.',
+      );
     } catch (error) {
       console.error('Error al guardar asignacion:', error);
-      setAsignacionError(error?.response?.data?.error || error?.response?.data?.details || 'No se pudo guardar la asignacion.');
+      setAsignacionError(
+        error?.response?.data?.error
+        || error?.response?.data?.details
+        || 'No se pudo guardar la asignacion. Revisa el tecnico seleccionado, valida que el registro siga editable y vuelve a intentarlo.',
+      );
     } finally {
       setSavingId(null);
     }
@@ -248,11 +324,59 @@ const JefeDashboard = () => {
       } else {
         await repuestoService.rechazar(id);
       }
-      await fetchData();
-      setRepuestoDecisionOk(`Solicitud #${id} ${accion === 'aprobar' ? 'aprobada' : 'rechazada'} correctamente.`);
+      removeRepuestoPendiente(id);
+      fetchData();
+      setRepuestoDecisionOk(
+        `La solicitud de repuesto #${id} fue ${accion === 'aprobar' ? 'aprobada' : 'rechazada'} correctamente. `
+        + 'El sistema refrescó la información para mostrar el nuevo estado tanto en la bandeja del jefe como en el panel del técnico.',
+      );
     } catch (error) {
       console.error(`Error al ${texto} repuesto:`, error);
-      setRepuestoDecisionError(error?.response?.data?.error || error?.response?.data?.details || `No se pudo ${texto} el repuesto.`);
+      setRepuestoDecisionError(
+        error?.response?.data?.error
+        || error?.response?.data?.details
+        || `No se pudo ${texto} el repuesto. Verifica el estado de la solicitud y la conexión con el servidor antes de intentar otra vez.`,
+      );
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleDecisionIrreparable = async (orden, accion) => {
+    const id = orden.id_orden;
+    if (!id || savingId) return;
+
+    const accionTexto = accion === 'aprobar' ? 'aprobar' : 'rechazar';
+    const mensaje = accion === 'aprobar'
+      ? `Deseas aprobar la irreparabilidad de la orden #${id}? La orden saldra de activas y pasara a completadas.`
+      : `Deseas rechazar la irreparabilidad de la orden #${id}? Volvera a EN_REPARACION para que el tecnico continue.`;
+
+    if (!window.confirm(mensaje)) return;
+
+    setSavingId(`irreparable-${id}`);
+    setIrreparableDecisionError('');
+    setIrreparableDecisionOk('');
+
+    try {
+      if (accion === 'aprobar') {
+        await diagnosticoService.aprobarIrreparableOrden(id);
+      } else {
+        await diagnosticoService.rechazarIrreparableOrden(id);
+      }
+
+      removeIrreparablePendiente(id);
+      fetchData();
+      setIrreparableDecisionOk(
+        `La orden #${id} fue ${accion === 'aprobar' ? 'aprobada como irreparable' : 'devuelta a reparación'} correctamente. `
+        + 'El cambio ya quedó reflejado en las bandejas de técnico y jefe para que nadie trabaje con un estado desactualizado.',
+      );
+    } catch (error) {
+      console.error(`Error al ${accionTexto} la irreparabilidad:`, error);
+      setIrreparableDecisionError(
+        error?.response?.data?.error
+        || error?.response?.data?.details
+        || `No se pudo ${accionTexto} la irreparabilidad. Revisa si la orden ya fue procesada o si el servidor respondió con una validación pendiente.`,
+      );
     } finally {
       setSavingId(null);
     }
@@ -361,23 +485,37 @@ const JefeDashboard = () => {
     },
   });
 
+  const irreparablesColumns = buildIrreparablesColumns({
+    savingId,
+    onDecisionIrreparable: handleDecisionIrreparable,
+    onViewDetalle: (row) => {
+      setSelectedItem(row);
+      setDetalles(null);
+      setShowModal(true);
+    },
+  });
+
   const correccionesColumns = buildCorreccionesColumns({
     onEdit: openEditModal,
   });
 
   const mainData =
     activeTab === TAB_DIAGNOSTICOS
-      ? diagnosticosPendientes.filter((item) => !getTecnicoId(item))
+      ? diagnosticosPendientes
       : activeTab === TAB_ORDENES
-        ? ordenesAprobadas.filter((item) => !getTecnicoId(item))
+        ? ordenesAprobadas
         : activeTab === TAB_REPUESTOS
           ? repuestosPendientes
+          : activeTab === TAB_IRREPARABLES
+            ? irreparablesFiltrados
           : activeTab === TAB_CORRECCIONES
             ? correccionesFiltradas
             : alertasRetraso;
 
   const mainColumns = activeTab === TAB_REPUESTOS
     ? repuestosColumns
+    : activeTab === TAB_IRREPARABLES
+      ? irreparablesColumns
     : activeTab === TAB_CORRECCIONES
       ? correccionesColumns
       : asignacionColumns;
@@ -389,16 +527,15 @@ const JefeDashboard = () => {
         logout={logout}
         socketConnected={socketConnected}
         notificationsCount={notifications.length}
+        notifications={notifications}
+        showNotifications={showNotifications}
         onToggleNotifications={() => setShowNotifications((value) => !value)}
+        onClearNotifications={() => {
+          clearNotifications();
+          setShowNotifications(false);
+        }}
+        onCloseNotifications={() => setShowNotifications(false)}
       />
-
-      {showNotifications && (
-        <NotificationTray
-          notifications={notifications}
-          connected={socketConnected}
-          onClear={() => setNotifications([])}
-        />
-      )}
 
       <main className="flex-1 container mx-auto p-8">
         <JefeTecnicoIntro showHelp={showHelp} />
@@ -419,6 +556,7 @@ const JefeDashboard = () => {
           activeTab={activeTab}
           alertasRetraso={alertasRetraso}
           correccionesFiltradas={correccionesFiltradas}
+          irreparablesFiltrados={irreparablesFiltrados}
           onChange={setActiveTab}
         />
 
@@ -427,6 +565,20 @@ const JefeDashboard = () => {
           asignacionOk={asignacionOk}
           repuestoDecisionError={repuestoDecisionError}
           repuestoDecisionOk={repuestoDecisionOk}
+          irreparableDecisionError={irreparableDecisionError}
+          irreparableDecisionOk={irreparableDecisionOk}
+          onDismissAsignacion={() => {
+            setAsignacionError('');
+            setAsignacionOk('');
+          }}
+          onDismissRepuesto={() => {
+            setRepuestoDecisionError('');
+            setRepuestoDecisionOk('');
+          }}
+          onDismissIrreparable={() => {
+            setIrreparableDecisionError('');
+            setIrreparableDecisionOk('');
+          }}
         />
 
         <CorreccionesSearch

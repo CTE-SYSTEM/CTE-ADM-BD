@@ -1,5 +1,7 @@
 // backend/src/controllers/Secretaria/diagnosticosController.js
+import prisma from '../../app/prismaClient.js';
 import diagnosticoService from '../../services/Secretaria/diagnosticoService.js';
+import { notifyJefeTecnico, notifyTecnico } from '../../services/notifications.js';
 
 export const getDiagnosticos = async (req, res) => {
   try {
@@ -42,6 +44,31 @@ export const createDiagnostico = async (req, res) => {
       usa_corriente_ac,
     });
 
+    notifyJefeTecnico({
+      type: 'diagnostico_creado',
+      title: 'Nuevo diagnostico registrado',
+      message: `El diagnostico #${diagnostico?.id_diagnostico || diagnostico?.id || equipoId} ya está listo para revisión`,
+      severity: 'info',
+      entity: { kind: 'diagnostico', id: Number(diagnostico?.id_diagnostico || diagnostico?.id || 0) || equipoId },
+    });
+
+    if (tecnico_id) {
+      const tecnico = await prisma.tecnicos.findFirst({
+        where: { id_tecnico: Number(tecnico_id), activo: true },
+        select: { id_tecnico: true, nombre: true, usuario_id: true },
+      });
+
+      if (tecnico?.usuario_id) {
+        notifyTecnico(tecnico, {
+          type: 'diagnostico_asignado',
+          title: 'Nuevo diagnostico asignado',
+          message: `Se te asignó el diagnostico #${diagnostico?.id_diagnostico || equipoId}`,
+          severity: 'info',
+          entity: { kind: 'diagnostico', id: Number(diagnostico?.id_diagnostico || equipoId) },
+        });
+      }
+    }
+
     res.status(201).json({ data: diagnostico });
   } catch (error) {
     console.error('Error en createDiagnostico:', error.message);
@@ -82,6 +109,24 @@ export const updateDiagnostico = async (req, res) => {
     });
 
     if (!diagnostico) return res.status(404).json({ error: 'Diagnostico no encontrado' });
+
+    const tecnicoIdNuevo = tecnico_id ? Number(tecnico_id) : null;
+    if (tecnicoIdNuevo) {
+      const tecnico = await prisma.tecnicos.findFirst({
+        where: { id_tecnico: tecnicoIdNuevo, activo: true },
+        select: { id_tecnico: true, nombre: true, usuario_id: true },
+      });
+
+      if (tecnico?.usuario_id) {
+        notifyTecnico(tecnico, {
+          type: 'diagnostico_actualizado',
+          title: 'Diagnostico actualizado',
+          message: `Se actualizó el diagnostico #${id}`,
+          severity: 'info',
+          entity: { kind: 'diagnostico', id: Number(id) },
+        });
+      }
+    }
 
     res.json({ data: diagnostico });
   } catch (error) {

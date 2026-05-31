@@ -3,6 +3,7 @@ import api from '../../services/api';
 import Table from '../../components/Table';
 import { AuthContext } from '../../context/AuthContext';
 import { Plus, X } from 'lucide-react';
+import { downloadJsonPdf } from '../../utils/csvExport';
 
 const ASSIGNABLE_ROLES = ['Secretaria', 'TecnicoJefe', 'Tecnico'];
 const PASSWORD_ADMIN_ROLES = ['admin_pro', 'Administrador', 'Admin'];
@@ -266,11 +267,16 @@ export default function UsuariosAvanzado() {
     const term = searchText.trim().toLowerCase();
     if (!term) return usuarios;
     return usuarios.filter((u) => 
-      [u.nombre_usuario, u.correo_electronico, u.rol, u.activo].some((field) => 
-        field?.toLowerCase().includes(term)
+      [u.id_usuario, u.nombre_usuario, u.correo_electronico, u.rol, u.activo].some((field) => 
+        field?.toString().toLowerCase().includes(term)
       )
     );
   }, [usuarios, searchText]);
+
+  const userReportColumns = columns.filter((column) => column.accessor !== 'acciones');
+  const downloadGeneralReport = () => {
+    downloadJsonPdf(filteredUsuarios, userReportColumns, 'usuarios_general.pdf', 'Reporte General de Usuarios');
+  };
 
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -280,6 +286,15 @@ export default function UsuariosAvanzado() {
           Permite editar roles, cambiar estados de cuenta y controlar perfiles en el sistema.
         </p>
         
+        <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={downloadGeneralReport}
+          disabled={filteredUsuarios.length === 0}
+          className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-400 disabled:bg-slate-700 disabled:text-slate-400"
+        >
+          Generar Reporte General
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -305,6 +320,7 @@ export default function UsuariosAvanzado() {
             </>
           )}
         </button>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -451,7 +467,7 @@ export default function UsuariosAvanzado() {
           <input
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Buscar por usuario, rol o estado..."
+            placeholder="Buscador inteligente: ID, usuario, correo, rol o estado..."
             className="w-full sm:w-80 rounded-xl border border-gray-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-50"
           />
         </div>

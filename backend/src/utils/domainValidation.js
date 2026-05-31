@@ -2,6 +2,7 @@ export const DIAGNOSTICO_ESTADOS = ['PENDIENTE', 'INGRESADO', 'EN_REVISION', 'DI
 export const ORDEN_ESTADOS = ['PENDIENTE', 'APROBADO', 'EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'IRREPARABLE', 'ENTREGADO'];
 export const RESULTADOS_ORDEN = ['REPARADO', 'IRREPARABLE'];
 export const REPUESTO_ESTADOS = ['PENDIENTE', 'APROBADO', 'DENEGADO'];
+export const ENTREGA_REPUESTO_ESTADOS = ['PENDIENTE', 'ENTREGADO'];
 export const PRIORIDADES = ['Normal', 'Alta', 'Urgente', 'NORMAL', 'ALTA', 'URGENTE'];
 export const METODOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta'];
 

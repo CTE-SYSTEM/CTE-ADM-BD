@@ -24,7 +24,7 @@ import {
   deleteUsuario,
 } from '../../../controllers/admin_pro/usuariosController.js';
 import { getMonitoreoGeneral, getDashboardResumen } from '../../../controllers/admin_pro/dashboardController.js';
-import { updateDiagnosticoEstadoAdmin } from '../../../controllers/admin_pro/diagnosticosController.js';
+import { getDiagnosticosAdmin, updateDiagnosticoAdmin, updateDiagnosticoEstadoAdmin } from '../../../controllers/admin_pro/diagnosticosController.js';
 import { getHistorialEquipo, getHistorialRepuesto } from '../../../controllers/admin_pro/historialController.js';
 import { getReporteAdminPro } from '../../../controllers/admin_pro/reportesController.js';
 import { getGananciasAdmin, getProductividadAdmin } from '../../../controllers/admin_pro/analiticaController.js';
@@ -51,6 +51,8 @@ router.post('/ordenes/crear', async (req, res, next) => {
   }
 });
 router.get('/equipos/:id/diagnostico', getEquipoUltimoDiagnostico);
+router.get('/diagnosticos', getDiagnosticosAdmin);
+router.put('/diagnosticos/:id', updateDiagnosticoAdmin);
 router.patch('/diagnosticos/:id/estado', updateDiagnosticoEstadoAdmin);
 router.get('/facturas', getFacturasAvanzado);
 router.get('/garantias', getGarantiasAdmin);

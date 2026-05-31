@@ -1,9 +1,8 @@
 import React from 'react';
-import { AlertTriangle, Bell, History, Package, Search, Settings, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Bell, History, Package, Search, Settings, ShieldCheck, X } from 'lucide-react';
 import PageHelp from '../../../components/PageHelp';
 import Table from '../../../components/Table';
-import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_ORDENES, TAB_REPUESTOS } from '../../../utils/jefeTecnicoConstants';
-import { getTecnicoId } from '../../../utils/jefeTecnicoUtils';
+import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_IRREPARABLES, TAB_ORDENES, TAB_REPUESTOS } from '../../../utils/jefeTecnicoConstants';
 import { StatCard, TabButton } from '../../../components/TecnicoJefe/components';
 
 export const JefeTecnicoIntro = ({ showHelp }) => (
@@ -44,8 +43,8 @@ export const JefeTecnicoIntro = ({ showHelp }) => (
 
 export const JefeTecnicoStats = ({ diagnosticosPendientes, ordenesAprobadas, repuestosPendientes, alertasRetraso }) => (
   <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-    <StatCard icon={<Search size={22} />} label="Diag. sin asignar" value={diagnosticosPendientes.filter((d) => !getTecnicoId(d)).length} color="blue" />
-    <StatCard icon={<Package size={22} />} label="Ordenes por aprobar" value={ordenesAprobadas.filter((o) => !getTecnicoId(o)).length} color="amber" />
+    <StatCard icon={<Search size={22} />} label="Diagnosticos en bandeja" value={diagnosticosPendientes.length} color="blue" />
+    <StatCard icon={<Package size={22} />} label="Ordenes en bandeja" value={ordenesAprobadas.length} color="amber" />
     <StatCard icon={<ShieldCheck size={22} />} label="Repuestos por aprobar" value={repuestosPendientes.length} color="emerald" />
     <StatCard icon={<AlertTriangle size={22} />} label="Alertas +72h" value={alertasRetraso.length} color="red" />
   </div>
@@ -71,42 +70,68 @@ export const AsignacionesRecientes = ({ asignacionesRecientes, asignacionColumns
   );
 };
 
-export const JefeTecnicoTabs = ({ activeTab, alertasRetraso, correccionesFiltradas, onChange }) => (
+export const JefeTecnicoTabs = ({ activeTab, alertasRetraso, correccionesFiltradas, irreparablesFiltrados, onChange }) => (
   <div className="flex flex-wrap gap-3 mb-8">
     <TabButton active={activeTab === TAB_DIAGNOSTICOS} onClick={() => onChange(TAB_DIAGNOSTICOS)} icon={<Search size={16} />} label="Asignar Diagnosticos" />
     <TabButton active={activeTab === TAB_ORDENES} onClick={() => onChange(TAB_ORDENES)} icon={<Package size={16} />} label="Ordenes por aprobar" />
     <TabButton active={activeTab === TAB_REPUESTOS} onClick={() => onChange(TAB_REPUESTOS)} icon={<ShieldCheck size={16} />} label="Aprobacion de Repuestos" />
+    <TabButton active={activeTab === TAB_IRREPARABLES} onClick={() => onChange(TAB_IRREPARABLES)} icon={<AlertTriangle size={16} />} label={`Irreparables (${irreparablesFiltrados.length})`} />
     <TabButton active={activeTab === TAB_ALERTAS} onClick={() => onChange(TAB_ALERTAS)} icon={<Bell size={16} />} label={`Alertas (${alertasRetraso.length})`} />
     <TabButton active={activeTab === TAB_CORRECCIONES} onClick={() => onChange(TAB_CORRECCIONES)} icon={<Settings size={16} />} label={`Correcciones (${correccionesFiltradas.length})`} />
   </div>
 );
 
-export const JefeTecnicoMessages = ({ asignacionError, asignacionOk, repuestoDecisionError, repuestoDecisionOk }) => (
+const DismissibleMessage = ({ tone, children, onDismiss }) => (
+  <div className={`mb-6 flex items-start justify-between gap-4 rounded-2xl border p-4 text-xs font-bold uppercase ${
+    tone === 'error'
+      ? 'border-red-100 bg-red-50 text-red-600'
+      : 'border-emerald-100 bg-emerald-50 text-emerald-700'
+  }`}>
+    <span className="leading-relaxed">{children}</span>
+    <button type="button" onClick={onDismiss} className="rounded-lg p-1 hover:bg-white/80" title="Cerrar mensaje">
+      <X size={14} />
+    </button>
+  </div>
+);
+
+export const JefeTecnicoMessages = ({
+  asignacionError,
+  asignacionOk,
+  repuestoDecisionError,
+  repuestoDecisionOk,
+  irreparableDecisionError,
+  irreparableDecisionOk,
+  onDismissAsignacion,
+  onDismissRepuesto,
+  onDismissIrreparable,
+}) => (
   <>
     {(asignacionError || asignacionOk) && (
-      <div className={`mb-6 rounded-2xl border p-4 text-xs font-bold uppercase ${
-        asignacionError
-          ? 'border-red-100 bg-red-50 text-red-600'
-          : 'border-emerald-100 bg-emerald-50 text-emerald-700'
-      }`}>
+      <DismissibleMessage tone={asignacionError ? 'error' : 'success'} onDismiss={onDismissAsignacion}>
         {asignacionError || asignacionOk}
-      </div>
+      </DismissibleMessage>
     )}
 
     {(repuestoDecisionError || repuestoDecisionOk) && (
-      <div className={`mb-6 rounded-2xl border p-4 text-xs font-bold uppercase ${
-        repuestoDecisionError
-          ? 'border-red-100 bg-red-50 text-red-600'
-          : 'border-emerald-100 bg-emerald-50 text-emerald-700'
-      }`}>
+      <DismissibleMessage tone={repuestoDecisionError ? 'error' : 'success'} onDismiss={onDismissRepuesto}>
         {repuestoDecisionError || repuestoDecisionOk}
-      </div>
+      </DismissibleMessage>
+    )}
+
+    {(irreparableDecisionError || irreparableDecisionOk) && (
+      <DismissibleMessage tone={irreparableDecisionError ? 'error' : 'success'} onDismiss={onDismissIrreparable}>
+        {irreparableDecisionError || irreparableDecisionOk}
+      </DismissibleMessage>
     )}
   </>
 );
 
 export const CorreccionesSearch = ({ activeTab, searchTerm, onSearch }) => {
-  if (activeTab !== TAB_CORRECCIONES) return null;
+  if (activeTab !== TAB_CORRECCIONES && activeTab !== TAB_IRREPARABLES) return null;
+
+  const placeholder = activeTab === TAB_IRREPARABLES
+    ? 'Buscar irreparable por ID, tecnico, equipo o hallazgo...'
+    : 'Buscar correccion por ID, tipo, tecnico o equipo...';
 
   return (
     <div className="mb-6 px-4">
@@ -114,7 +139,7 @@ export const CorreccionesSearch = ({ activeTab, searchTerm, onSearch }) => {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <input
           type="text"
-          placeholder="Buscar correccion por ID, tipo, tecnico o equipo..."
+          placeholder={placeholder}
           value={searchTerm}
           onChange={(e) => onSearch(e.target.value)}
           className="w-full pl-12 pr-4 py-3 border-2 border-slate-100 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all placeholder:font-medium shadow-sm"

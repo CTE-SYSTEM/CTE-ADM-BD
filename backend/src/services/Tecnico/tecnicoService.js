@@ -15,6 +15,8 @@ const repuestoSafeSelect = {
   descontinuada: true,
 };
 
+const toBoolean = (value) => value === true || value === 'true';
+
 const ordenInclude = {
   tecnico: true,
   diagnostico: {
@@ -108,10 +110,17 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
   }
 
   const estadoNuevo = assertInList(String(estado).toUpperCase(), ORDEN_ESTADOS, 'Estado de la orden');
-  const estadoCierre = ['FINALIZADO', 'IRREPARABLE'].includes(estadoNuevo);
+  if (estadoNuevo === 'ESPERANDO_PIEZA') {
+    const error = new Error('El estado Esperando Piezas solo puede activarse automaticamente cuando existe una solicitud de repuesto');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const estadoCierre = estadoNuevo === 'FINALIZADO';
+  const estadoIrreparable = estadoNuevo === 'IRREPARABLE';
 
   const [ordenActual] = await prisma.$queryRaw(Prisma.sql`
-    SELECT id_orden, estado
+    SELECT id_orden, estado, requiere_piezas
     FROM "Ordenes"
     WHERE id_orden = ${Number(ordenId)}
   `);
@@ -128,27 +137,42 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
     throw error;
   }
 
-  if (estadoNuevo === 'FINALIZADO') {
-    const piezasPendientes = await prisma.ordenes_Repuestos.count({
-      where: {
-        orden_id: Number(ordenId),
-        OR: [
-          { repuesto_id: null },
-          { NOT: { estado_aprobacion: 'APROBADO' } },
-        ],
-      },
-    });
+  if (estadoCierre && ordenActual.requiere_piezas !== false) {
+    const [resumenPiezas] = await prisma.$queryRaw(Prisma.sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (
+          WHERE estado_aprobacion = 'APROBADO'
+            AND estado_entrega = 'ENTREGADO'
+        )::int AS aprobadas_entregadas,
+        COUNT(*) FILTER (
+          WHERE COALESCE(estado_aprobacion, 'PENDIENTE') IN ('PENDIENTE', 'EN_REVISION')
+            OR (
+              estado_aprobacion = 'APROBADO'
+              AND (
+                COALESCE(estado_entrega, 'PENDIENTE') <> 'ENTREGADO'
+                OR repuesto_id IS NULL
+              )
+            )
+        )::int AS pendientes
+      FROM "Ordenes_Repuestos"
+      WHERE orden_id = ${Number(ordenId)}
+    `);
 
-    if (piezasPendientes > 0) {
-      const error = new Error('No se puede finalizar: todas las piezas solicitadas deben estar registradas y aprobadas');
+    const totalPiezas = Number(resumenPiezas?.total || 0);
+    const piezasAprobadasEntregadas = Number(resumenPiezas?.aprobadas_entregadas || 0);
+    const piezasPendientes = Number(resumenPiezas?.pendientes || 0);
+
+    if (totalPiezas > 0 && (piezasAprobadasEntregadas === 0 || piezasPendientes > 0)) {
+      const error = new Error('No se puede finalizar: las piezas solicitadas deben estar aprobadas y entregadas, sin solicitudes pendientes');
       error.statusCode = 409;
       throw error;
     }
   }
 
-  if (estadoCierre) {
-    const observacion = String(observacion_final || '').trim();
+  const observacion = String(observacion_final || '').trim();
 
+  if (estadoCierre) {
     if (!observacion) {
       const error = new Error('La observacion final es obligatoria para cerrar la orden');
       error.statusCode = 400;
@@ -156,14 +180,20 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
     }
   }
 
+  if (estadoIrreparable && !observacion) {
+    const error = new Error('La justificacion de irreparabilidad es obligatoria');
+    error.statusCode = 400;
+    throw error;
+  }
+
   const rows = await prisma.$queryRaw(Prisma.sql`
     SELECT data FROM actualizar_estado_orden_tecnico_proc(
       ${Number(ordenId)},
       ${estadoNuevo},
-      ${estadoCierre ? assertInList(resultado_final || (estadoNuevo === 'IRREPARABLE' ? 'IRREPARABLE' : 'REPARADO'), RESULTADOS_ORDEN, 'Resultado final') : null},
-      ${estadoCierre ? enciende_salida === true || enciende_salida === 'true' : null},
-      ${estadoCierre ? usa_corriente_ac_salida === true || usa_corriente_ac_salida === 'true' : null},
-      ${estadoCierre ? String(observacion_final || '').trim() : null}
+      ${estadoCierre || estadoIrreparable ? assertInList(resultado_final || (estadoIrreparable ? 'IRREPARABLE' : 'REPARADO'), RESULTADOS_ORDEN, 'Resultado final') : null},
+      ${estadoCierre || estadoIrreparable ? toBoolean(enciende_salida) : null},
+      ${estadoCierre || estadoIrreparable ? toBoolean(usa_corriente_ac_salida) : null},
+      ${estadoCierre || estadoIrreparable ? observacion : null}
     )
   `);
 
@@ -202,6 +232,12 @@ export const solicitarRepuesto = async (ordenId, payload, username) => {
   if (Number(tecnicoOrdenId) !== Number(tecnico.id_tecnico)) {
     const error = new Error('No puede solicitar repuestos para una orden que no tiene asignado este tecnico');
     error.statusCode = 403;
+    throw error;
+  }
+
+  if (orden.requiere_piezas === false) {
+    const error = new Error('Esta orden fue marcada como servicio sin piezas y no permite solicitar repuestos');
+    error.statusCode = 409;
     throw error;
   }
 

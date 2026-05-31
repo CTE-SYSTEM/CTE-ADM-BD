@@ -1,8 +1,19 @@
 import React from 'react';
-import { LogOut, UserRound } from 'lucide-react';
+import { Bell, LogOut, UserRound } from 'lucide-react';
 import BrandLogo from '../BrandLogo';
+import { NotificationTray } from '../TecnicoJefe/components';
 
-const TecnicoHeader = ({ user, onLogout }) => (
+const TecnicoHeader = ({
+  user,
+  onLogout,
+  socketConnected = false,
+  notifications = [],
+  notificationsCount = 0,
+  showNotifications = false,
+  onToggleNotifications,
+  onClearNotifications,
+  onCloseNotifications,
+}) => (
   <header className="bg-[#0f172a] text-white px-6 py-8 shadow-xl">
     <div className="mx-auto flex max-w-[1840px] flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-center gap-5">
@@ -16,6 +27,33 @@ const TecnicoHeader = ({ user, onLogout }) => (
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
+        {typeof onToggleNotifications === 'function' && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={onToggleNotifications}
+              className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/50 text-slate-200 transition-all hover:border-indigo-400 hover:text-white"
+              title={socketConnected ? 'Notificaciones conectadas' : 'Notificaciones desconectadas'}
+            >
+              <Bell size={20} />
+              {notificationsCount > 0 && (
+                <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  {notificationsCount}
+                </span>
+              )}
+              <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ${notificationsCount > 0 ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+            </button>
+            {showNotifications && (
+              <NotificationTray
+                notifications={notifications}
+                connected={socketConnected}
+                onClear={onClearNotifications}
+                onClose={onCloseNotifications}
+              />
+            )}
+          </div>
+        )}
+
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/50 text-slate-200">
           <UserRound size={22} />
         </div>

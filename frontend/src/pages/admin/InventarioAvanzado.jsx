@@ -133,7 +133,7 @@ export default function InventarioAvanzado() {
     const term = searchText.trim().toLowerCase();
     if (!term) return repuestos;
     return repuestos.filter((repuesto) => 
-      [repuesto.repuesto, repuesto.categoria, repuesto.ultimo_costo].some((field) => 
+      [repuesto.id_repuesto, repuesto.repuesto, repuesto.categoria, repuesto.stock_estimado, repuesto.ultimo_costo, repuesto.historial].some((field) => 
         field?.toString().toLowerCase().includes(term)
       )
     );
@@ -194,7 +194,7 @@ export default function InventarioAvanzado() {
             <input
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Buscar repuesto o categoría..."
+              placeholder="Buscador inteligente: ID, repuesto, categoria, stock, costo o uso..."
               className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:w-64"
             />
             <div className="flex gap-2 w-full sm:w-auto">
@@ -212,7 +212,7 @@ export default function InventarioAvanzado() {
                 disabled={downloading || loading || repuestos.length === 0}
                 className="w-full sm:w-auto rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
               >
-                PDF
+                Generar Reporte General
               </button>
             </div>
           </div>

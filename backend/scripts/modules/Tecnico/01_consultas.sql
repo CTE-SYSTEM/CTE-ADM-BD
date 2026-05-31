@@ -71,6 +71,11 @@ BEGIN
         'prioridad', o.prioridad,
         'estado', o.estado,
         'fecha_ingreso', o.fecha_ingreso,
+        'fecha_asignacion', o.fecha_asignacion,
+        'fecha_finalizacion', o.fecha_finalizacion,
+        'requiere_piezas', o.requiere_piezas,
+        'justificacion_irreparable', o.justificacion_irreparable,
+        'irreparable_estado', o.irreparable_estado,
         'puede_editar_completada',
             CASE
                 WHEN UPPER(COALESCE(o.estado, '')) <> 'FINALIZADO' THEN TRUE
@@ -97,6 +102,8 @@ BEGIN
                     'pieza_solicitada', orp.pieza_solicitada,
                     'cantidad_usada', orp.cantidad_usada,
                     'estado_aprobacion', orp.estado_aprobacion,
+                    'estado_entrega', orp.estado_entrega,
+                    'fecha_entrega', orp.fecha_entrega,
                     'repuesto', to_jsonb(r.*)
                 )
                 ORDER BY orp.id_detalle_repuesto DESC

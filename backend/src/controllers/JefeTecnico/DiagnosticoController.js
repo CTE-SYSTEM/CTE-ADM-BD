@@ -11,6 +11,25 @@ import {
   parsePositiveId,
 } from '../../utils/domainValidation.js';
 
+const LIMITE_CORRECCION_MINUTOS = 30;
+
+const minutosTranscurridos = (fechaReferencia) => {
+  if (!fechaReferencia) return null;
+  return (Date.now() - new Date(fechaReferencia).getTime()) / 60000;
+};
+
+const estaFueraDelPlazo = (fechaReferencia) => {
+  const minutos = minutosTranscurridos(fechaReferencia);
+  return minutos !== null && minutos > LIMITE_CORRECCION_MINUTOS;
+};
+
+const validarCorreccionConTiempo = (fechaReferencia, condicion, entidad) => {
+  if (!condicion || !estaFueraDelPlazo(fechaReferencia)) return;
+  const error = new Error(`El plazo de ${LIMITE_CORRECCION_MINUTOS} minutos para corregir ${entidad} ha expirado`);
+  error.statusCode = 403;
+  throw error;
+};
+
 // --- UTILIDADES INTERNAS ---
 
 /**
@@ -26,8 +45,19 @@ const esEditablePorTiempo = (fechaReferencia) => {
 
 export const getDiagnosticosPendientes = async (req, res) => {
   try {
-    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_diagnosticos_pendientes_jefe()`);
-    const diagnosticos = rows.map((row) => row.data);
+    const diagnosticos = await prisma.diagnosticos.findMany({
+      where: {
+        estado_del_diagnostico: {
+          in: ['PENDIENTE', 'INGRESADO', 'EN_REVISION', 'DIAGNOSTICADO'],
+        },
+      },
+      include: diagnosticoInclude,
+      orderBy: [
+        { fecha_hora: 'asc' },
+        { id_diagnostico: 'asc' },
+      ],
+    });
+
     res.json({ data: diagnosticos });
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener diagnósticos', details: error.message });
@@ -121,7 +151,8 @@ export const getCorreccionesJefeTecnico = async (req, res) => {
         where: {
           OR: [
             { tecnico_id: { not: null } },
-            { estado: { in: ['APROBADO', 'EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'IRREPARABLE', 'ENTREGADO'] } },
+            { estado: { in: ['APROBADO', 'EN_REVISION', 'EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'IRREPARABLE', 'ENTREGADO'] } },
+            { irreparable_estado: 'PENDIENTE' },
           ],
         },
         include: ordenInclude,
@@ -149,6 +180,16 @@ export const corregirDiagnosticoJefeTecnico = async (req, res) => {
     if (tecnico_id && !tecnicoId) {
       return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
     }
+
+    const diagnosticoActual = await prisma.diagnosticos.findUnique({
+      where: { id_diagnostico: Number(req.params.id) },
+      select: { fecha_asignacion: true },
+    });
+
+    if (!diagnosticoActual) return res.status(404).json({ error: 'Diagnostico no encontrado' });
+
+    validarCorreccionConTiempo(diagnosticoActual.fecha_asignacion, tecnico_id !== undefined, 'la asignacion del diagnostico');
+    validarCorreccionConTiempo(diagnosticoActual.fecha_asignacion, Estado_aprobacion !== undefined, 'la aprobacion del diagnostico');
 
     await prisma.$executeRaw(Prisma.sql`
       SELECT corregir_diagnostico_jefe_proc(
@@ -183,6 +224,16 @@ export const corregirOrdenJefeTecnico = async (req, res) => {
       return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
     }
 
+    const ordenActual = await prisma.ordenes.findUnique({
+      where: { id_orden: Number(req.params.id) },
+      select: { fecha_asignacion: true },
+    });
+
+    if (!ordenActual) return res.status(404).json({ error: 'Orden no encontrada' });
+
+    validarCorreccionConTiempo(ordenActual.fecha_asignacion, tecnico_id !== undefined, 'la asignacion de la orden');
+    validarCorreccionConTiempo(ordenActual.fecha_asignacion, estado !== undefined, 'el estado de la orden');
+
     await prisma.$executeRaw(Prisma.sql`
       SELECT corregir_orden_jefe_proc(
         ${Number(req.params.id)},
@@ -203,6 +254,97 @@ export const corregirOrdenJefeTecnico = async (req, res) => {
     if (error.code === 'P2025') return res.status(404).json({ error: 'Orden no encontrada' });
     if (error.message?.includes('no es valido')) return res.status(400).json({ error: error.message });
     res.status(500).json({ error: 'Error al corregir orden', details: error.message });
+  }
+};
+
+export const aprobarIrreparableOrden = async (req, res) => {
+  try {
+    const ordenId = parsePositiveId(req.params.id);
+    if (!ordenId) return res.status(400).json({ error: 'La orden seleccionada no es valida' });
+
+    const ordenActual = await prisma.ordenes.findUnique({
+      where: { id_orden: ordenId },
+      include: {
+        tecnico: true,
+        diagnostico: { include: { tecnico: true } },
+      },
+    });
+
+    if (!ordenActual) return res.status(404).json({ error: 'Orden no encontrada' });
+
+    const estadoActual = String(ordenActual.irreparable_estado || '').toUpperCase();
+    if (estadoActual && estadoActual !== 'PENDIENTE') {
+      return res.status(409).json({ error: 'Esta irreparabilidad ya fue revisada' });
+    }
+
+    const orden = await prisma.ordenes.update({
+      where: { id_orden: ordenId },
+      data: {
+        irreparable_estado: 'APROBADO',
+        estado: 'IRREPARABLE',
+        resultado_final: 'IRREPARABLE',
+        fecha_finalizacion: new Date(),
+        fecha_cierre: new Date(),
+      },
+      include: ordenInclude,
+    });
+
+    notifyTecnico(orden.tecnico || orden.diagnostico?.tecnico, {
+      type: 'orden_irreparable_aprobada',
+      title: 'Irreparabilidad aprobada',
+      message: `La orden #${orden.id_orden} fue aprobada como irreparable. Ya salió de la cola activa y quedó cerrada para que técnico y facturación trabajen con un estado definitivo.`,
+      severity: 'warning',
+      entity: { kind: 'orden', id: orden.id_orden },
+    });
+
+    res.json({ message: 'Irreparabilidad aprobada correctamente', data: orden });
+  } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Orden no encontrada' });
+    res.status(500).json({ error: 'Error al aprobar la irreparabilidad', details: error.message });
+  }
+};
+
+export const rechazarIrreparableOrden = async (req, res) => {
+  try {
+    const ordenId = parsePositiveId(req.params.id);
+    if (!ordenId) return res.status(400).json({ error: 'La orden seleccionada no es valida' });
+
+    const ordenActual = await prisma.ordenes.findUnique({
+      where: { id_orden: ordenId },
+      include: {
+        tecnico: true,
+        diagnostico: { include: { tecnico: true } },
+      },
+    });
+
+    if (!ordenActual) return res.status(404).json({ error: 'Orden no encontrada' });
+
+    const estadoActual = String(ordenActual.irreparable_estado || '').toUpperCase();
+    if (estadoActual && estadoActual !== 'PENDIENTE') {
+      return res.status(409).json({ error: 'Esta irreparabilidad ya fue revisada' });
+    }
+
+    const orden = await prisma.ordenes.update({
+      where: { id_orden: ordenId },
+      data: {
+        irreparable_estado: 'RECHAZADO',
+        estado: 'EN_REPARACION',
+      },
+      include: ordenInclude,
+    });
+
+    notifyTecnico(orden.tecnico || orden.diagnostico?.tecnico, {
+      type: 'orden_irreparable_rechazada',
+      title: 'Irreparabilidad rechazada',
+      message: `La revisión de la orden #${orden.id_orden} fue rechazada. La orden regresa a reparación para que el técnico continúe con el trabajo y actualice el avance.`,
+      severity: 'info',
+      entity: { kind: 'orden', id: orden.id_orden },
+    });
+
+    res.json({ message: 'Irreparabilidad rechazada correctamente', data: orden });
+  } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ error: 'Orden no encontrada' });
+    res.status(500).json({ error: 'Error al rechazar la irreparabilidad', details: error.message });
   }
 };
 
@@ -298,7 +440,12 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
     if (!tecnicoId) return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
 
     const diagnosticoActual = await prisma.diagnosticos.findUnique({
-      where: { id_diagnostico: diagnosticoId }
+      where: { id_diagnostico: diagnosticoId },
+      select: {
+        fecha_asignacion: true,
+        tecnico_id: true,
+        Estado_aprobacion: true,
+      },
     });
 
     if (!diagnosticoActual) return res.status(404).json({ error: 'Diagnostico no encontrado' });
@@ -310,10 +457,7 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
 
     if (!tecnico) return res.status(404).json({ error: 'Tecnico no encontrado o inactivo' });
 
-    // Validación de 30 minutos si ya había una asignación previa
-    if (diagnosticoActual.fecha_asignacion && !esEditablePorTiempo(diagnosticoActual.fecha_asignacion)) {
-      return res.status(403).json({ error: 'El plazo de 30 minutos para reasignar técnico ha expirado' });
-    }
+    validarCorreccionConTiempo(diagnosticoActual.fecha_asignacion, id_tecnico !== undefined, 'la asignación del diagnóstico');
 
     const diagnostico = await prisma.diagnosticos.update({
       where: { id_diagnostico: diagnosticoId },
@@ -328,7 +472,7 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
     notifyJefeTecnico({
       type: 'diagnostico_asignado',
       title: 'Diagnóstico asignado',
-      message: `Diagnóstico #${diagnostico.id_diagnostico} asignado a ${diagnostico.tecnico?.nombre || 'técnico'}`,
+      message: `El diagnóstico #${diagnostico.id_diagnostico} quedó asignado a ${diagnostico.tecnico?.nombre || 'técnico'}. La bandeja del jefe ya refleja el cambio y el técnico recibió el aviso para iniciar.`,
       severity: 'info',
       entity: { kind: 'diagnostico', id: diagnostico.id_diagnostico },
     });
@@ -337,7 +481,7 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
       notifyTecnico(diagnostico.tecnico, {
         type: 'diagnostico_asignado',
         title: 'Nuevo diagnóstico asignado',
-        message: `Se te asignó el diagnóstico #${diagnostico.id_diagnostico}`,
+        message: `Se te asignó el diagnóstico #${diagnostico.id_diagnostico}. Ya está visible en tu panel de trabajo con la información necesaria para comenzar la revisión.`,
         severity: 'info',
         entity: { kind: 'diagnostico', id: diagnostico.id_diagnostico },
       });
@@ -353,8 +497,19 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
 
 export const getOrdenesAprobadas = async (req, res) => {
   try {
-    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_ordenes_aprobadas_jefe()`);
-    const ordenes = rows.map((row) => row.data);
+    const ordenes = await prisma.ordenes.findMany({
+      where: {
+        estado: {
+          notIn: ['FINALIZADO', 'ENTREGADO', 'IRREPARABLE'],
+        },
+      },
+      include: ordenInclude,
+      orderBy: [
+        { fecha_ingreso: 'asc' },
+        { id_orden: 'asc' },
+      ],
+    });
+
     res.json({ data: ordenes });
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener órdenes aprobadas', details: error.message });
@@ -373,7 +528,12 @@ export const asignarTecnicoAOrden = async (req, res) => {
     if (!tecnicoId) return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
 
     const ordenActual = await prisma.ordenes.findUnique({
-      where: { id_orden: ordenId }
+      where: { id_orden: ordenId },
+      select: {
+        fecha_asignacion: true,
+        tecnico_id: true,
+        estado: true,
+      },
     });
 
     if (!ordenActual) return res.status(404).json({ error: 'Orden no encontrada' });
@@ -385,16 +545,12 @@ export const asignarTecnicoAOrden = async (req, res) => {
 
     if (!tecnico) return res.status(404).json({ error: 'Tecnico no encontrado o inactivo' });
 
-    // Validación de 30 minutos desde el ingreso de la orden
-    if (!esEditablePorTiempo(ordenActual.fecha_ingreso)) {
-      return res.status(403).json({ error: 'La asignación está bloqueada: han pasado más de 30 minutos desde el ingreso' });
-    }
-
     const orden = await prisma.ordenes.update({
       where: { id_orden: ordenId },
       data: {
         tecnico_id: tecnicoId,
         estado: 'EN_REPARACION',
+        fecha_asignacion: new Date(),
       },
       include: { tecnico: true, diagnostico: { include: { equipo: { include: { cliente: true } } } } },
     });
@@ -402,7 +558,7 @@ export const asignarTecnicoAOrden = async (req, res) => {
     notifyTecnico(orden.tecnico, {
       type: 'orden_asignada',
       title: 'Nueva orden asignada',
-      message: `Se te asignó la orden #${orden.id_orden}`,
+      message: `Se te asignó la orden #${orden.id_orden}. Ya quedó visible en tu panel como En Reparación para que continúes con el flujo normal de trabajo.`,
       severity: 'info',
       entity: { kind: 'orden', id: orden.id_orden },
     });
@@ -452,7 +608,11 @@ const actualizarEstadoSolicitudRepuesto = async (req, res, estado_aprobacion) =>
 
     const solicitud = await prisma.ordenes_Repuestos.update({
       where: { id_detalle_repuesto: Number(req.params.id) },
-      data: { estado_aprobacion },
+      data: {
+        estado_aprobacion,
+        estado_entrega: estado_aprobacion === 'APROBADO' ? 'ENTREGADO' : solicitudPrevia.estado_entrega,
+        fecha_entrega: estado_aprobacion === 'APROBADO' ? new Date() : solicitudPrevia.fecha_entrega,
+      },
       include: {
         repuesto: { select: repuestoSafeSelect },
         orden: {
@@ -470,7 +630,9 @@ const actualizarEstadoSolicitudRepuesto = async (req, res, estado_aprobacion) =>
     notifyTecnico(tecnico, {
       type: aprobado ? 'repuesto_aprobado' : 'repuesto_rechazado',
       title: aprobado ? 'Pieza aprobada' : 'Pieza rechazada',
-      message: `Tu solicitud para la orden #${solicitud.orden_id} fue ${aprobado ? 'aprobada' : 'rechazada'}`,
+      message: aprobado
+        ? `Tu solicitud para la orden #${solicitud.orden_id} fue aprobada. El técnico ya puede verla como entregada y el inventario quedó actualizado con la aprobación.`
+        : `Tu solicitud para la orden #${solicitud.orden_id} fue rechazada. La bandeja del técnico refleja el cambio para que sepa que debe replantear esa pieza.`,
       severity: aprobado ? 'success' : 'warning',
       entity: { kind: 'repuesto', id: solicitud.id_detalle_repuesto, orden_id: solicitud.orden_id },
     });

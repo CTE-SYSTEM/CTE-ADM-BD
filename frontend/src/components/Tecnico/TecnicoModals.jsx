@@ -288,7 +288,9 @@ export const CierreOrdenModal = ({ orden, estado, onClose, onSubmit }) => {
             <CheckField name="usa_corriente_ac_salida" checked={form.usa_corriente_ac_salida} onChange={handleChange} label="Probado con corriente AC" />
           </div>
           <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Observacion final</label>
+            <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">
+              {esIrreparable ? 'Justificacion de irreparabilidad' : 'Observacion final'}
+            </label>
             <textarea
               required
               rows="4"
@@ -296,12 +298,12 @@ export const CierreOrdenModal = ({ orden, estado, onClose, onSubmit }) => {
               name="observacion_final"
               value={form.observacion_final}
               onChange={handleChange}
-              placeholder={esIrreparable ? 'Explique por que no se puede reparar y que se reviso.' : 'Explique pruebas realizadas y condicion de entrega.'}
+               placeholder={esIrreparable ? 'Explique por que no se puede reparar y que se reviso.' : 'Explique pruebas realizadas y condicion de entrega.'}
             />
           </div>
           {esIrreparable && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-              En facturacion se podra cobrar solo revision/mano de obra. No se sumaran repuestos a esta orden.
+              La orden quedara pendiente de revision del Jefe Tecnico antes de cerrar el flujo.
             </div>
           )}
           {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</div>}

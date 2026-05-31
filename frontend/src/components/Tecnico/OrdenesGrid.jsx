@@ -20,6 +20,10 @@ const CompletedOrderDetails = ({ orden, solicitudesPiezas }) => (
         <p className="text-xs font-bold text-slate-800">{orden.resultado_final || orden.estado || 'Sin resultado'}</p>
       </div>
       <div>
+        <span className="text-[9px] font-black uppercase text-slate-500">Piezas requeridas</span>
+        <p className="text-xs font-bold text-slate-800">{orden.requiere_piezas ? 'Si' : 'No'}</p>
+      </div>
+      <div>
         <span className="text-[9px] font-black uppercase text-slate-500">Enciende al salir</span>
         <p className="text-xs font-bold text-slate-800">{formatBoolean(orden.enciende_salida)}</p>
       </div>
@@ -59,9 +63,14 @@ const CompletedOrderDetails = ({ orden, solicitudesPiezas }) => (
                 <p className="text-xs font-black uppercase text-slate-800">
                   {pieza.repuesto?.nombre || pieza.pieza_solicitada || 'Pieza pendiente de registrar'}
                 </p>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black uppercase text-slate-600">
-                  {pieza.estado_aprobacion || 'Sin estado'}
-                </span>
+                <div className="flex flex-wrap gap-1">
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black uppercase text-slate-600">
+                    {pieza.estado_aprobacion || 'Sin estado'}
+                  </span>
+                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase text-emerald-700">
+                    {pieza.estado_entrega || 'PENDIENTE'}
+                  </span>
+                </div>
               </div>
               <p className="mt-1 text-[10px] font-bold uppercase text-slate-400">
                 Cantidad: {pieza.cantidad_usada || 1}
@@ -80,8 +89,9 @@ const CompletedOrderDetails = ({ orden, solicitudesPiezas }) => (
 const OrdenCard = ({ orden, completed, onEstadoChange, onSolicitarPieza }) => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const solicitudesPiezas = orden.repuestos_usados || [];
-  const tienePiezasSinAprobar = solicitudesPiezas.some((item) => item.estado_aprobacion !== 'APROBADO');
-  const puedeFinalizar = solicitudesPiezas.length === 0 || !tienePiezasSinAprobar;
+  const tienePiezasSinAprobar = orden.requiere_piezas !== false
+    && solicitudesPiezas.some((item) => item.estado_aprobacion !== 'APROBADO' || item.estado_entrega !== 'ENTREGADO');
+  const puedeFinalizar = orden.requiere_piezas === false || solicitudesPiezas.length === 0 || !tienePiezasSinAprobar;
   const puedeEditar = !completed || orden.puedeEditarCompletada;
 
   return (
@@ -100,6 +110,11 @@ const OrdenCard = ({ orden, completed, onEstadoChange, onSolicitarPieza }) => {
         <span className="text-[9px] font-black text-slate-500 uppercase">Falla Reportada</span>
         <p className="text-xs text-slate-700 italic">"{orden.falla}"</p>
       </div>
+      {!orden.requiere_piezas && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">
+          Servicio sin piezas. La orden puede finalizarse sin solicitudes de repuestos.
+        </div>
+      )}
       {completed && (
         <>
           <button
@@ -117,7 +132,7 @@ const OrdenCard = ({ orden, completed, onEstadoChange, onSolicitarPieza }) => {
       )}
       {tienePiezasSinAprobar && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-          Todas las piezas solicitadas deben estar aprobadas para finalizar.
+          Todas las piezas solicitadas deben estar aprobadas y entregadas para finalizar.
         </div>
       )}
       {completed ? (
@@ -133,13 +148,12 @@ const OrdenCard = ({ orden, completed, onEstadoChange, onSolicitarPieza }) => {
             onChange={(event) => onEstadoChange(orden.id, event.target.value)}
           >
             <option value="EN_REPARACION">EN REPARACION</option>
-            <option value="ESPERANDO_PIEZA">ESPERANDO PIEZA</option>
             <option value="FINALIZADO" disabled={!puedeFinalizar}>FINALIZADO</option>
             <option value="IRREPARABLE">IRREPARABLE</option>
           </select>
           <button
             onClick={() => onSolicitarPieza(orden)}
-            disabled={!puedeEditar}
+            disabled={!puedeEditar || orden.requiere_piezas === false}
             className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-[10px] font-black uppercase text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Package size={14} /> Pieza
