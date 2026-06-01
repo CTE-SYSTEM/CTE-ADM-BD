@@ -1,0 +1,213 @@
+"filename", "language", "JSON", "JSON with Comments", "Python", "JavaScript", "Markdown", "YAML", "HTML", "Docker", "PostCSS", "XML", "JavaScript JSX", "MS SQL", "PowerShell", "comment", "blank", "total"
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\Dockerfile", "Docker", 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 3, 22
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\Readme.md", "Markdown", 0, 0, 0, 0, 87, 0, 0, 0, 0, 0, 0, 0, 0, 0, 36, 123
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\deploy_sql.cjs", "JavaScript", 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 20
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\package-lock.json", "JSON", 1880, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1881
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\package.json", "JSON", 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 51
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\prisma\Seed.js", "JavaScript", 0, 0, 0, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 11, 65
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\Data_ejemplo.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 312, 0, 2, 35, 349
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\Seed_data.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 29, 0, 6, 3, 38
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\auditoria_consultas.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 36, 0, 9, 6, 51
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\load_functions.ps1", "PowerShell", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 23, 2, 3, 28
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\load_functions.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 2, 2, 20
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Auditoria.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 173, 0, 0, 26, 199
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\JefeTecnico\Diagnostico.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 197, 0, 4, 14, 215
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\Clientes.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 51, 0, 5, 4, 60
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\Compras.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 149, 0, 4, 14, 167
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\Diagnostico.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 102, 0, 5, 7, 114
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\Equipo.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 84, 0, 5, 7, 96
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\Facturacion.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\Garantias.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 5, 37
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\InventarioStock.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 215, 0, 2, 29, 246
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\Nuevaorden.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 135, 0, 0, 9, 144
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\Proveedores.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 73, 0, 6, 7, 86
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\Repuesto.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 115, 0, 8, 13, 136
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Secretaria\RepuestosVariantes.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40, 0, 2, 5, 47
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Seguridad.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 106, 0, 0, 18, 124
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Tecnico\01_consultas.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 122, 0, 1, 3, 126
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Tecnico\02_acciones.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 183, 0, 1, 21, 205
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\Tecnico\Tecnico.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 2, 2, 6
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\admin_pro\00_schema.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 2
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\admin_pro\01_reportes.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 693, 0, 0, 16, 709
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\admin_pro\02_editar.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 311, 0, 0, 45, 356
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\scripts\modules\admin_pro\AdminPro.sql", "MS SQL", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 4
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\app\app.js", "JavaScript", 0, 0, 0, 72, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 84
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\app\prismaClient.js", "JavaScript", 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 2, 11
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\config\database.js", "JavaScript", 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 3, 10
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\config\env.js", "JavaScript", 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 28
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\JefeTecnico\DiagnosticoController.js", "JavaScript", 0, 0, 0, 587, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 105, 702
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\ComprasControllers.js", "JavaScript", 0, 0, 0, 61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 73
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\DiagnosticoControllers.js", "JavaScript", 0, 0, 0, 145, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 20, 166
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\FacturacionControllers.js", "JavaScript", 0, 0, 0, 235, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 36, 271
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\NuevaOrdenControllers.js", "JavaScript", 0, 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 132
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\ProveedoresControllers.js", "JavaScript", 0, 0, 0, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 25, 131
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\RepuestoControllers.js", "JavaScript", 0, 0, 0, 113, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 16, 130
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\SecretariaControllers.js", "JavaScript", 0, 0, 0, 78, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 8, 96
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\TipoRepuestoControllers.js", "JavaScript", 0, 0, 0, 86, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 18, 104
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\clientesController.js", "JavaScript", 0, 0, 0, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 10, 74
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\equiposController.js", "JavaScript", 0, 0, 0, 55, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 9, 65
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Secretaria\garantiasController.js", "JavaScript", 0, 0, 0, 97, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 14, 112
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\Tecnico\tecnicosController.js", "JavaScript", 0, 0, 0, 113, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 128
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\accessController.js", "JavaScript", 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 9
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\adminProController.js", "JavaScript", 0, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 12
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\analiticaController.js", "JavaScript", 0, 0, 0, 299, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 314
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\dashboardController.js", "JavaScript", 0, 0, 0, 102, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 110
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\diagnosticosController.js", "JavaScript", 0, 0, 0, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 120
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\equiposController.js", "JavaScript", 0, 0, 0, 93, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 12, 106
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\facturasController.js", "JavaScript", 0, 0, 0, 21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 24
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\garantiasController.js", "JavaScript", 0, 0, 0, 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 23, 130
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\historialController.js", "JavaScript", 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 2, 45
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\ordenesController.js", "JavaScript", 0, 0, 0, 155, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 16, 172
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\reportesController.js", "JavaScript", 0, 0, 0, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 67
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\repuestosController.js", "JavaScript", 0, 0, 0, 51, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 7, 59
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\admin_pro\usuariosController.js", "JavaScript", 0, 0, 0, 110, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 25, 136
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\auth\authController.js", "JavaScript", 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 11, 57
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\controllers\flujoAtencionController.js", "JavaScript", 0, 0, 0, 21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 26
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\index.js", "JavaScript", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 2
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\middlewares\authMiddleware.js", "JavaScript", 0, 0, 0, 35, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 41
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\middlewares\securityMiddleware.js", "JavaScript", 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 40
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\auth\auth.js", "JavaScript", 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 10
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\health.js", "JavaScript", 0, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 15
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\JefeTecnico\Diagnostico.js", "JavaScript", 0, 0, 0, 45, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 50
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\Tecnico\tecnicos.js", "JavaScript", 0, 0, 0, 21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 26
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\admin_pro\adminPro.js", "JavaScript", 0, 0, 0, 71, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 78
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\flujoAtencion.js", "JavaScript", 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 12
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\Clientes.js", "JavaScript", 0, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 5, 17
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\Compras.js", "JavaScript", 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 14
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\Diagnostico.js", "JavaScript", 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 32
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\Equipos.js", "JavaScript", 0, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 4, 18
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\NuevaOrden.js", "JavaScript", 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 24
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\Proveedores.js", "JavaScript", 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 5, 22
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\Repuesto.js", "JavaScript", 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 6, 23
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\Secretaria.js", "JavaScript", 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 25
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\TipoRepuesto.js", "JavaScript", 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 21
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\facturas.js", "JavaScript", 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 15
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\routes\modules\secretaria\garantias.js", "JavaScript", 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 14
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\server.js", "JavaScript", 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 17
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\services\Secretaria\diagnosticoService.js", "JavaScript", 0, 0, 0, 69, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 79
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\services\Secretaria\equipoService.js", "JavaScript", 0, 0, 0, 48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 58
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\services\Secretaria\ordenService.js", "JavaScript", 0, 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 111
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\services\Tecnico\tecnicoService.js", "JavaScript", 0, 0, 0, 256, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 301
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\services\flujoAtencionService.js", "JavaScript", 0, 0, 0, 131, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 145
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\services\healthService.js", "JavaScript", 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 13
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\services\notifications.js", "JavaScript", 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 66
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\utils\domainValidation.js", "JavaScript", 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 35
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\utils\permissions.js", "JavaScript", 0, 0, 0, 72, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 85
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\src\utils\roles.js", "JavaScript", 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 7
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\test-db.mjs", "JavaScript", 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 15
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\backend\tests\api\flujoCompleto.test.js", "JavaScript", 0, 0, 0, 126, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 148
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\docker-compose.yml", "YAML", 0, 0, 0, 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 1, 4, 101
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\docs\manual-secretaria\build_manual_secretaria.py", "Python", 0, 0, 238, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 263
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\docs\manual-secretaria\capturas-meta.json", "JSON", 301, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 301
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\docs\manual-secretaria\capture-secretaria.mjs", "JavaScript", 0, 0, 0, 76, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 90
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\Dockerfile", "Docker", 0, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0, 3, 23
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\README.md", "Markdown", 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 19
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\eslint.config.js", "JavaScript", 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 30
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\index.html", "HTML", 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 1, 14
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\package-lock.json", "JSON", 4188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4189
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\package.json", "JSON", 35, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 36
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\postcss.config.cjs", "JavaScript", 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 7
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\App.css", "PostCSS", 0, 0, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 0, 10, 7, 56
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\App.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 140, 0, 0, 8, 19, 167
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\assets\react.svg", "XML", 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\assets\vite.svg", "XML", 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 2
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Autocomplete.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 143, 0, 0, 0, 21, 164
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\BrandLogo.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 3, 15
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\MetricBarChart.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 151, 0, 0, 0, 17, 168
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Navbar.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 0, 0, 0, 3, 30
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\PageHelp.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 358, 0, 0, 0, 17, 375
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Sidebar.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 110, 0, 0, 0, 10, 120
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Table.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 102, 0, 0, 11, 17, 130
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\TecnicoJefe\columns.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 353, 0, 0, 0, 9, 362
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\TecnicoJefe\components.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 318, 0, 0, 0, 20, 338
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Tecnico\DiagnosticosTable.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0, 3, 57
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Tecnico\OrdenesGrid.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 176, 0, 0, 0, 11, 187
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Tecnico\RepuestosTable.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 0, 0, 0, 3, 41
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Tecnico\SearchBox.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 2, 14
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Tecnico\TecnicoBadges.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 53, 0, 0, 0, 8, 61
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Tecnico\TecnicoHeader.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 85, 0, 0, 0, 6, 91
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Tecnico\TecnicoModals.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 325, 0, 0, 0, 22, 347
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Tecnico\TecnicoStats copy.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 4, 32
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\components\Tecnico\TecnicoStats.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 4, 32
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\context\AuthContext.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 55, 0, 0, 1, 11, 67
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\JefeTecnico\JefeTecnico.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\Secretaria\Clientes.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 48, 0, 0, 1, 6, 55
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\Secretaria\Equipos.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 48, 0, 0, 0, 6, 54
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\Secretaria\Facturacion.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 65, 0, 0, 0, 6, 71
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\ordenes\Ordenes.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 51, 0, 0, 0, 6, 57
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\personalizacion\PersonalizacionContext.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 0, 0, 0, 10, 48
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\personalizacion\PersonalizacionToggle.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 18, 0, 0, 0, 4, 22
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\personalizacion\index.js", "JavaScript", 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\personalizacion\personalizacion.css", "PostCSS", 0, 0, 0, 0, 0, 0, 0, 0, 336, 0, 0, 0, 0, 0, 45, 381
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\personalizacion\personalizacionContextValue.js", "JavaScript", 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 6
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\personalizacion\usePersonalizacion.js", "JavaScript", 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 13
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\features\tecnicos\Tecnicos.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 47, 0, 0, 0, 6, 53
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\hooks\useRealtimeNotifications.js", "JavaScript", 0, 0, 0, 108, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 26, 134
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\hooks\useTecnicoDashboard.js", "JavaScript", 0, 0, 0, 101, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 117
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\index.css", "PostCSS", 0, 0, 0, 0, 0, 0, 0, 0, 280, 0, 0, 0, 0, 9, 47, 336
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\main.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 1, 2, 13
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Auth\Login.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 120, 0, 0, 7, 15, 142
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\FlujoAtencion.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 248, 0, 0, 8, 27, 283
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Secretaria\Clientes.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 399, 0, 0, 7, 52, 458
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Secretaria\Compras.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 301, 0, 0, 0, 43, 344
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Secretaria\Diagnostico.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 564, 0, 0, 19, 65, 648
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Secretaria\Equipos.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 435, 0, 0, 5, 53, 493
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Secretaria\Facturacion.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 629, 0, 0, 1, 32, 662
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Secretaria\NuevaOrden.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 342, 0, 0, 3, 41, 386
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Secretaria\Proveedores.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 281, 0, 0, 0, 37, 318
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Secretaria\Repuestos.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 538, 0, 0, 10, 62, 610
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Secretaria\SecretariaDashboard.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 307, 0, 0, 2, 32, 341
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Secretaria\TiposRepuesto.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 333, 0, 0, 3, 37, 373
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\TecnicoJefe\TecnicoJefeDashboard.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 548, 0, 0, 0, 74, 622
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\TecnicoJefe\sections\JefeTecnicoDashboardModals.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41, 0, 0, 0, 3, 44
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\TecnicoJefe\sections\JefeTecnicoSections.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 149, 0, 0, 0, 15, 164
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Tecnico\TecnicoDashboard.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 220, 0, 0, 0, 28, 248
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Tecnico\sections\TecnicoDashboardModals.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41, 0, 0, 0, 2, 43
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Tecnico\sections\TecnicoOverview.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 77, 0, 0, 0, 5, 82
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Tecnico\sections\TecnicoTabContent.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 77, 0, 0, 0, 6, 83
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\Tecnico\sections\TecnicoTabs.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 0, 0, 0, 2, 24
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\AdminDashboard.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 272, 0, 0, 13, 26, 311
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\ClientesAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 180, 0, 0, 13, 27, 220
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\ComprasAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 171, 0, 0, 5, 20, 196
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\DiagnosticosEstadoAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 293, 0, 0, 0, 24, 317
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\EquiposAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 250, 0, 0, 5, 27, 282
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\FacturasAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 218, 0, 0, 13, 26, 257
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\Ganancias.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 726, 0, 0, 0, 76, 802
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\GarantiasAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 444, 0, 0, 14, 36, 494
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\HistorialEquipo.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 362, 0, 0, 0, 24, 386
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\HistorialRepuesto.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 138, 0, 0, 9, 17, 164
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\Inventario.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 214, 0, 0, 10, 23, 247
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\InventarioAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 247, 0, 0, 10, 24, 281
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\OrdenesAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 337, 0, 0, 10, 35, 382
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\OrdenesEstadoAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 138, 0, 0, 9, 19, 166
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\RendimientoTecnicos.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 171, 0, 0, 7, 21, 199
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\RepuestosAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 172, 0, 0, 7, 21, 200
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\pages\admin\UsuariosAvanzado.jsx", "JavaScript JSX", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 579, 0, 0, 13, 54, 646
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\JefeTecnico\DiagnosticoService.js", "JavaScript", 0, 0, 0, 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 7, 46
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\api.js", "JavaScript", 0, 0, 0, 74, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 19, 94
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\authService.js", "JavaScript", 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 5
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\flujoAtencionService.js", "JavaScript", 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 9
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\notificationsSocket.js", "JavaScript", 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 18
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\clientesService.js", "JavaScript", 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 8
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\comprasService.js", "JavaScript", 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 5
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\diagnosticoService.js", "JavaScript", 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 6, 33
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\equiposService.js", "JavaScript", 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 7
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\facturasService.js", "JavaScript", 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 6
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\garantiasService.js", "JavaScript", 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 5
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\ordenesService.js", "JavaScript", 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 16
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\proveedoresService.js", "JavaScript", 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 7
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\repuestosService.js", "JavaScript", 0, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 16
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\tecnicosService.js", "JavaScript", 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 5
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\services\secretaria\tiposRepuestoService.js", "JavaScript", 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 7
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\utils\csvExport.js", "JavaScript", 0, 0, 0, 291, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 46, 337
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\utils\jefeTecnicoConstants.js", "JavaScript", 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 12
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\utils\jefeTecnicoUtils.js", "JavaScript", 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 10, 38
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\utils\tecnicoMappers.js", "JavaScript", 0, 0, 0, 39, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 42
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\src\utils\textFilters.js", "JavaScript", 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 15
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\tailwind.config.cjs", "JavaScript", 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 11
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\frontend\vite.config.js", "JavaScript", 0, 0, 0, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 27
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\jsconfig.json", "JSON with Comments", 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\package-lock.json", "JSON", 752, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 753
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\package.json", "JSON", 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 25
+"c:\Users\Sadiel\Documents\Proyecto semestre 7 2026\CTE-ADM-BD\readme.md", "Markdown", 0, 0, 0, 0, 52, 0, 0, 0, 0, 0, 0, 0, 0, 0, 23, 75
+"Total", "-", 7230, 28, 238, 5483, 149, 96, 13, 39, 655, 2, 13477, 3180, 23, 411, 2849, 33873

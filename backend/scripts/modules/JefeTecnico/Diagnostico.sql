@@ -18,7 +18,8 @@ BEGIN
     LEFT JOIN "Tecnicos" t ON d.tecnico_id = t.id_tecnico
     JOIN "Equipos" e ON d.equipo_id = e.id_equipo
     JOIN "Clientes" c ON e.cliente_id = c.id_cliente
-    WHERE d.estado_del_diagnostico IN ('PENDIENTE', 'INGRESADO', 'EN_REVISION', 'DIAGNOSTICADO')
+    WHERE d.tecnico_id IS NULL
+      AND d.estado_del_diagnostico IN ('PENDIENTE', 'INGRESADO')
     ORDER BY d.fecha_hora ASC, d.id_diagnostico ASC;
 END;
 $$ LANGUAGE plpgsql;
@@ -94,7 +95,8 @@ BEGIN
     JOIN "Clientes" c ON e.cliente_id = c.id_cliente
     LEFT JOIN "Tecnicos" t ON o.tecnico_id = t.id_tecnico
     LEFT JOIN "Tecnicos" dt ON d.tecnico_id = dt.id_tecnico
-    WHERE o.estado NOT IN ('FINALIZADO', 'ENTREGADO', 'IRREPARABLE')
+    WHERE o.tecnico_id IS NULL
+      AND o.estado NOT IN ('EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'ENTREGADO', 'IRREPARABLE')
     ORDER BY o.fecha_ingreso ASC, o.id_orden ASC;
 END;
 $$ LANGUAGE plpgsql;

@@ -1,7 +1,7 @@
 const parseList = (value, fallback = []) =>
   String(value || '')
     .split(',')
-    .map((item) => item.trim())
+    .map((item) => item.trim().replace(/^\\?["']|\\?["']$/g, ''))
     .filter(Boolean)
     .concat(fallback)
     .filter((item, index, list) => list.indexOf(item) === index);

@@ -47,8 +47,9 @@ export const getDiagnosticosPendientes = async (req, res) => {
   try {
     const diagnosticos = await prisma.diagnosticos.findMany({
       where: {
+        tecnico_id: null,
         estado_del_diagnostico: {
-          in: ['PENDIENTE', 'INGRESADO', 'EN_REVISION', 'DIAGNOSTICADO'],
+          in: ['PENDIENTE', 'INGRESADO'],
         },
       },
       include: diagnosticoInclude,
@@ -499,8 +500,9 @@ export const getOrdenesAprobadas = async (req, res) => {
   try {
     const ordenes = await prisma.ordenes.findMany({
       where: {
+        tecnico_id: null,
         estado: {
-          notIn: ['FINALIZADO', 'ENTREGADO', 'IRREPARABLE'],
+          notIn: ['EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'ENTREGADO', 'IRREPARABLE'],
         },
       },
       include: ordenInclude,
