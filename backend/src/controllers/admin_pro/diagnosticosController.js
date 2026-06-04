@@ -5,6 +5,7 @@ import { DIAGNOSTICO_ESTADOS } from '../../utils/domainValidation.js';
 export const getDiagnosticosAdmin = async (req, res) => {
   try {
     const search = String(req.query.search || '').trim();
+    const { fecha_inicio, fecha_fin, year, month, week } = req.query;
     const where = {};
 
     if (search) {
@@ -24,6 +25,9 @@ export const getDiagnosticosAdmin = async (req, res) => {
       ];
     }
 
+    const dateFilter = buildDiagnosticoDateFilter({ fecha_inicio, fecha_fin, year, month, week });
+    if (dateFilter) where.fecha_hora = dateFilter;
+
     const diagnosticos = await prisma.diagnosticos.findMany({
       where,
       include: {
@@ -37,6 +41,89 @@ export const getDiagnosticosAdmin = async (req, res) => {
     res.json({ data: diagnosticos });
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener diagnosticos', details: error.message });
+  }
+};
+
+const toValidInt = (value) => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
+};
+
+const buildDiagnosticoDateFilter = ({ fecha_inicio, fecha_fin, year, month, week }) => {
+  if (fecha_inicio || fecha_fin) {
+    const range = {};
+    if (fecha_inicio) range.gte = new Date(`${fecha_inicio}T00:00:00`);
+    if (fecha_fin) range.lte = new Date(`${fecha_fin}T23:59:59`);
+    return range;
+  }
+
+  const selectedYear = toValidInt(year);
+  if (!selectedYear) return null;
+
+  const selectedMonth = toValidInt(month);
+  const selectedWeek = toValidInt(week);
+  let start;
+  let end;
+
+  if (selectedMonth && selectedMonth >= 1 && selectedMonth <= 12) {
+    start = new Date(selectedYear, selectedMonth - 1, 1);
+    end = new Date(selectedYear, selectedMonth, 0, 23, 59, 59, 999);
+  } else {
+    start = new Date(selectedYear, 0, 1);
+    end = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
+  }
+
+  if (selectedWeek && selectedWeek >= 1 && selectedWeek <= 53) {
+    const monthStart = selectedMonth ? new Date(selectedYear, selectedMonth - 1, 1) : new Date(selectedYear, 0, 1);
+    start = new Date(monthStart);
+    start.setDate(monthStart.getDate() + ((selectedWeek - 1) * 7));
+    end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+  }
+
+  return { gte: start, lte: end };
+};
+
+const escapeCsv = (value) => {
+  const text = value == null ? '' : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+export const downloadDiagnosticosReporteAdmin = async (req, res) => {
+  try {
+    const dateFilter = buildDiagnosticoDateFilter(req.query);
+    const diagnosticos = await prisma.diagnosticos.findMany({
+      where: dateFilter ? { fecha_hora: dateFilter } : {},
+      include: {
+        equipo: { include: { cliente: true } },
+        tecnico: true,
+      },
+      orderBy: { fecha_hora: 'desc' },
+    });
+
+    const headers = ['ID', 'Fecha', 'Cliente', 'Telefono', 'Equipo', 'Tecnico', 'Estado', 'Aprobacion', 'Prioridad', 'Presupuesto', 'Falla', 'Diagnostico'];
+    const rows = diagnosticos.map((item) => [
+      item.id_diagnostico,
+      item.fecha_hora ? item.fecha_hora.toISOString() : '',
+      item.equipo?.cliente?.nombre || '-',
+      item.equipo?.cliente?.telefono || item.equipo?.cliente?.contacto_secundario || '-',
+      [item.equipo?.tipo, item.equipo?.marca, item.equipo?.modelo, item.equipo?.numero_serie].filter(Boolean).join(' ') || '-',
+      item.tecnico?.nombre || 'Sin asignar',
+      item.estado_del_diagnostico,
+      item.Estado_aprobacion,
+      item.prioridad || '-',
+      item.presupuesto_estimado ?? 0,
+      item.falla_reportada || '-',
+      item.diagnostico_real || '-',
+    ]);
+
+    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="diagnosticos-reporte.csv"');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al generar reporte de diagnosticos', details: error.message });
   }
 };
 

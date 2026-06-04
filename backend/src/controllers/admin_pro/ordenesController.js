@@ -4,11 +4,20 @@ import { Prisma } from '@prisma/client';
 // 3. Monitoreo de órdenes y facturas
 export const getOrdenesAvanzado = async (req, res) => {
   try {
+    const { fecha_inicio, fecha_fin } = req.query;
+    const where = {};
+    if (fecha_inicio || fecha_fin) {
+      where.fecha_ingreso = {};
+      if (fecha_inicio) where.fecha_ingreso.gte = new Date(`${fecha_inicio}T00:00:00`);
+      if (fecha_fin) where.fecha_ingreso.lte = new Date(`${fecha_fin}T23:59:59`);
+    }
+
     const ordenes = await prisma.ordenes.findMany({
+      where,
       include: {
         diagnostico: {
           include: {
-            equipo: true
+            equipo: { include: { cliente: true } }
           }
         },
         tecnico: true,

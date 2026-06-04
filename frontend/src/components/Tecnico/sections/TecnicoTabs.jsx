@@ -1,6 +1,6 @@
 import React from 'react';
 import { ClipboardList, FileText, Package, Wrench } from 'lucide-react';
-import { TecnicoTabButton } from '../../../components/Tecnico/TecnicoStats';
+import { TecnicoTabButton } from '../TecnicoStats';
 
 export const TecnicoTabs = ({
   activeTab,

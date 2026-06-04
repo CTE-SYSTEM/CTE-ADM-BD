@@ -25,8 +25,8 @@ import {
   JefeTecnicoStats,
   JefeTecnicoTablePanel,
   JefeTecnicoTabs,
-} from './sections/JefeTecnicoSections';
-import { JefeTecnicoDashboardModals } from './sections/JefeTecnicoDashboardModals';
+} from '../../components/TecnicoJefe/sections/JefeTecnicoSections';
+import { JefeTecnicoDashboardModals } from '../../components/TecnicoJefe/sections/JefeTecnicoDashboardModals';
 
 const JefeDashboard = () => {
   const { user, logout } = useContext(AuthContext);
@@ -71,7 +71,7 @@ const JefeDashboard = () => {
     enabled: Boolean(user?.username) && esJefeTecnico,
     onNotification: () => setShowNotifications(true),
     onRefresh: () => fetchData(),
-    refreshIntervalMs: 90000,
+    refreshIntervalMs: 0,
   });
 
   const fetchData = async () => {
@@ -284,7 +284,7 @@ const JefeDashboard = () => {
       }
 
       removeAsignacionPendiente(row);
-      fetchData();
+      await fetchData();
       setTecnicosSeleccionados((prev) => {
         const siguiente = { ...prev };
         delete siguiente[getRowKey(row)];
@@ -325,7 +325,7 @@ const JefeDashboard = () => {
         await repuestoService.rechazar(id);
       }
       removeRepuestoPendiente(id);
-      fetchData();
+      await fetchData();
       setRepuestoDecisionOk(
         `La solicitud de repuesto #${id} fue ${accion === 'aprobar' ? 'aprobada' : 'rechazada'} correctamente. `
         + 'El sistema refrescó la información para mostrar el nuevo estado tanto en la bandeja del jefe como en el panel del técnico.',
@@ -365,7 +365,7 @@ const JefeDashboard = () => {
       }
 
       removeIrreparablePendiente(id);
-      fetchData();
+      await fetchData();
       setIrreparableDecisionOk(
         `La orden #${id} fue ${accion === 'aprobar' ? 'aprobada como irreparable' : 'devuelta a reparación'} correctamente. `
         + 'El cambio ya quedó reflejado en las bandejas de técnico y jefe para que nadie trabaje con un estado desactualizado.',
@@ -460,7 +460,7 @@ const JefeDashboard = () => {
     return [...diagnosticos, ...ordenes];
   }, [diagnosticosPendientes, ordenesAprobadas]);
 
-  const asignacionColumns = buildAsignacionColumns({
+  const asignacionColumns = useMemo(() => buildAsignacionColumns({
     tecnicos,
     savingId,
     tecnicosSeleccionados,
@@ -473,9 +473,9 @@ const JefeDashboard = () => {
       setSelectedItem(row);
       setShowModal(true);
     },
-  });
+  }), [savingId, tecnicos, tecnicosSeleccionados]);
 
-  const repuestosColumns = buildRepuestosColumns({
+  const repuestosColumns = useMemo(() => buildRepuestosColumns({
     savingId,
     onDecisionRepuesto: handleDecisionRepuesto,
     onViewDetalle: (row) => {
@@ -483,9 +483,9 @@ const JefeDashboard = () => {
       setDetalles(row);
       setShowModal(true);
     },
-  });
+  }), [savingId]);
 
-  const irreparablesColumns = buildIrreparablesColumns({
+  const irreparablesColumns = useMemo(() => buildIrreparablesColumns({
     savingId,
     onDecisionIrreparable: handleDecisionIrreparable,
     onViewDetalle: (row) => {
@@ -493,11 +493,11 @@ const JefeDashboard = () => {
       setDetalles(null);
       setShowModal(true);
     },
-  });
+  }), [savingId]);
 
-  const correccionesColumns = buildCorreccionesColumns({
+  const correccionesColumns = useMemo(() => buildCorreccionesColumns({
     onEdit: openEditModal,
-  });
+  }), []);
 
   const mainData =
     activeTab === TAB_DIAGNOSTICOS

@@ -13,6 +13,7 @@ async function main() {
     'scripts/modules/Secretaria/Diagnostico.sql',
     'scripts/modules/Secretaria/Equipo.sql', 
     'scripts/modules/Secretaria/Facturacion.sql',
+    'scripts/modules/Secretaria/Dashboard.sql',
     'scripts/modules/Secretaria/Garantias.sql',
     'scripts/modules/Secretaria/Nuevaorden.sql',
     'scripts/modules/Secretaria/Proveedores.sql',

@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useRef } from 'react'; // Guardamos useRef para los enfoques
 import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle } from 'lucide-react'; 
@@ -12,11 +12,15 @@ const Login = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  // Referencias para controlar el foco de los inputs y el botón
+  const usernameRef = useRef(null);
+  const passwordRef = useRef(null);
+  const submitRef = useRef(null);
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault(); // El parámetro 'e' ahora puede ser opcional si llamamos la función manualmente
     setError(null);
 
-    // Validación local antes de pegarle al servidor
     if (!username.trim() || !password.trim()) {
       return setError('Ingresa usuario y contraseña');
     }
@@ -24,17 +28,11 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // 1. Ejecutamos el login
-      // Si el backend responde 401, el catch atrapará el error automáticamente
       const userData = await login(username, password);
 
-      // 2. Verificación de seguridad: si no hay userData o rol, no navegar
       if (!userData || !userData.rol) {
         throw new Error('Respuesta del servidor incompleta');
       }
-
-      // 3. Redirección dinámica según el rol exacto
-      console.log("Redirigiendo usuario con rol:", userData.rol);
       
       switch (userData.rol) {
         case 'Administrador':
@@ -45,7 +43,7 @@ const Login = () => {
           navigate('/secretaria');
           break;
         case 'TecnicoJefe':
-          navigate('/tecnico-jefe'); // Corregido para que coincida con tus rutas de App.jsx
+          navigate('/tecnico-jefe'); 
           break;
         case 'Tecnico':
           navigate('/tecnico');
@@ -55,14 +53,41 @@ const Login = () => {
           break;
       }
     } catch (err) {
-      // 4. Manejo de errores detallado
       console.error("Fallo el inicio de sesión:", err);
-      
-      // Si el error trae un mensaje del backend (res.status(401)), lo usamos
       const mensajeError = err.response?.data?.message || 'Usuario o contraseña incorrectos';
       setError(mensajeError);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Manejador de teclado para el campo de Usuario
+  const handleUsernameKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown') {
+      e.preventDefault(); // Evita que el Enter intente enviar el formulario antes de tiempo
+      passwordRef.current?.focus();
+    }
+  };
+
+  // Manejador de teclado para el campo de Contraseña
+  const handlePasswordKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmit(); // Al presionar Enter en contraseña, ejecuta directamente el Login
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      usernameRef.current?.focus(); // Sube al campo de usuario con la flecha de arriba
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      submitRef.current?.focus(); // Baja al botón de entrar con la flecha de abajo
+    }
+  };
+
+  // Manejador de teclado para el Botón de Entrar (por si bajó con la flecha y quiere subir)
+  const handleButtonKeyDown = (e) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      passwordRef.current?.focus();
     }
   };
 
@@ -84,11 +109,13 @@ const Login = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
               <input 
+                ref={usernameRef} // Asignamos la referencia
                 type="text"
                 autoComplete="username"
                 disabled={loading}
                 value={username} 
                 onChange={(e) => setUsername(e.target.value)} 
+                onKeyDown={handleUsernameKeyDown} // Escuchamos las teclas
                 placeholder="Nombre de usuario" 
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 transition-all" 
               />
@@ -96,11 +123,13 @@ const Login = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
               <input 
+                ref={passwordRef} // Asignamos la referencia
                 type="password" 
                 autoComplete="current-password"
                 disabled={loading}
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
+                onKeyDown={handlePasswordKeyDown} // Escuchamos las teclas
                 placeholder="●●●●●●" 
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 transition-all" 
               />
@@ -115,8 +144,10 @@ const Login = () => {
 
             <div className="flex flex-col space-y-4 pt-2">
               <button 
+                ref={submitRef} // Asignamos la referencia
                 type="submit" 
                 disabled={loading}
+                onKeyDown={handleButtonKeyDown} // Escuchamos si quiere regresar con flecha arriba
                 className="w-full py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
               >
                 {loading ? (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CierreOrdenModal, DiagnosticoModal, SolicitarRepuestoModal } from '../../../components/Tecnico/TecnicoModals';
+import { CierreOrdenModal, DiagnosticoModal, SolicitarRepuestoModal } from '../TecnicoModals';
 
 export const TecnicoDashboardModals = ({
   modalRepuesto,

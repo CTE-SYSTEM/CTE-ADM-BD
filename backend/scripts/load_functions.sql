@@ -8,6 +8,7 @@
 \i scripts/modules/Secretaria/Diagnostico.sql
 \i scripts/modules/Secretaria/Compras.sql
 \i scripts/modules/Secretaria/Facturacion.sql
+\i scripts/modules/Secretaria/Dashboard.sql
 \i scripts/modules/Secretaria/Nuevaorden.sql
 \i scripts/modules/Secretaria/Garantias.sql
 \i scripts/modules/Secretaria/Proveedores.sql

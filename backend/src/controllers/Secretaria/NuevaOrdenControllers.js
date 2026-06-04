@@ -1,6 +1,6 @@
 import prisma from '../../app/prismaClient.js';
 import ordenService from '../../services/Secretaria/ordenService.js';
-import { notifyJefeTecnico, notifyTecnico } from '../../services/notifications.js';
+import { notifyJefeTecnico, notifyRole, notifyTecnico } from '../../services/notifications.js';
 
 export const getOrdenes = async (req, res) => {
   try {
@@ -68,6 +68,14 @@ export const createOrden = async (req, res) => {
       title: 'Nueva orden registrada',
       message: `La orden #${orden?.id_orden || orden?.id || diagnosticoId} ya está lista para revisión`,
       severity: 'info',
+      entity: { kind: 'orden', id: Number(orden?.id_orden || orden?.id || 0) || diagnosticoId },
+    });
+
+    notifyRole('Secretaria', {
+      type: 'orden_creada_secretaria',
+      title: 'Orden generada',
+      message: `La orden #${orden?.id_orden || orden?.id || diagnosticoId} fue creada correctamente`,
+      severity: 'success',
       entity: { kind: 'orden', id: Number(orden?.id_orden || orden?.id || 0) || diagnosticoId },
     });
 

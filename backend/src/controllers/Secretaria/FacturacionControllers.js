@@ -1,4 +1,5 @@
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 import {
   METODOS_PAGO,
   assertInList,
@@ -63,22 +64,6 @@ const calcularMontoRepuestos = (repuestosUsados = []) => {
   return Math.round(total * 100) / 100;
 };
 
-const mapDetalleRepuestoFacturacion = (detalle) => {
-  const cantidad = Number(detalle.cantidad_usada || 0);
-  const precio_unitario = Math.round(calcularPrecioVentaRepuesto(detalle.repuesto) * 100) / 100;
-
-  return {
-    id_detalle_repuesto: detalle.id_detalle_repuesto,
-    repuesto_id: detalle.repuesto_id,
-    pieza_solicitada: detalle.pieza_solicitada,
-    cantidad_usada: detalle.cantidad_usada,
-    estado_aprobacion: detalle.estado_aprobacion,
-    repuesto: detalle.repuesto,
-    precio_unitario,
-    total: Math.round((cantidad * precio_unitario) * 100) / 100,
-  };
-};
-
 const tieneRepuestosSinAprobar = (orden) =>
   (orden.repuestos_usados || []).some((detalle) => (detalle.estado_aprobacion || '').toUpperCase() !== 'APROBADO');
 
@@ -87,10 +72,8 @@ const tieneRepuestosSinRegistrar = (orden) =>
 
 export const getFacturas = async (req, res) => {
   try {
-    const facturas = await prisma.facturas.findMany({
-      include: facturaInclude,
-      orderBy: { id_factura: 'desc' },
-    });
+    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_facturas_secretaria()`);
+    const facturas = rows.map((row) => row.data);
 
     res.json({ data: facturas });
   } catch (error) {
@@ -196,37 +179,8 @@ export const createFactura = async (req, res) => {
 
 export const getOrdenesParaFacturar = async (req, res) => {
   try {
-    const ordenes = await prisma.ordenes.findMany({
-      include: {
-        diagnostico: {
-          include: {
-            equipo: {
-              include: { cliente: true },
-            },
-          },
-        },
-        facturas: true,
-        ...repuestosUsadosInclude,
-      },
-      orderBy: { id_orden: 'desc' },
-    });
-
-    const ordenesDisponibles = ordenes
-      .filter((orden) =>
-        orden.facturas.length === 0
-        && ['FINALIZADO', 'IRREPARABLE'].includes((orden.estado || '').toUpperCase())
-        && (
-          (orden.estado || '').toUpperCase() === 'IRREPARABLE'
-          || (!tieneRepuestosSinAprobar(orden) && !tieneRepuestosSinRegistrar(orden))
-        )
-      )
-      .map((orden) => ({
-        ...orden,
-        monto_repuestos_calculado: (orden.estado || '').toUpperCase() === 'IRREPARABLE' ? 0 : calcularMontoRepuestos(orden.repuestos_usados),
-        repuestos_facturacion: (orden.repuestos_usados || []).map(mapDetalleRepuestoFacturacion),
-        repuestos_pendientes_count: (orden.repuestos_usados || [])
-          .filter((detalle) => (detalle.estado_aprobacion || '').toUpperCase() !== 'APROBADO' || !detalle.repuesto_id).length,
-      }));
+    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_ordenes_facturables_secretaria()`);
+    const ordenesDisponibles = rows.map((row) => row.data);
 
     res.json({
       data: ordenesDisponibles,

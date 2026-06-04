@@ -20,7 +20,7 @@ BEGIN
         'fecha_hora', d.fecha_hora,
         'fecha_completado', d.fecha_completado,
         'tecnico', to_jsonb(t.*),
-        'equipo', to_jsonb(e.*),
+        'equipo', COALESCE(to_jsonb(e.*), '{}'::jsonb) || jsonb_build_object('cliente', to_jsonb(c.*)),
         'cliente', to_jsonb(c.*) -- Aplanado de shapeDiagnostico
     )
     FROM "Diagnosticos" d
@@ -72,7 +72,7 @@ BEGIN
         'fecha_hora', d.fecha_hora,
         'fecha_completado', d.fecha_completado,
         'tecnico', to_jsonb(t.*),
-        'equipo', to_jsonb(e.*),
+        'equipo', COALESCE(to_jsonb(e.*), '{}'::jsonb) || jsonb_build_object('cliente', to_jsonb(c.*)),
         'cliente', to_jsonb(c.*)
     )
     FROM "Diagnosticos" d

@@ -4,10 +4,10 @@ import TecnicoHeader from '../../components/Tecnico/TecnicoHeader';
 import { useTecnicoDashboard } from '../../hooks/useTecnicoDashboard';
 import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import { filterItems } from '../../utils/textFilters';
-import { TecnicoDashboardModals } from './sections/TecnicoDashboardModals';
-import { TecnicoIntro, TecnicoStatsGrid, TecnicoTimeFilter } from './sections/TecnicoOverview';
-import { TecnicoTabContent } from './sections/TecnicoTabContent';
-import { TecnicoTabs } from './sections/TecnicoTabs';
+import { TecnicoDashboardModals } from '../../components/Tecnico/sections/TecnicoDashboardModals';
+import { TecnicoIntro, TecnicoStatsGrid, TecnicoTimeFilter } from '../../components/Tecnico/sections/TecnicoOverview';
+import { TecnicoTabContent } from '../../components/Tecnico/sections/TecnicoTabContent';
+import { TecnicoTabs } from '../../components/Tecnico/sections/TecnicoTabs';
 
 const TecnicoDashboard = () => {
   const { user, logout } = useContext(AuthContext);
@@ -46,7 +46,7 @@ const TecnicoDashboard = () => {
     enabled: Boolean(user?.username),
     onNotification: () => setShowNotifications(true),
     onRefresh: () => actions.loadTecnicoData(),
-    refreshIntervalMs: 90000,
+    refreshIntervalMs: 0,
   });
 
   const filterByTime = (items) => {

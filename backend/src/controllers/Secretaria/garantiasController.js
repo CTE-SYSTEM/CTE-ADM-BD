@@ -1,31 +1,13 @@
 // backend/src/controllers/Secretaria/garantiasController.js
 import prisma from '../../app/prismaClient.js';
+import { Prisma } from '@prisma/client';
 import { normalizeOptionalText, parsePositiveId } from '../../utils/domainValidation.js';
 
 export const getGarantias = async (req, res) => {
   try {
-    const garantias = await prisma.garantias.findMany({
-      include: {
-        factura: {
-          include: {
-            orden: {
-              include: {
-                diagnostico: {
-                  include: {
-                    equipo: {
-                      include: { cliente: true },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        fecha_vencimiento: 'asc',
-      },
-    });
+    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_garantias_secretaria()`);
+    const garantias = rows.map((row) => row.data);
+
     res.json({ data: garantias });
   } catch (error) {
     console.error('Error al obtener garantias:', error);

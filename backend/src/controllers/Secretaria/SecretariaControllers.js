@@ -1,92 +1,39 @@
 // backend/src/controllers/Secretaria/SecretariaControllers.js
+import { Prisma } from '@prisma/client';
 import prisma from '../../app/prismaClient.js';
+
+const DASHBOARD_PERIODOS = new Set(['all', 'week', 'month', 'year']);
 
 export const getDashboardStats = async (req, res) => {
   try {
-    // Ejecutamos las consultas en paralelo para mejorar el rendimiento
-    const [
-      totalClientes,
-      equiposEnTaller,
-      diagnosticosPendientes,
-      ordenesRecientes,
-      resumenFacturacion
-    ] = await Promise.all([
-      // 1. Total de clientes registrados
-      prisma.clientes.count(),
-
-      // 2. Equipos que están actualmente en el taller (Estado != FINALIZADO/ENTREGADO)
-      prisma.ordenes.count({
-        where: {
-          estado: {
-            notIn: ['FINALIZADO', 'ENTREGADO']
-          }
-        }
-      }),
-
-      // 3. Diagnósticos que aún no han sido revisados por técnicos
-      prisma.diagnosticos.count({
-        where: {
-          estado_del_diagnostico: 'PENDIENTE'
-        }
-      }),
-
-      // 4. Últimas 5 órdenes registradas para la tabla de actividad
-      prisma.ordenes.findMany({
-        take: 5,
-        orderBy: { fecha_ingreso: 'desc' },
-        include: {
-          diagnostico: {
-            include: {
-              equipo: {
-                include: { cliente: true }
-              }
-            }
-          }
-        }
-      }),
-
-      // 5. Sumatoria de ingresos del mes actual (Opcional para Dashboard)
-      prisma.facturas.aggregate({
-        _sum: {
-          total: true
-        },
-        where: {
-          fecha_emision: {
-            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-          }
-        }
-      })
-    ]);
+    const periodoSolicitado = String(req.query.periodo || 'all').toLowerCase();
+    const periodo = DASHBOARD_PERIODOS.has(periodoSolicitado) ? periodoSolicitado : 'all';
+    const [row] = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_secretaria_dashboard(${periodo})`);
+    const dashboard = row?.data || {};
 
     res.json({
       success: true,
-      stats: {
-        totalClientes,
-        equiposEnTaller,
-        diagnosticosPendientes,
-        ingresosMes: resumenFacturacion._sum.total || 0
-      },
-      recentOrders: ordenesRecientes
+      data: dashboard,
+      stats: dashboard.stats || {},
+      recentOrders: dashboard.recentOrders || [],
     });
   } catch (error) {
-    console.error("Error en Dashboard Secretaria:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "No se pudo cargar la información del dashboard" 
+    console.error('Error en Dashboard Secretaria:', error);
+    res.status(500).json({
+      success: false,
+      message: 'No se pudo cargar la informacion del dashboard',
+      details: error.message,
     });
   }
 };
 
-/**
- * Obtener flujo de estados para un gráfico de barras/pastel
- */
 export const getOrdersByStatus = async (req, res) => {
   try {
     const statusCounts = await prisma.ordenes.groupBy({
       by: ['estado'],
       _count: {
-        id_orden: true
-      }
+        id_orden: true,
+      },
     });
 
     res.json({ success: true, data: statusCounts });

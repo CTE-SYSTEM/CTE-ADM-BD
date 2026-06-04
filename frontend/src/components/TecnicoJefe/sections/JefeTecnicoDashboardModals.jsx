@@ -1,5 +1,5 @@
 import React from 'react';
-import { CorrectionModal, DetailModal } from '../../../components/TecnicoJefe/components';
+import { CorrectionModal, DetailModal } from '../components';
 
 export const JefeTecnicoDashboardModals = ({
   showModal,

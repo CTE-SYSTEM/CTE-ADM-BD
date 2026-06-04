@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getCompras, createCompra } from '../../../controllers/Secretaria/ComprasControllers.js';
+import { getCompras, createCompra, updateCompra } from '../../../controllers/Secretaria/ComprasControllers.js';
 import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
 import { PERMISSIONS } from '../../../utils/permissions.js';
 
@@ -9,5 +9,6 @@ router.use(authMiddleware, requirePermission(PERMISSIONS.COMPRAS_GESTIONAR));
 
 router.get('/', getCompras);
 router.post('/', createCompra);
+router.put('/:id', updateCompra);
 
 export default router;

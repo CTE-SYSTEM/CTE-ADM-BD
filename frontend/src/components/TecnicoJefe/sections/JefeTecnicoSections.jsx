@@ -1,9 +1,9 @@
 import React from 'react';
 import { AlertTriangle, Bell, History, Package, Search, Settings, ShieldCheck, X } from 'lucide-react';
-import PageHelp from '../../../components/PageHelp';
-import Table from '../../../components/Table';
+import PageHelp from '../../PageHelp';
+import Table from '../../Table';
 import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_IRREPARABLES, TAB_ORDENES, TAB_REPUESTOS } from '../../../utils/jefeTecnicoConstants';
-import { StatCard, TabButton } from '../../../components/TecnicoJefe/components';
+import { StatCard, TabButton } from '../components';
 
 export const JefeTecnicoIntro = ({ showHelp }) => (
   <>

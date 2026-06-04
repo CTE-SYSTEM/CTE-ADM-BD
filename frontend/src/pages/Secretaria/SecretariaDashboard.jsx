@@ -1,179 +1,93 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ClipboardList, Users, Laptop, Truck, Package,
-  ReceiptText, Stethoscope, Filter, Tags, AlertCircle
+  AlertCircle,
+  ClipboardList,
+  Filter,
+  Laptop,
+  Package,
+  ReceiptText,
+  Stethoscope,
+  Tags,
+  Truck,
+  Users,
 } from 'lucide-react';
-import { getClientes } from '../../services/secretaria/clientesService';
-import { getEquipos } from '../../services/secretaria/equiposService';
-import { getOrdenes } from '../../services/secretaria/ordenesService';
-import { getProveedores } from '../../services/secretaria/proveedoresService';
-import { getRepuestos } from '../../services/secretaria/repuestosService';
-import { getTiposRepuesto } from '../../services/secretaria/tiposRepuestoService';
-import { getFacturas } from '../../services/secretaria/facturasService';
-import { getDiagnosticos } from '../../services/secretaria/diagnosticoService';
+import { getSecretariaDashboard } from '../../services/secretaria/dashboardService';
 
-const dateFields = {
-  clientes: [],
-  equipos: [],
-  ordenes: ['fecha_ingreso', 'createdAt'],
-  proveedores: [],
-  repuestos: [],
-  tiposRepuesto: [],
-  facturas: ['fecha_emision'],
-  diagnosticos: ['fecha_hora', 'fecha_asignacion'],
+const EMPTY_STATS = {
+  clientes: 0,
+  equipos: 0,
+  ordenes: 0,
+  proveedores: 0,
+  repuestos: 0,
+  tiposRepuesto: 0,
+  facturas: 0,
+  diagnosticos: 0,
 };
 
-const getItemDate = (item, fields) => {
-  const rawDate = fields.map((field) => item?.[field]).find(Boolean);
-  if (!rawDate) return null;
+const filters = [
+  { id: 'all', label: 'Todo' },
+  { id: 'week', label: 'Semana' },
+  { id: 'month', label: 'Mes' },
+  { id: 'year', label: 'Anio' },
+];
 
+const getOrderDate = (orden) => {
+  const rawDate = orden?.fecha_ingreso || orden?.createdAt;
+  if (!rawDate) return 0;
   const date = new Date(rawDate);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 };
 
-const filterItemsByDate = (items, fields, filterType) => {
-  if (!items || !Array.isArray(items)) return [];
-  if (filterType === 'all') return items;
-  if (!fields.length) return items;
-
-  const now = new Date();
-
-  return items.filter((item) => {
-    const itemDate = getItemDate(item, fields);
-    if (!itemDate) return false;
-
-    if (filterType === 'week') {
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      return itemDate >= weekAgo;
-    }
-
-    if (filterType === 'month') {
-      return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
-    }
-
-    if (filterType === 'year') {
-      return itemDate.getFullYear() === now.getFullYear();
-    }
-
-    return true;
-  });
-};
-
-const sortOrdenesRecientes = (ordenes) => (
+const sortOrdenesRecientes = (ordenes = []) => (
   [...ordenes].sort((a, b) => {
-    const dateA = getItemDate(a, dateFields.ordenes)?.getTime() || 0;
-    const dateB = getItemDate(b, dateFields.ordenes)?.getTime() || 0;
-    if (dateB !== dateA) return dateB - dateA;
+    const dateDiff = getOrderDate(b) - getOrderDate(a);
+    if (dateDiff !== 0) return dateDiff;
     return Number(b.id_orden || 0) - Number(a.id_orden || 0);
   })
 );
 
+const normalizeStats = (stats = {}) => ({
+  clientes: Number(stats.clientes || 0),
+  equipos: Number(stats.equipos || 0),
+  ordenes: Number(stats.ordenes || 0),
+  proveedores: Number(stats.proveedores || 0),
+  repuestos: Number(stats.repuestos || 0),
+  tiposRepuesto: Number(stats.tiposRepuesto || 0),
+  facturas: Number(stats.facturas || 0),
+  diagnosticos: Number(stats.diagnosticos || 0),
+});
+
 const SecretariaDashboard = () => {
-  const [rawData, setRawData] = useState({
-    clientes: [],
-    equipos: [],
-    ordenes: [],
-    proveedores: [],
-    repuestos: [],
-    tiposRepuesto: [],
-    facturas: [],
-    diagnosticos: [],
-  });
-
-  const [stats, setStats] = useState({
-    clientes: 0,
-    equipos: 0,
-    ordenes: 0,
-    proveedores: 0,
-    repuestos: 0,
-    tiposRepuesto: 0,
-    facturas: 0,
-    diagnosticos: 0,
-  });
-
+  const [stats, setStats] = useState(EMPTY_STATS);
   const [filteredOrdenes, setFilteredOrdenes] = useState([]);
   const [filterType, setFilterType] = useState('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showHelp, setShowHelp] = useState(false);
+  const [showHelp] = useState(false);
 
   useEffect(() => {
     const loadDashboard = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Usamos Promise.allSettled para evitar que la caída de un servicio tire abajo todo el módulo
-        const resultados = await Promise.allSettled([
-          getClientes(),
-          getEquipos(),
-          getOrdenes(),
-          getProveedores(),
-          getRepuestos(),
-          getTiposRepuesto(),
-          getFacturas(),
-          getDiagnosticos(),
-        ]);
+        const response = await getSecretariaDashboard(filterType);
+        const dashboard = response.data?.data || {};
 
-        const extraeData = (res, backupKey) => {
-          if (res.status === 'fulfilled' && res.value?.data) {
-            // Maneja el formato limpio nuevo { ordenes: [...] } o el formato estándar .data o .data.data
-            return res.value.data[backupKey] || res.value.data.data || res.value.data || [];
-          }
-          return [];
-        };
-
-        if (resultados[2].status === 'rejected') {
-          console.error('El servicio de órdenes falló al responder:', resultados[2].reason);
-          setError('Aviso: No se pudieron sincronizar las órdenes de trabajo actuales.');
-        }
-
-        setRawData({
-          clientes: extraeData(resultados[0], 'clientes'),
-          equipos: extraeData(resultados[1], 'equipos'),
-          ordenes: extraeData(resultados[2], 'ordenes'),
-          proveedores: extraeData(resultados[3], 'proveedores'),
-          repuestos: extraeData(resultados[4], 'repuestos'),
-          tiposRepuesto: extraeData(resultados[5], 'tiposRepuesto'),
-          facturas: extraeData(resultados[6], 'facturas'),
-          diagnosticos: extraeData(resultados[7], 'diagnosticos'),
-        });
+        setStats(normalizeStats(dashboard.stats));
+        setFilteredOrdenes(sortOrdenesRecientes(dashboard.recentOrders || []).slice(0, 5));
       } catch (err) {
         console.error(err);
-        setError('Ocurrió un problema crítico al procesar los paneles informativos.');
+        setError('Ocurrio un problema al cargar el dashboard de Secretaria.');
+        setStats(EMPTY_STATS);
+        setFilteredOrdenes([]);
       } finally {
         setLoading(false);
       }
     };
 
     loadDashboard();
-  }, []);
-
-  useEffect(() => {
-    const filtered = {
-      clientes: filterItemsByDate(rawData.clientes, dateFields.clientes, filterType),
-      equipos: filterItemsByDate(rawData.equipos, dateFields.equipos, filterType),
-      ordenes: filterItemsByDate(rawData.ordenes, dateFields.ordenes, filterType),
-      proveedores: filterItemsByDate(rawData.proveedores, dateFields.proveedores, filterType),
-      repuestos: filterItemsByDate(rawData.repuestos, dateFields.repuestos, filterType),
-      tiposRepuesto: filterItemsByDate(rawData.tiposRepuesto, dateFields.tiposRepuesto, filterType),
-      facturas: filterItemsByDate(rawData.facturas, dateFields.facturas, filterType),
-      diagnosticos: filterItemsByDate(rawData.diagnosticos, dateFields.diagnosticos, filterType),
-    };
-
-    setStats({
-      clientes: filtered.clientes.length,
-      equipos: filtered.equipos.length,
-      ordenes: filtered.ordenes.length,
-      proveedores: filtered.proveedores.length,
-      repuestos: filtered.repuestos.length,
-      tiposRepuesto: filtered.tiposRepuesto.length,
-      facturas: filtered.facturas.length,
-      diagnosticos: filtered.diagnosticos.length,
-    });
-
-    setFilteredOrdenes(sortOrdenesRecientes(filtered.ordenes).slice(0, 5));
-  }, [filterType, rawData]);
+  }, [filterType]);
 
   const quickActions = [
     { title: 'Clientes', value: stats.clientes, icon: Users, url: '/secretaria/clientes', color: 'bg-blue-600' },
@@ -194,19 +108,13 @@ const SecretariaDashboard = () => {
             <ClipboardList className="h-6 w-6" />
           </div>
           <div className="text-left">
-            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Secretaría</h1>
-            <p className="text-gray-500 font-medium">Gestión operativa - {filterType === 'all' ? 'Historial completo' : `Filtro: ${filterType.toUpperCase()}`}</p>
+            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Secretaria</h1>
+            <p className="text-gray-500 font-medium">Gestion operativa - {filterType === 'all' ? 'Historial completo' : `Filtro: ${filterType.toUpperCase()}`}</p>
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex items-center bg-white border border-gray-200 p-1 rounded-xl shadow-sm">
-          {[
-            { id: 'all', label: 'Todo' },
-            { id: 'week', label: 'Semana' },
-            { id: 'month', label: 'Mes' },
-            { id: 'year', label: 'Año' },
-          ].map((filter) => (
+        <div className="flex items-center bg-white border border-gray-200 p-1 rounded-xl shadow-sm">
+          {filters.map((filter) => (
             <button
               key={filter.id}
               onClick={() => setFilterType(filter.id)}
@@ -219,36 +127,12 @@ const SecretariaDashboard = () => {
               {filter.label}
             </button>
           ))}
-          </div>
         </div>
       </div>
 
       {showHelp && (
         <section className="mb-8 rounded-2xl bg-slate-950 p-6 text-white shadow-sm space-y-4 animate-fade-in">
-          <div>
-            <h2 className="text-lg font-bold">Mini tutorial de Secretaria</h2>
-            <p className="mt-1 text-sm text-slate-300">
-              Usa este panel como punto de entrada para registrar clientes, equipos, diagnosticos, ordenes y facturas.
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <p className="text-sm font-semibold text-indigo-400">1. Revisa el periodo</p>
-              <p className="mt-1 text-xs text-slate-400">Cambia entre todo, semana, mes o anio para ver actividad reciente.</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <p className="text-sm font-semibold text-cyan-400">2. Entra al modulo</p>
-              <p className="mt-1 text-xs text-slate-400">Las tarjetas abren clientes, equipos, diagnosticos, ordenes y facturacion.</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <p className="text-sm font-semibold text-amber-400">3. Atiende ordenes</p>
-              <p className="mt-1 text-xs text-slate-400">La tabla inferior muestra las ordenes mas recientes para dar seguimiento.</p>
-            </div>
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <p className="text-sm font-semibold text-emerald-400">4. Usa Flujo atencion</p>
-              <p className="mt-1 text-xs text-slate-400">Cuando necesites contexto completo, abre el tablero de seguimiento.</p>
-            </div>
-          </div>
+          <h2 className="text-lg font-bold">Mini tutorial de Secretaria</h2>
         </section>
       )}
 
@@ -279,9 +163,9 @@ const SecretariaDashboard = () => {
           <div className="text-left">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
               <Filter className="w-4 h-4 text-indigo-500" />
-              Últimas órdenes ({filterType})
+              Ultimas ordenes ({filterType})
             </h2>
-            <p className="text-sm text-gray-500 font-medium">Órdenes generadas en el sistema técnico.</p>
+            <p className="text-sm text-gray-500 font-medium">Ordenes generadas en el sistema tecnico.</p>
           </div>
           <Link to="/secretaria/nueva-orden" className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100">
             Nueva orden
@@ -296,7 +180,7 @@ const SecretariaDashboard = () => {
                 <th className="px-4 py-3 border-b border-gray-100">Fecha</th>
                 <th className="px-4 py-3 border-b border-gray-100">Cliente</th>
                 <th className="px-4 py-3 border-b border-gray-100">Equipo</th>
-                <th className="px-4 py-3 border-b border-gray-100">Técnico</th>
+                <th className="px-4 py-3 border-b border-gray-100">Tecnico</th>
                 <th className="px-4 py-3 border-b border-gray-100 text-center">Estado</th>
               </tr>
             </thead>
@@ -304,14 +188,14 @@ const SecretariaDashboard = () => {
               {filteredOrdenes.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-4 py-10 text-center text-gray-400 italic font-medium">
-                    No se encontraron órdenes registradas en este periodo
+                    No se encontraron ordenes registradas en este periodo
                   </td>
                 </tr>
               ) : (
                 filteredOrdenes.map((orden) => (
                   <tr key={orden.id_orden} className="hover:bg-gray-50 border-b border-gray-50 transition-colors">
                     <td className="px-4 py-3 font-bold text-indigo-600">#{orden.id_orden}</td>
-                    <td className="px-4 py-3">{orden.fecha_ingreso || orden.createdAt ? new Date(orden.fecha_ingreso || orden.createdAt).toLocaleDateString() : '-'}</td>
+                    <td className="px-4 py-3">{orden.fecha_ingreso ? new Date(orden.fecha_ingreso).toLocaleDateString() : '-'}</td>
                     <td className="px-4 py-3 font-semibold text-gray-700">{orden.diagnostico?.equipo?.cliente?.nombre || 'General'}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {[orden.diagnostico?.equipo?.marca, orden.diagnostico?.equipo?.modelo].filter(Boolean).join(' ') || '-'}

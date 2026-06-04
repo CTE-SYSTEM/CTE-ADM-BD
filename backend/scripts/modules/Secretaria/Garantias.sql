@@ -34,3 +34,35 @@ CREATE TRIGGER trg_emitir_garantia_factura
 AFTER INSERT ON "Facturas"
 FOR EACH ROW
 EXECUTE FUNCTION secretaria_emitir_garantia_factura();
+
+CREATE INDEX IF NOT EXISTS idx_garantias_fecha_vencimiento
+ON "Garantias" (fecha_vencimiento ASC, id_garantia DESC);
+
+CREATE INDEX IF NOT EXISTS idx_garantias_factura_id
+ON "Garantias" (factura_id);
+
+CREATE OR REPLACE VIEW secretaria_garantias_detalle AS
+SELECT
+  g.id_garantia,
+  g.fecha_vencimiento,
+  jsonb_build_object(
+    'id_garantia', g.id_garantia,
+    'factura_id', g.factura_id,
+    'condiciones', g.condiciones,
+    'duracion_meses', g.duracion_meses,
+    'fecha_inicio', g.fecha_inicio,
+    'fecha_vencimiento', g.fecha_vencimiento,
+    'factura', f.data - 'garantias'
+  ) AS data
+FROM "Garantias" g
+JOIN secretaria_facturas_detalle f ON f.id_factura = g.factura_id;
+
+CREATE OR REPLACE FUNCTION get_garantias_secretaria()
+RETURNS TABLE (data JSONB) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT g.data
+  FROM secretaria_garantias_detalle g
+  ORDER BY g.fecha_vencimiento ASC NULLS LAST, g.id_garantia DESC;
+END;
+$$ LANGUAGE plpgsql;

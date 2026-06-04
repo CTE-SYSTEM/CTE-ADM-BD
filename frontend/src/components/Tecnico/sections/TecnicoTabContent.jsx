@@ -1,8 +1,8 @@
 import React from 'react';
-import DiagnosticosTable from '../../../components/Tecnico/DiagnosticosTable';
-import OrdenesGrid from '../../../components/Tecnico/OrdenesGrid';
-import RepuestosTable from '../../../components/Tecnico/RepuestosTable';
-import SearchBox from '../../../components/Tecnico/SearchBox';
+import DiagnosticosTable from '../DiagnosticosTable';
+import OrdenesGrid from '../OrdenesGrid';
+import RepuestosTable from '../RepuestosTable';
+import SearchBox from '../SearchBox';
 
 export const TecnicoTabContent = ({
   activeTab,

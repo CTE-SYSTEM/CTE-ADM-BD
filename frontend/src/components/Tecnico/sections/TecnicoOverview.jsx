@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, CheckCircle2, ClipboardList, Package, Wrench } from 'lucide-react';
-import PageHelp from '../../../components/PageHelp';
-import { TecnicoStatCard } from '../../../components/Tecnico/TecnicoStats';
+import PageHelp from '../../PageHelp';
+import { TecnicoStatCard } from '../TecnicoStats';
 
 export const TecnicoIntro = ({ showHelp }) => (
   <>

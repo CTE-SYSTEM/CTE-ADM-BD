@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Loader2, Search, CheckCircle, XCircle, User, Monitor, HelpCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Bell, Loader2, Search, CheckCircle, XCircle, User, Monitor, HelpCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { NotificationTray } from '../../components/TecnicoJefe/components';
+import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import { updateEstadoDiagnostico } from '../../services/secretaria/diagnosticoService';
 import { createOrden, getDiagnosticosListosParaOrden } from '../../services/secretaria/ordenesService';
 
@@ -55,11 +57,11 @@ const NuevaOrden = () => {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const [requierePiezasPorDiagnostico, setRequierePiezasPorDiagnostico] = useState({});
-  
-  // NUEVO: Estado para controlar qué tarjeta tiene el informe expandido
   const [expandedId, setExpandedId] = useState(null);
 
   const loadDiagnosticos = async () => {
@@ -92,6 +94,31 @@ const NuevaOrden = () => {
 
   useEffect(() => { loadDiagnosticos(); }, []);
 
+  useEffect(() => {
+    if (!message) return undefined;
+    const timer = window.setTimeout(() => setMessage(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
+
+  const {
+    notifications,
+    connected: socketConnected,
+    clearNotifications,
+  } = useRealtimeNotifications({
+    onNotification: (notification) => {
+      setShowNotifications(true);
+      if (notification?.type === 'orden_creada_secretaria') {
+        setMessage(notification.message || 'Orden generada correctamente');
+      }
+    },
+    onRefresh: (notification) => {
+      if (!notification || notification.type === 'orden_creada_secretaria' || notification.type === 'diagnostico_completado') {
+        loadDiagnosticos();
+      }
+    },
+    refreshIntervalMs: 0,
+  });
+
   const activeTourTarget = showHelp ? tourSteps[tourStep].target : '';
 
   useEffect(() => {
@@ -123,7 +150,7 @@ const NuevaOrden = () => {
     setTourStep((step) => step + 1);
   };
 
-  const diagnosticosFiltrados = diagnosticos.filter((diag) => {
+  const diagnosticosFiltrados = useMemo(() => diagnosticos.filter((diag) => {
     const term = filter.toLowerCase();
     return [
       diag.equipo?.cliente?.nombre,
@@ -134,7 +161,7 @@ const NuevaOrden = () => {
       diag.falla_reportada,
       String(diag.id_diagnostico),
     ].some((value) => String(value || '').toLowerCase().includes(term));
-  });
+  }), [diagnosticos, filter]);
 
   const getRequierePiezas = (diagnosticoId) => {
     const value = requierePiezasPorDiagnostico[diagnosticoId];
@@ -205,9 +232,15 @@ const NuevaOrden = () => {
     }
   };
 
-  // FUNCIÓN AUXILIAR: Alterna la expansión de la tarjeta seleccionada
   const toggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const formatPresupuesto = (monto) => {
+    if (!monto || isNaN(Number(monto))) return 'Sin monto';
+    const [entero, decimal] = Number(monto).toFixed(2).split('.');
+    const enteroConEspacios = entero.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return `C$ ${enteroConEspacios}.${decimal}`;
   };
 
   return (
@@ -226,17 +259,47 @@ const NuevaOrden = () => {
           <h2 className="text-2xl font-bold text-gray-800">Generar Órdenes</h2>
           <p className="text-gray-500 font-medium">Diagnósticos completados esperando respuesta del cliente.</p>
         </div>
-        <button
-          type="button"
-          onClick={startTour}
-          className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 py-2 text-gray-700 shadow-sm hover:bg-gray-50 font-semibold"
-          title="Iniciar tutorial guiado"
-        >
-          <HelpCircle className="w-4 h-4" /> Ayuda
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowNotifications((value) => !value)}
+              className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm hover:border-indigo-200 hover:text-indigo-600"
+              title={socketConnected ? 'Notificaciones conectadas' : 'Notificaciones desconectadas'}
+            >
+              <Bell className="h-5 w-5" />
+              {notifications.length > 0 && (
+                <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                  {notifications.length}
+                </span>
+              )}
+              <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ${socketConnected ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+            </button>
+            {showNotifications && (
+              <NotificationTray
+                notifications={notifications}
+                connected={socketConnected}
+                onClear={() => {
+                  clearNotifications();
+                  setShowNotifications(false);
+                }}
+                onClose={() => setShowNotifications(false)}
+              />
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={startTour}
+            className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 py-2 text-gray-700 shadow-sm hover:bg-gray-50 font-semibold"
+            title="Iniciar tutorial guiado"
+          >
+            <HelpCircle className="w-4 h-4" /> Ayuda
+          </button>
+        </div>
       </div>
 
       {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 text-left">{error}</div>}
+      {message && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 text-left">{message}</div>}
 
       <div data-tour-target="search" className={`mb-6 ${tourHighlightClass(activeTourTarget === 'search')}`}>
         <div className="relative max-w-xl">
@@ -268,10 +331,10 @@ const NuevaOrden = () => {
             diagnosticosFiltrados.map((diag) => {
               const canApprove = Boolean(diag.equipo?.cliente?.id_cliente && diag.equipo?.id_equipo && diag.diagnostico_real && Number(diag.presupuesto_estimado || 0) > 0);
               
-              // Verificamos si esta tarjeta específica está expandida
               const isExpanded = expandedId === diag.id_diagnostico;
               const textoInforme = diag.diagnostico_real || 'Sin informe detallado';
-              const limiteCaracteres = 90; // Punto de corte ideal para tu diseño
+              const limiteCaracteres = 90;
+              // REPARADO: Línea restablecida correctamente
               const esLargo = textoInforme.length > limiteCaracteres;
 
               return (
@@ -284,9 +347,11 @@ const NuevaOrden = () => {
                       <h3 className="font-bold text-gray-800 break-words text-lg">{diag.equipo?.marca} {diag.equipo?.modelo}</h3>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mt-1">
                         <span className="flex items-center gap-1 min-w-0"><User className="w-4 h-4 shrink-0 text-gray-400" /> <span className="truncate font-semibold text-gray-600">{diag.equipo?.cliente?.nombre}</span></span>
+                        
                         <span className={`px-2 py-0.5 rounded text-xs font-black whitespace-nowrap ${Number(diag.presupuesto_estimado || 0) > 0 ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700'}`}>
-                          Presupuesto: {diag.presupuesto_estimado ? `C$ ${Number(diag.presupuesto_estimado).toFixed(2)}` : 'Sin monto'}
+                          Presupuesto: {formatPresupuesto(diag.presupuesto_estimado)}
                         </span>
+                        
                         {!canApprove && (
                           <span className="bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">
                             Requiere revisión
