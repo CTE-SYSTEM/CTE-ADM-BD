@@ -37,6 +37,25 @@ const getCompatibleRepuestos = (repuestos, equipoTipo) => {
   });
 };
 
+const cleanCurrencyInput = (value = '') => String(value).replace(/[^\d.]/g, '');
+
+const formatCurrencyInput = (value = '') => {
+  const cleanValue = cleanCurrencyInput(value);
+  if (!cleanValue) return '';
+
+  const [integerPart, ...decimalParts] = cleanValue.split('.');
+  const formattedInteger = integerPart.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') || '0';
+  const decimalPart = decimalParts.join('').slice(0, 2);
+
+  if (cleanValue.includes('.')) {
+    return `${formattedInteger}.${decimalPart}`;
+  }
+
+  return formattedInteger;
+};
+
+const parseCurrencyInput = (value = '') => cleanCurrencyInput(value).replace(/(\..*)\./g, '$1');
+
 export const SolicitarRepuestoModal = ({ orden, repuestos, onClose, onSubmit }) => {
   const [repuesto, setRepuesto] = useState('');
   const [cantidad, setCantidad] = useState(1);
@@ -175,16 +194,20 @@ export const SolicitarRepuestoModal = ({ orden, repuestos, onClose, onSubmit }) 
 export const DiagnosticoModal = ({ orden, readOnly = false, onClose, onSubmit }) => {
   const [diagnostico, setDiagnostico] = useState(orden.diagnostico || '');
   const [solucion, setSolucion] = useState(orden.solucion || '');
-  const [presupuesto, setPresupuesto] = useState(orden.presupuesto || '');
+  const [presupuesto, setPresupuesto] = useState(formatCurrencyInput(orden.presupuesto || ''));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handlePresupuestoChange = (event) => {
+    setPresupuesto(formatCurrencyInput(event.target.value));
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await onSubmit(orden.id, { diagnostico, solucion, presupuesto });
+      await onSubmit(orden.id, { diagnostico, solucion, presupuesto: parseCurrencyInput(presupuesto) });
       onClose();
     } catch (err) {
       setError(err?.response?.data?.error || 'No se pudo guardar el diagnostico.');
@@ -214,12 +237,12 @@ export const DiagnosticoModal = ({ orden, readOnly = false, onClose, onSubmit })
             <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Presupuesto estimado</label>
             <input
               readOnly={readOnly}
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 outline-none focus:ring-2 focus:ring-purple-500 read-only:bg-slate-50"
               value={presupuesto}
-              onChange={(event) => setPresupuesto(event.target.value)}
+              onChange={handlePresupuestoChange}
+              placeholder="0.00"
             />
           </div>
           {error && <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</div>}

@@ -152,7 +152,7 @@ export const buildAsignacionColumns = ({
   },
 ];
 
-export const buildRepuestosColumns = ({ savingId, onDecisionRepuesto, onViewDetalle }) => [
+export const buildRepuestosColumns = ({ savingId, onDecisionRepuesto, onViewDetalle, onEdit }) => [
   {
     header: 'Referencia de Orden',
     accessor: 'orden',
@@ -202,6 +202,9 @@ export const buildRepuestosColumns = ({ savingId, onDecisionRepuesto, onViewDeta
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => onViewDetalle(row)} disabled={isSaving} className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all font-black text-[10px] uppercase disabled:opacity-50">
             <Eye size={14} /> Detalle
+          </button>
+          <button onClick={() => onEdit(row)} disabled={isSaving} className="flex items-center gap-2 px-3 py-2 bg-amber-50 text-amber-700 rounded-xl hover:bg-amber-500 hover:text-white transition-all font-black text-[10px] uppercase disabled:opacity-50">
+            <Settings size={14} /> Corregir
           </button>
           <button onClick={() => onDecisionRepuesto(row, 'aprobar')} disabled={isSaving} className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl hover:bg-emerald-600 hover:text-white transition-all font-black text-[10px] uppercase disabled:opacity-50">
             {isSaving ? <Settings size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Aprobar

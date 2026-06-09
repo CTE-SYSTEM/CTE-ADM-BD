@@ -391,14 +391,11 @@ const JefeDashboard = () => {
       setEditForm({
         tecnico_id: getTecnicoId(row) || '',
         prioridad: row.prioridad || 'Normal',
-        estado_del_diagnostico: row.estado_del_diagnostico || 'EN_REVISION',
-        Estado_aprobacion: row.Estado_aprobacion || 'Pendiente',
       });
     } else if (tipo === 'orden') {
       setEditForm({
         tecnico_id: getTecnicoId(row) || '',
         prioridad: row.prioridad || row.diagnostico?.prioridad || 'Normal',
-        estado: row.estado || 'PENDIENTE',
       });
     } else {
       setEditForm({
@@ -478,6 +475,7 @@ const JefeDashboard = () => {
   const repuestosColumns = useMemo(() => buildRepuestosColumns({
     savingId,
     onDecisionRepuesto: handleDecisionRepuesto,
+    onEdit: openEditModal,
     onViewDetalle: (row) => {
       setSelectedItem(row);
       setDetalles(row);

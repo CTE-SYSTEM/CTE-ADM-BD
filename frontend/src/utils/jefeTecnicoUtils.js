@@ -8,7 +8,17 @@ export const getRowKey = (row) => {
   return `repuesto-${row.id_detalle_repuesto}`;
 };
 
-export const getTecnicoId = (row) => row.tecnico_id ?? row.id_tecnico ?? row.tecnico?.id_tecnico ?? '';
+export const getTecnicoId = (row) =>
+  row.tecnico_id
+  ?? row.id_tecnico
+  ?? row.tecnico?.id_tecnico
+  ?? row.orden?.tecnico_id
+  ?? row.orden?.tecnico?.id_tecnico
+  ?? row.diagnostico?.tecnico_id
+  ?? row.diagnostico?.tecnico?.id_tecnico
+  ?? row.orden?.diagnostico?.tecnico_id
+  ?? row.orden?.diagnostico?.tecnico?.id_tecnico
+  ?? '';
 
 export const getEquipo = (row) => row.equipo || row.diagnostico?.equipo || row.orden?.diagnostico?.equipo;
 
@@ -23,6 +33,8 @@ export const getFechaBase = (row) =>
   row.updatedAt ||
   row.fecha_hora ||
   row.createdAt ||
+  row.orden?.fecha_asignacion ||
+  row.orden?.fecha_ingreso ||
   row.diagnostico?.fecha_hora;
 
 // 👉 NUEVA FUNCIÓN: Calcula la diferencia exacta en minutos

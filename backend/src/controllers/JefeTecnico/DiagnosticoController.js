@@ -3,8 +3,6 @@ import prisma from '../../app/prismaClient.js';
 import { Prisma } from '@prisma/client';
 import { notifyJefeTecnico, notifyTecnico } from '../../services/notifications.js';
 import {
-  DIAGNOSTICO_ESTADOS,
-  ORDEN_ESTADOS,
   PRIORIDADES,
   REPUESTO_ESTADOS,
   assertInList,
@@ -175,7 +173,7 @@ export const getCorreccionesJefeTecnico = async (req, res) => {
 
 export const corregirDiagnosticoJefeTecnico = async (req, res) => {
   try {
-    const { tecnico_id, prioridad, estado_del_diagnostico, Estado_aprobacion } = req.body;
+    const { tecnico_id, prioridad } = req.body;
     const tecnicoId = tecnico_id === '' || tecnico_id === null ? null : parsePositiveId(tecnico_id);
 
     if (tecnico_id && !tecnicoId) {
@@ -184,13 +182,18 @@ export const corregirDiagnosticoJefeTecnico = async (req, res) => {
 
     const diagnosticoActual = await prisma.diagnosticos.findUnique({
       where: { id_diagnostico: Number(req.params.id) },
-      select: { fecha_asignacion: true },
+      select: { tecnico_id: true },
     });
 
     if (!diagnosticoActual) return res.status(404).json({ error: 'Diagnostico no encontrado' });
 
-    validarCorreccionConTiempo(diagnosticoActual.fecha_asignacion, tecnico_id !== undefined, 'la asignacion del diagnostico');
-    validarCorreccionConTiempo(diagnosticoActual.fecha_asignacion, Estado_aprobacion !== undefined, 'la aprobacion del diagnostico');
+    if (tecnicoId) {
+      const tecnico = await prisma.tecnicos.findFirst({
+        where: { id_tecnico: tecnicoId, activo: true },
+        select: { id_tecnico: true },
+      });
+      if (!tecnico) return res.status(404).json({ error: 'Tecnico no encontrado o inactivo' });
+    }
 
     await prisma.$executeRaw(Prisma.sql`
       SELECT corregir_diagnostico_jefe_proc(
@@ -198,8 +201,8 @@ export const corregirDiagnosticoJefeTecnico = async (req, res) => {
         ${tecnicoId},
         ${tecnico_id !== undefined},
         ${prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : null},
-        ${estado_del_diagnostico ? assertInList(estado_del_diagnostico, DIAGNOSTICO_ESTADOS, 'Estado del diagnostico') : null},
-        ${Estado_aprobacion || null}
+        ${null},
+        ${null}
       )
     `);
 
@@ -207,6 +210,16 @@ export const corregirDiagnosticoJefeTecnico = async (req, res) => {
       where: { id_diagnostico: Number(req.params.id) },
       include: diagnosticoInclude,
     });
+
+    if (tecnico_id !== undefined && tecnicoId && tecnicoId !== diagnosticoActual.tecnico_id) {
+      notifyTecnico(diagnostico.tecnico, {
+        type: 'diagnostico_reasignado',
+        title: 'Diagnostico reasignado',
+        message: `Se te reasigno el diagnostico #${diagnostico.id_diagnostico}. Ya esta visible en tu panel con la prioridad actualizada.`,
+        severity: 'info',
+        entity: { kind: 'diagnostico', id: diagnostico.id_diagnostico },
+      });
+    }
 
     res.json({ message: 'Diagnostico corregido correctamente', data: diagnostico });
   } catch (error) {
@@ -218,7 +231,7 @@ export const corregirDiagnosticoJefeTecnico = async (req, res) => {
 
 export const corregirOrdenJefeTecnico = async (req, res) => {
   try {
-    const { tecnico_id, prioridad, estado } = req.body;
+    const { tecnico_id, prioridad } = req.body;
     const tecnicoId = tecnico_id === '' || tecnico_id === null ? null : parsePositiveId(tecnico_id);
 
     if (tecnico_id && !tecnicoId) {
@@ -227,13 +240,18 @@ export const corregirOrdenJefeTecnico = async (req, res) => {
 
     const ordenActual = await prisma.ordenes.findUnique({
       where: { id_orden: Number(req.params.id) },
-      select: { fecha_asignacion: true },
+      select: { tecnico_id: true },
     });
 
     if (!ordenActual) return res.status(404).json({ error: 'Orden no encontrada' });
 
-    validarCorreccionConTiempo(ordenActual.fecha_asignacion, tecnico_id !== undefined, 'la asignacion de la orden');
-    validarCorreccionConTiempo(ordenActual.fecha_asignacion, estado !== undefined, 'el estado de la orden');
+    if (tecnicoId) {
+      const tecnico = await prisma.tecnicos.findFirst({
+        where: { id_tecnico: tecnicoId, activo: true },
+        select: { id_tecnico: true },
+      });
+      if (!tecnico) return res.status(404).json({ error: 'Tecnico no encontrado o inactivo' });
+    }
 
     await prisma.$executeRaw(Prisma.sql`
       SELECT corregir_orden_jefe_proc(
@@ -241,7 +259,7 @@ export const corregirOrdenJefeTecnico = async (req, res) => {
         ${tecnicoId},
         ${tecnico_id !== undefined},
         ${prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : null},
-        ${estado ? assertInList(estado, ORDEN_ESTADOS, 'Estado de la orden') : null}
+        ${null}
       )
     `);
 
@@ -249,6 +267,16 @@ export const corregirOrdenJefeTecnico = async (req, res) => {
       where: { id_orden: Number(req.params.id) },
       include: ordenInclude,
     });
+
+    if (tecnico_id !== undefined && tecnicoId && tecnicoId !== ordenActual.tecnico_id) {
+      notifyTecnico(orden.tecnico, {
+        type: 'orden_reasignada',
+        title: 'Orden reasignada',
+        message: `Se te reasigno la orden #${orden.id_orden}. Ya esta visible en tu panel con la prioridad actualizada.`,
+        severity: 'info',
+        entity: { kind: 'orden', id: orden.id_orden },
+      });
+    }
 
     res.json({ message: 'Orden corregida correctamente', data: orden });
   } catch (error) {
@@ -501,9 +529,10 @@ export const getOrdenesAprobadas = async (req, res) => {
     const ordenes = await prisma.ordenes.findMany({
       where: {
         tecnico_id: null,
-        estado: {
-          notIn: ['EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'ENTREGADO', 'IRREPARABLE'],
-        },
+        OR: [
+          { estado: null },
+          { estado: { notIn: ['FINALIZADO', 'ENTREGADO', 'IRREPARABLE'] } },
+        ],
       },
       include: ordenInclude,
       orderBy: [

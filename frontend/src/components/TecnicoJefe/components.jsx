@@ -1,7 +1,7 @@
 import React from 'react';
 import { Bell, LogOut, Save, Settings, X } from 'lucide-react';
 import BrandLogo from '../BrandLogo';
-import { DIAGNOSTICO_ESTADOS, ORDEN_ESTADOS, PRIORIDADES, REPUESTO_ESTADOS } from '../../utils/jefeTecnicoConstants';
+import { PRIORIDADES, REPUESTO_ESTADOS } from '../../utils/jefeTecnicoConstants';
 import { getCorreccionId, getCorreccionTipo, getEquipo } from '../../utils/jefeTecnicoUtils';
 
 const notificationColors = {
@@ -287,20 +287,6 @@ export const CorrectionModal = ({
             <FormSelect label="Prioridad" value={editForm.prioridad || 'Normal'} onChange={(value) => onFieldChange('prioridad', value)}>
               {PRIORIDADES.map((prioridad) => <option key={prioridad} value={prioridad}>{prioridad}</option>)}
             </FormSelect>
-            {getCorreccionTipo(editItem) === 'diagnostico' ? (
-              <>
-                <FormSelect label="Estado del diagnostico" value={editForm.estado_del_diagnostico || 'EN_REVISION'} onChange={(value) => onFieldChange('estado_del_diagnostico', value)}>
-                  {DIAGNOSTICO_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
-                </FormSelect>
-                <FormSelect label="Estado de aprobacion" value={editForm.Estado_aprobacion || 'Pendiente'} onChange={(value) => onFieldChange('Estado_aprobacion', value)}>
-                  {['Pendiente', 'Aprobado', 'Rechazado'].map((estado) => <option key={estado} value={estado}>{estado}</option>)}
-                </FormSelect>
-              </>
-            ) : (
-              <FormSelect label="Estado de la orden" value={editForm.estado || 'PENDIENTE'} onChange={(value) => onFieldChange('estado', value)}>
-                {ORDEN_ESTADOS.map((estado) => <option key={estado} value={estado}>{estado}</option>)}
-              </FormSelect>
-            )}
           </>
         ) : (
           <>

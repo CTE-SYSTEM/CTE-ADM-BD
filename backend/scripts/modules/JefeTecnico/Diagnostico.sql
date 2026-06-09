@@ -1,5 +1,34 @@
 -- backend/scripts/modules/JefeTecnico/Diagnosticos.sql
 
+CREATE INDEX IF NOT EXISTS idx_jefe_diagnosticos_sin_tecnico_estado
+ON "Diagnosticos" (tecnico_id, estado_del_diagnostico, fecha_hora, id_diagnostico);
+
+CREATE INDEX IF NOT EXISTS idx_jefe_ordenes_por_diagnostico
+ON "Ordenes" (diagnostico_id);
+
+CREATE INDEX IF NOT EXISTS idx_jefe_ordenes_sin_tecnico_estado
+ON "Ordenes" (tecnico_id, estado, fecha_ingreso, id_orden);
+
+CREATE INDEX IF NOT EXISTS idx_jefe_repuestos_estado_orden
+ON "Ordenes_Repuestos" (estado_aprobacion, orden_id, id_detalle_repuesto);
+
+CREATE OR REPLACE VIEW vista_jefe_ordenes_por_asignar AS
+SELECT
+    o.*,
+    to_jsonb(t.*) AS tecnico_json,
+    to_jsonb(d.*) || jsonb_build_object(
+        'tecnico', to_jsonb(dt.*),
+        'equipo', to_jsonb(e.*) || jsonb_build_object('cliente', to_jsonb(c.*))
+    ) AS diagnostico_json
+FROM "Ordenes" o
+JOIN "Diagnosticos" d ON o.diagnostico_id = d.id_diagnostico
+JOIN "Equipos" e ON d.equipo_id = e.id_equipo
+JOIN "Clientes" c ON e.cliente_id = c.id_cliente
+LEFT JOIN "Tecnicos" t ON o.tecnico_id = t.id_tecnico
+LEFT JOIN "Tecnicos" dt ON d.tecnico_id = dt.id_tecnico
+WHERE o.tecnico_id IS NULL
+  AND COALESCE(o.estado, 'PENDIENTE') NOT IN ('FINALIZADO', 'ENTREGADO', 'IRREPARABLE');
+
 -- 1. Obtener diagnósticos pendientes de asignación
 CREATE OR REPLACE FUNCTION get_diagnosticos_pendientes_jefe()
 RETURNS TABLE (data JSONB) AS $$
@@ -7,10 +36,16 @@ BEGIN
     RETURN QUERY
     SELECT jsonb_build_object(
         'id_diagnostico', d.id_diagnostico,
+        'tecnico_id', d.tecnico_id,
         'fecha_hora', d.fecha_hora,
+        'fecha_asignacion', d.fecha_asignacion,
         'fecha_completado', d.fecha_completado,
         'falla_reportada', d.falla_reportada,
+        'diagnostico_real', d.diagnostico_real,
+        'presupuesto_estimado', d.presupuesto_estimado,
+        'prioridad', d.prioridad,
         'estado_del_diagnostico', d.estado_del_diagnostico,
+        'Estado_aprobacion', d."Estado_aprobacion",
         'tecnico', to_jsonb(t.*),
         'equipo', to_jsonb(e.*) || jsonb_build_object('cliente', to_jsonb(c.*))
     )
@@ -89,14 +124,12 @@ BEGIN
             'equipo', to_jsonb(e.*) || jsonb_build_object('cliente', to_jsonb(c.*))
         )
     )
-    FROM "Ordenes" o
+    FROM vista_jefe_ordenes_por_asignar o
     JOIN "Diagnosticos" d ON o.diagnostico_id = d.id_diagnostico
     JOIN "Equipos" e ON d.equipo_id = e.id_equipo
     JOIN "Clientes" c ON e.cliente_id = c.id_cliente
     LEFT JOIN "Tecnicos" t ON o.tecnico_id = t.id_tecnico
     LEFT JOIN "Tecnicos" dt ON d.tecnico_id = dt.id_tecnico
-    WHERE o.tecnico_id IS NULL
-      AND o.estado NOT IN ('EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'ENTREGADO', 'IRREPARABLE')
     ORDER BY o.fecha_ingreso ASC, o.id_orden ASC;
 END;
 $$ LANGUAGE plpgsql;
