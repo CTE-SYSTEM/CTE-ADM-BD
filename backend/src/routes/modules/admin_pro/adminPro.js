@@ -24,6 +24,7 @@ import {
   deleteUsuario,
 } from '../../../controllers/admin_pro/usuariosController.js';
 import { getMonitoreoGeneral, getDashboardResumen } from '../../../controllers/admin_pro/dashboardController.js';
+import { getBackups, triggerBackupNow } from '../../../controllers/admin_pro/backupController.js';
 import {
   downloadDiagnosticosReporteAdmin,
   getDiagnosticosAdmin,
@@ -73,6 +74,8 @@ router.put('/usuarios/:id/password', updateUsuarioPassword);
 router.delete('/usuarios/:id', deleteUsuario);
 
 router.get('/dashboard', getDashboardResumen);
+router.get('/backups', getBackups);
+router.post('/backups/manual', triggerBackupNow);
 router.get('/analitica/productividad', getProductividadAdmin);
 router.get('/analitica/ganancias', getGananciasAdmin);
 router.put('/ordenes/:id', updateOrdenAdmin);

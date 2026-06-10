@@ -145,7 +145,17 @@ export const getGananciasAdmin = async (req, res) => {
     const fechaFin = req.query.fecha_fin || `${now.getFullYear()}-12-31`;
     const detalleLimite = Math.min(Math.max(toNumber(req.query.detalle_limite, 12), 5), 100);
 
-    const [weeklyRows, monthlyRows, yearlyRows, detalleRows, ordenRows, activosRows, perdidasRows] = await Promise.all([
+    const [
+      weeklyRows,
+      monthlyRows,
+      yearlyRows,
+      detalleRows,
+      ordenRows,
+      activosRows,
+      perdidasRows,
+      gananciasFuentesRows,
+      perdidasFuentesRows,
+    ] = await Promise.all([
       prisma.$queryRaw(getPeriodQuery('semanal', fechaInicio, fechaFin)),
       prisma.$queryRaw(getPeriodQuery('mensual', fechaInicio, fechaFin)),
       prisma.$queryRaw(getPeriodQuery('anual', fechaInicio, fechaFin)),
@@ -223,6 +233,92 @@ export const getGananciasAdmin = async (req, res) => {
             AND COALESCE(o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
         ) perdidas
         ORDER BY fecha DESC NULLS LAST
+        LIMIT 100
+      `),
+      prisma.$queryRaw(Prisma.sql`
+        SELECT
+          'Orden facturada'::TEXT AS fuente,
+          f.fecha_emision AS fecha,
+          CONCAT('Factura #', f.id_factura, ' / Orden #', o.id_orden)::TEXT AS referencia,
+          COALESCE(cl.nombre, 'Sin cliente')::TEXT AS cliente,
+          TRIM(CONCAT(COALESCE(e.tipo, 'Equipo'), ' ', COALESCE(e.marca, ''), ' ', COALESCE(e.modelo, '')))::TEXT AS equipo,
+          COALESCE(t.nombre, dt.nombre, 'Sin asignar')::TEXT AS tecnico,
+          COALESCE(o.estado, '-')::TEXT AS estado,
+          COALESCE(f.total, 0) AS ingreso_total,
+          COALESCE(f.mano_obra, 0) AS mano_obra,
+          COALESCE(f.monto_repuestos, 0) AS ingreso_repuestos,
+          COALESCE(SUM(COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0)), 0) AS costo_repuestos,
+          COALESCE(f.monto_repuestos, 0) - COALESCE(SUM(COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0)), 0) AS ganancia_repuestos,
+          COALESCE(f.total, 0) - COALESCE(SUM(COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0)), 0) AS ganancia_total,
+          CASE WHEN COALESCE(f.total, 0) > 0
+            THEN ROUND(((COALESCE(f.total, 0) - COALESCE(SUM(COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0)), 0)) / COALESCE(f.total, 0)) * 100, 2)
+            ELSE 0
+          END AS margen_porcentaje,
+          CONCAT(
+            'Mano de obra: ', COALESCE(f.mano_obra, 0),
+            ' / Margen repuestos: ', COALESCE(f.monto_repuestos, 0) - COALESCE(SUM(COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0)), 0)
+          )::TEXT AS motivo
+        FROM "Facturas" f
+        JOIN "Ordenes" o ON o.id_orden = f.orden_id
+        JOIN "Diagnosticos" d ON d.id_diagnostico = o.diagnostico_id
+        JOIN "Equipos" e ON e.id_equipo = d.equipo_id
+        JOIN "Clientes" cl ON cl.id_cliente = e.cliente_id
+        LEFT JOIN "Tecnicos" t ON t.id_tecnico = o.tecnico_id
+        LEFT JOIN "Tecnicos" dt ON dt.id_tecnico = d.tecnico_id
+        LEFT JOIN "Ordenes_Repuestos" orp ON orp.orden_id = o.id_orden AND orp.estado_aprobacion = 'APROBADO'
+        LEFT JOIN "Repuestos" r ON r.id_repuesto = orp.repuesto_id
+        WHERE f.fecha_emision::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+          AND UPPER(COALESCE(o.estado, '')) IN ('FINALIZADO', 'ENTREGADO', 'IRREPARABLE')
+        GROUP BY o.id_orden, f.id_factura, f.fecha_emision, cl.nombre, e.tipo, e.marca, e.modelo, f.total, f.mano_obra, f.monto_repuestos, t.nombre, dt.nombre, o.estado
+        ORDER BY ganancia_total DESC, f.fecha_emision DESC NULLS LAST
+        LIMIT 100
+      `),
+      prisma.$queryRaw(Prisma.sql`
+        SELECT *
+        FROM (
+          SELECT
+            'Costo consumido'::TEXT AS tipo,
+            COALESCE(f.fecha_emision, o.fecha_cierre, o.fecha_ingreso) AS fecha,
+            CONCAT('Orden #', o.id_orden, COALESCE(' / Factura #' || f.id_factura, ''))::TEXT AS referencia,
+            COALESCE(cl.nombre, 'Sin cliente')::TEXT AS cliente,
+            TRIM(CONCAT(COALESCE(e.tipo, 'Equipo'), ' ', COALESCE(e.marca, ''), ' ', COALESCE(e.modelo, '')))::TEXT AS equipo,
+            COALESCE(t.nombre, dt.nombre, 'Sin asignar')::TEXT AS tecnico,
+            CONCAT(COALESCE(r.nombre, orp.pieza_solicitada, 'Repuesto'), ' x', COALESCE(orp.cantidad_usada, 1))::TEXT AS concepto,
+            COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0) AS monto,
+            'Costo de repuesto aprobado y usado en una orden facturada.'::TEXT AS razon
+          FROM "Ordenes_Repuestos" orp
+          JOIN "Ordenes" o ON o.id_orden = orp.orden_id
+          JOIN "Diagnosticos" d ON d.id_diagnostico = o.diagnostico_id
+          JOIN "Equipos" e ON e.id_equipo = d.equipo_id
+          JOIN "Clientes" cl ON cl.id_cliente = e.cliente_id
+          JOIN "Facturas" f ON f.orden_id = o.id_orden
+          LEFT JOIN "Tecnicos" t ON t.id_tecnico = o.tecnico_id
+          LEFT JOIN "Tecnicos" dt ON dt.id_tecnico = d.tecnico_id
+          LEFT JOIN "Repuestos" r ON r.id_repuesto = orp.repuesto_id
+          WHERE orp.estado_aprobacion = 'APROBADO'
+            AND COALESCE(f.fecha_emision, o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+          UNION ALL
+          SELECT
+            'Perdida real'::TEXT AS tipo,
+            COALESCE(o.fecha_cierre, o.fecha_ingreso) AS fecha,
+            CONCAT('Orden #', o.id_orden)::TEXT AS referencia,
+            COALESCE(cl.nombre, 'Sin cliente')::TEXT AS cliente,
+            TRIM(CONCAT(COALESCE(e.tipo, 'Equipo'), ' ', COALESCE(e.marca, ''), ' ', COALESCE(e.modelo, '')))::TEXT AS equipo,
+            COALESCE(t.nombre, dt.nombre, 'Sin asignar')::TEXT AS tecnico,
+            'Orden irreparable'::TEXT AS concepto,
+            COALESCE(f.mano_obra, 0) AS monto,
+            COALESCE(NULLIF(o.justificacion_irreparable, ''), NULLIF(o.observacion_final, ''), NULLIF(o.resultado_final, ''), 'Orden marcada como irreparable.')::TEXT AS razon
+          FROM "Ordenes" o
+          JOIN "Diagnosticos" d ON d.id_diagnostico = o.diagnostico_id
+          JOIN "Equipos" e ON e.id_equipo = d.equipo_id
+          JOIN "Clientes" cl ON cl.id_cliente = e.cliente_id
+          LEFT JOIN "Facturas" f ON f.orden_id = o.id_orden
+          LEFT JOIN "Tecnicos" t ON t.id_tecnico = o.tecnico_id
+          LEFT JOIN "Tecnicos" dt ON dt.id_tecnico = d.tecnico_id
+          WHERE UPPER(COALESCE(o.estado, '')) = 'IRREPARABLE'
+            AND COALESCE(o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+        ) fuentes
+        ORDER BY monto DESC, fecha DESC NULLS LAST
         LIMIT 100
       `),
     ]);
@@ -303,6 +399,8 @@ export const getGananciasAdmin = async (req, res) => {
         orderMargins,
         activos,
         perdidas: normalizeRows(perdidasRows),
+        gananciasFuentes: normalizeRows(gananciasFuentesRows),
+        perdidasFuentes: normalizeRows(perdidasFuentesRows),
         rentabilidad: normalizeRows(periodRows),
         alertas,
       },

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FileDown, FileText } from 'lucide-react';
+import { FileDown, FileText, Search, X } from 'lucide-react';
 import MetricBarChart from '../../components/MetricBarChart';
 import Table from '../../components/Table';
+import useResponsiveLayout from '../../features/responsive/useResponsiveLayout';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf, downloadSectionedPdf } from '../../utils/csvExport';
 
@@ -69,6 +70,27 @@ const lossColumns = [
   { header: 'Monto', accessor: 'monto' },
 ];
 
+const gainSourceColumns = [
+  { header: 'Fuente', accessor: 'fuente' },
+  { header: 'Fecha', accessor: 'fecha' },
+  { header: 'Referencia', accessor: 'referencia' },
+  { header: 'Cliente', accessor: 'cliente' },
+  { header: 'Ingreso', accessor: 'ingreso_total' },
+  { header: 'Costo', accessor: 'costo_repuestos' },
+  { header: 'Ganancia', accessor: 'ganancia_total' },
+  { header: 'Motivo', accessor: 'motivo' },
+];
+
+const lossSourceColumns = [
+  { header: 'Tipo', accessor: 'tipo' },
+  { header: 'Fecha', accessor: 'fecha' },
+  { header: 'Referencia', accessor: 'referencia' },
+  { header: 'Cliente', accessor: 'cliente' },
+  { header: 'Concepto', accessor: 'concepto' },
+  { header: 'Monto', accessor: 'monto' },
+  { header: 'Razon', accessor: 'razon' },
+];
+
 const profitabilityColumns = [
   { header: 'Periodo', accessor: 'etiqueta' },
   { header: 'Ingresos', accessor: 'ingresos' },
@@ -97,6 +119,25 @@ const assetColumns = [
   { header: 'Activo', accessor: 'label' },
   { header: 'Valor', accessor: 'value' },
 ];
+
+const sectionOptions = [
+  { id: 'todos', label: 'Todos los apartados', hint: 'Vista completa del modulo' },
+  { id: 'resumen', label: 'Resumen financiero', hint: 'Totales y alertas' },
+  { id: 'balance', label: 'Balance por etapa', hint: 'Semanal, mensual, anual' },
+  { id: 'explicacion', label: 'Ganancias y perdidas', hint: 'Origen y razon' },
+  { id: 'ordenes', label: 'Margen por orden', hint: 'Ordenes finalizadas' },
+  { id: 'activos', label: 'Control de activos', hint: 'Inventario y cuentas' },
+  { id: 'costos', label: 'Costos y perdidas', hint: 'Acciones financieras' },
+  { id: 'rentabilidad', label: 'Rentabilidad', hint: 'Etapas del periodo' },
+  { id: 'movimientos', label: 'Movimientos', hint: 'Ingresos y gastos' },
+  { id: 'reporte-general', label: 'Reporte general', hint: 'PDF completo' },
+];
+
+const normalizeSearchText = (value) =>
+  String(value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 
 const exportButtonBase = 'inline-flex h-9 min-w-[72px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 disabled:shadow-none';
 
@@ -204,6 +245,20 @@ const buildGananciasReportSections = (reportData, periodKey) => {
     monto: formatCurrency(item.monto),
   }));
 
+  const reportGainSources = (reportData?.gananciasFuentes || []).map((item) => ({
+    ...item,
+    fecha: item.fecha ? new Date(item.fecha).toLocaleDateString() : '-',
+    ingreso_total: formatCurrency(item.ingreso_total),
+    costo_repuestos: formatCurrency(item.costo_repuestos),
+    ganancia_total: formatCurrency(item.ganancia_total),
+  }));
+
+  const reportLossSources = (reportData?.perdidasFuentes || []).map((item) => ({
+    ...item,
+    fecha: item.fecha ? new Date(item.fecha).toLocaleDateString() : '-',
+    monto: formatCurrency(item.monto),
+  }));
+
   const reportProfitability = reportPeriodData.map((item) => ({
     ...item,
     ingresos: formatCurrency(item.ingresos),
@@ -225,6 +280,8 @@ const buildGananciasReportSections = (reportData, periodKey) => {
   return [
     { title: 'Resumen financiero', columns: summaryColumns, rows: summaryRows },
     { title: 'Alertas financieras', columns: alertColumns, rows: reportData?.alertas || [] },
+    { title: 'Como se obtuvo la ganancia', columns: gainSourceColumns, rows: reportGainSources },
+    { title: 'Por que se perdio dinero', columns: lossSourceColumns, rows: reportLossSources },
     { title: 'Margen de ganancia por orden', columns: orderMarginColumns, rows: reportOrderMargins },
     { title: 'Control de activos', columns: assetColumns, rows: reportAssets },
     { title: 'Costos y pérdidas por acción', columns: lossColumns, rows: reportLosses },
@@ -247,6 +304,9 @@ export default function Ganancias() {
   const [toDate, setToDate] = useState(`${currentYear}-12-31`);
   const [generalReportPeriod, setGeneralReportPeriod] = useState('mes');
   const [generalReportDate, setGeneralReportDate] = useState(toDateInputValue(new Date()));
+  const [activeSection, setActiveSection] = useState('todos');
+  const [sectionSearch, setSectionSearch] = useState('');
+  const responsive = useResponsiveLayout();
 
   const fetchGanancias = useCallback(async (signal) => {
     setLoading(true);
@@ -334,6 +394,28 @@ export default function Ganancias() {
     }))
   ), [data]);
 
+  const gainSources = useMemo(() => (
+    (data?.gananciasFuentes || []).map((item) => ({
+      ...item,
+      fecha: item.fecha ? new Date(item.fecha).toLocaleDateString() : '-',
+      ingreso_total: formatCurrency(item.ingreso_total),
+      mano_obra: formatCurrency(item.mano_obra),
+      ingreso_repuestos: formatCurrency(item.ingreso_repuestos),
+      costo_repuestos: formatCurrency(item.costo_repuestos),
+      ganancia_repuestos: formatCurrency(item.ganancia_repuestos),
+      ganancia_total: formatCurrency(item.ganancia_total),
+      margen_porcentaje: formatPercent(item.margen_porcentaje),
+    }))
+  ), [data]);
+
+  const lossSources = useMemo(() => (
+    (data?.perdidasFuentes || []).map((item) => ({
+      ...item,
+      fecha: item.fecha ? new Date(item.fecha).toLocaleDateString() : '-',
+      monto: formatCurrency(item.monto),
+    }))
+  ), [data]);
+
   const profitability = useMemo(() => (
     periodData.map((item) => ({
       ...item,
@@ -365,6 +447,26 @@ export default function Ganancias() {
   const generalReportRange = useMemo(() => (
     getReportRange(generalReportPeriod, generalReportDate)
   ), [generalReportDate, generalReportPeriod]);
+  const filteredSectionOptions = useMemo(() => {
+    const term = normalizeSearchText(sectionSearch.trim());
+    if (!term) return sectionOptions;
+
+    return sectionOptions.filter((option) =>
+      normalizeSearchText(`${option.label} ${option.hint}`).includes(term)
+    );
+  }, [sectionSearch]);
+  const selectedSection = sectionOptions.find((option) => option.id === activeSection) || sectionOptions[0];
+  const showSection = (sectionId) => activeSection === 'todos' || activeSection === sectionId;
+
+  const handleSectionSearchSubmit = useCallback(() => {
+    if (!sectionSearch.trim() || filteredSectionOptions.length === 0) return;
+    const nextSection = filteredSectionOptions[0].id;
+    setActiveSection(nextSection);
+    if (typeof window !== 'undefined') {
+      const element = document.getElementById(`ganancias-${nextSection}`);
+      if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [filteredSectionOptions, sectionSearch]);
 
   const handleQuickFilter = (filterType) => {
     setActiveFilter(filterType);
@@ -492,7 +594,7 @@ export default function Ganancias() {
   };
 
   return (
-    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+    <div className={responsive.pageClassName}>
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Ganancias</h1>
         <p className="text-gray-400 text-sm mt-0.5">Módulo financiero para ingresos, gastos, ganancias y pérdidas del negocio.</p>
@@ -569,6 +671,77 @@ export default function Ganancias() {
         )}
       </section>
 
+      <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-indigo-500">Buscar apartado</p>
+              <p className="mt-1 text-sm text-gray-400">Escribe para filtrar la lista lateral y selecciona que modulo de ganancias quieres ver.</p>
+            </div>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="search"
+                value={sectionSearch}
+                onChange={(event) => setSectionSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleSectionSearchSubmit();
+                  }
+                }}
+                placeholder="Buscar: resumen, balance, perdidas, ordenes, reporte..."
+                className="w-full rounded-xl border border-gray-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              {sectionSearch && (
+                <button
+                  type="button"
+                  onClick={() => setSectionSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  title="Limpiar busqueda"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2">
+              <p className="text-xs font-black uppercase tracking-wider text-indigo-500">Vista activa</p>
+              <p className="mt-0.5 text-sm font-bold text-slate-800">{selectedSection.label}</p>
+              <p className="text-xs font-semibold text-slate-500">{selectedSection.hint}</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-100 bg-slate-50 p-2">
+            <div className="max-h-[280px] space-y-1 overflow-y-auto pr-1">
+              {filteredSectionOptions.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-200 bg-white px-3 py-4 text-center text-xs font-semibold text-gray-400">
+                  No hay apartados con ese texto.
+                </div>
+              ) : (
+                filteredSectionOptions.map((option) => {
+                  const active = option.id === activeSection;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setActiveSection(option.id)}
+                      className={`w-full rounded-lg border px-3 py-2 text-left transition ${
+                        active
+                          ? 'border-indigo-200 bg-white text-indigo-700 shadow-sm'
+                          : 'border-transparent bg-transparent text-slate-600 hover:border-gray-200 hover:bg-white'
+                      }`}
+                    >
+                      <span className="block text-xs font-bold">{option.label}</span>
+                      <span className={`block text-[11px] font-semibold ${active ? 'text-indigo-400' : 'text-gray-400'}`}>{option.hint}</span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {loading && <div className="rounded-2xl bg-white p-12 shadow-sm text-gray-400 text-center font-medium animate-pulse">Calculando balances financieros...</div>}
       {error && <div className="rounded-2xl bg-red-50 p-6 text-red-700 shadow-sm border border-red-100">{error}</div>}
 
@@ -588,7 +761,7 @@ export default function Ganancias() {
             </section>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {showSection('resumen') && <div id="ganancias-resumen" className="scroll-mt-28 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {metricCards.map((card) => {
               const active = activeMetric === card.key;
               const tone = {
@@ -612,9 +785,9 @@ export default function Ganancias() {
                 </button>
               );
             })}
-          </div>
+          </div>}
 
-          <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-5">
+          {showSection('balance') && <section id="ganancias-balance" className={`scroll-mt-28 ${responsive.sectionClassName.replace('space-y-4', 'space-y-5')}`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">Balance por etapa</h2>
@@ -639,9 +812,53 @@ export default function Ganancias() {
               </div>
             </div>
             <MetricBarChart data={periodData} labelKey="etiqueta" series={selectedSeries} interactive showGrid />
-          </section>
+          </section>}
 
-          <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+          {showSection('explicacion') && <section id="ganancias-explicacion" className={`scroll-mt-28 ${responsive.splitGridClassName}`}>
+            <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">Como se obtuvo la ganancia</h2>
+                  <p className="text-sm text-gray-400">Ordenes finalizadas o entregadas que explican ingresos, costos y margen real.</p>
+                </div>
+                <ExportActions
+                  disabled={downloading || gainSources.length === 0}
+                  onCsv={() => exportSection(gainSources, gainSourceColumns, `${reportFilename}_fuentes_ganancia`, 'Fuentes de Ganancia')}
+                  onPdf={() => exportSection(gainSources, gainSourceColumns, `${reportFilename}_fuentes_ganancia`, 'Fuentes de Ganancia', 'pdf')}
+                />
+              </div>
+              <div className="overflow-x-auto">
+                {gainSources.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">No hay fuentes de ganancia en el periodo seleccionado.</div>
+                ) : (
+                  <Table columns={gainSourceColumns} data={gainSources} sortable />
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">Por que se perdio dinero</h2>
+                  <p className="text-sm text-gray-400">Costos consumidos, repuestos usados e irreparables con su razon operativa.</p>
+                </div>
+                <ExportActions
+                  disabled={downloading || lossSources.length === 0}
+                  onCsv={() => exportSection(lossSources, lossSourceColumns, `${reportFilename}_fuentes_perdida`, 'Fuentes de Perdida')}
+                  onPdf={() => exportSection(lossSources, lossSourceColumns, `${reportFilename}_fuentes_perdida`, 'Fuentes de Perdida', 'pdf')}
+                />
+              </div>
+              <div className="overflow-x-auto">
+                {lossSources.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">No hay perdidas en el periodo seleccionado.</div>
+                ) : (
+                  <Table columns={lossSourceColumns} data={lossSources} sortable />
+                )}
+              </div>
+            </div>
+          </section>}
+
+          {showSection('ordenes') && <section id="ganancias-ordenes" className={`scroll-mt-28 ${responsive.sectionClassName}`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">Margen de ganancia por orden</h2>
@@ -660,9 +877,9 @@ export default function Ganancias() {
                 <Table columns={orderMarginColumns} data={orderMargins} sortable />
               )}
             </div>
-          </section>
+          </section>}
 
-          <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+          {showSection('activos') && <section id="ganancias-activos" className={`scroll-mt-28 ${responsive.sectionClassName}`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">Control de activos</h2>
@@ -682,10 +899,10 @@ export default function Ganancias() {
                 </div>
               ))}
             </div>
-          </section>
+          </section>}
 
-          <section className="grid gap-6 xl:grid-cols-2">
-            <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+          {(showSection('costos') || showSection('rentabilidad')) && <section className={responsive.splitGridClassName}>
+            {showSection('costos') && <div id="ganancias-costos" className={`scroll-mt-28 ${responsive.sectionClassName}`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">Costos y pérdidas por acción</h2>
@@ -704,9 +921,9 @@ export default function Ganancias() {
                   <Table columns={lossColumns} data={losses} sortable />
                 )}
               </div>
-            </div>
+            </div>}
 
-            <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+            {showSection('rentabilidad') && <div id="ganancias-rentabilidad" className={`scroll-mt-28 ${responsive.sectionClassName}`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">Rentabilidad {periodFilters.find((item) => item.key === activePeriod)?.label.toLowerCase()}</h2>
@@ -725,10 +942,10 @@ export default function Ganancias() {
                   <Table columns={profitabilityColumns} data={profitability} sortable />
                 )}
               </div>
-            </div>
-          </section>
+            </div>}
+          </section>}
 
-          <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+          {showSection('movimientos') && <section id="ganancias-movimientos" className={`scroll-mt-28 ${responsive.sectionClassName}`}>
             <div>
               <h2 className="text-lg font-bold text-slate-800">Movimientos recientes</h2>
               <p className="text-sm text-gray-400">Últimos ingresos y gastos usados para el cálculo del periodo.</p>
@@ -740,9 +957,9 @@ export default function Ganancias() {
                 <Table columns={detailColumns} data={detail} sortable />
               )}
             </div>
-          </section>
+          </section>}
 
-          <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
+          {showSection('reporte-general') && <section id="ganancias-reporte-general" className={`scroll-mt-28 ${responsive.sectionClassName}`}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-wider text-indigo-500">Reporte general</p>
@@ -794,7 +1011,7 @@ export default function Ganancias() {
             <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">
               Se exportará el rango {generalReportRange.from} al {generalReportRange.to}.
             </div>
-          </section>
+          </section>}
         </>
       )}
     </div>

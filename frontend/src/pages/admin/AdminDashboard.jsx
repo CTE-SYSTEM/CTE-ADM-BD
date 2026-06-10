@@ -48,6 +48,10 @@ export default function AdminDashboard() {
   const [ganancias, setGanancias] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [backups, setBackups] = useState({ root: '', months: [] });
+  const [backupError, setBackupError] = useState('');
+  const [backupMessage, setBackupMessage] = useState('');
+  const [manualBackupLoading, setManualBackupLoading] = useState(false);
   const showHelp = false;
 
   useEffect(() => {
@@ -58,11 +62,12 @@ export default function AdminDashboard() {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
         
-        const [res, equiposRes, productividadRes, gananciasRes] = await Promise.all([
+        const [res, equiposRes, productividadRes, gananciasRes, backupsRes] = await Promise.all([
           api.get('/admin_pro/dashboard'),
           api.get('/admin_pro/equipos'),
           api.get('/admin_pro/analitica/productividad'),
           api.get(`/admin_pro/analitica/ganancias?fecha_inicio=${monthStart}&fecha_fin=${monthEnd}&detalle_limite=5`),
+          api.get('/admin_pro/backups', { cache: false }),
         ]);
 
         const data = res.data;
@@ -70,6 +75,7 @@ export default function AdminDashboard() {
           setDashboard(data.data);
           setProductividad(productividadRes.data?.data || null);
           setGanancias(gananciasRes.data?.data || null);
+          setBackups(backupsRes.data?.data || { root: '', months: [] });
           setEquiposPreview(
             (equiposRes.data?.data || []).slice(0, 6).map((equipo) => ({
               id_equipo: equipo.id_equipo,
@@ -191,6 +197,87 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            )}
+          </section>
+
+          {/* Backups del sistema */}
+          <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Backups del sistema</h2>
+                <p className="text-sm text-gray-400">Revisa el historial de backups y crea uno manual cuando lo necesites.</p>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  setBackupError('');
+                  setBackupMessage('');
+                  setManualBackupLoading(true);
+                  try {
+                    const response = await api.post('/admin_pro/backups/manual');
+                    setBackups(response.data?.data || backups);
+                    setBackupMessage(response.data?.message || 'Backup generado correctamente.');
+                  } catch (manualError) {
+                    setBackupError(manualError.response?.data?.error || 'No se pudo generar el backup manual');
+                  }
+                  setManualBackupLoading(false);
+                }}
+                disabled={manualBackupLoading}
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+              >
+                {manualBackupLoading ? 'Generando backup...' : 'Generar backup ahora'}
+              </button>
+            </div>
+
+            {backupMessage && (
+              <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{backupMessage}</div>
+            )}
+            {backupError && (
+              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{backupError}</div>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl bg-slate-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wider text-gray-400">Directorio</p>
+                <p className="mt-2 text-sm text-slate-700 break-all">{backups.root || 'No disponible'}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wider text-gray-400">Meses con backups</p>
+                <p className="mt-2 text-3xl font-bold text-slate-900">{backups.months?.length ?? 0}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wider text-gray-400">Último backup</p>
+                <p className="mt-2 text-sm text-slate-700">
+                  {backups.months?.[0]?.files?.[0] ? `${backups.months[0].month} / ${backups.months[0].files[0]}` : 'No registrado'}
+                </p>
+              </div>
+            </div>
+
+            {backups.months?.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm text-slate-800">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-slate-50 text-xs uppercase tracking-wider text-gray-500">
+                      <th className="px-4 py-3">Mes</th>
+                      <th className="px-4 py-3">Archivos</th>
+                      <th className="px-4 py-3">Archivos recientes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {backups.months.map((month) => (
+                      <tr key={month.month} className="border-b border-gray-100">
+                        <td className="px-4 py-3 font-semibold text-slate-900">{month.month}</td>
+                        <td className="px-4 py-3">{month.fileCount}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500">
+                          {month.files.slice(0, 3).join(', ')}{month.files.length > 3 ? `, +${month.files.length - 3} más` : ''}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">Aún no hay backups generados en el sistema.</p>
             )}
           </section>
 

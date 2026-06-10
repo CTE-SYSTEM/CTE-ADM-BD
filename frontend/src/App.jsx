@@ -1,5 +1,6 @@
 import React, { Suspense, lazy, useState, useContext } from 'react';
 import { createBrowserRouter, RouterProvider, Outlet, Navigate, useLocation } from 'react-router-dom';
+import useResponsiveLayout from './features/responsive/useResponsiveLayout';
 
 // Componentes Globales
 import Sidebar from './components/Sidebar';
@@ -58,8 +59,8 @@ function MainLayout() {
       <Sidebar open={sidebarOpen} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Navbar onToggleSidebar={toggleSidebar} />
-        <main className={`flex-1 overflow-auto ${isAdminRoute ? 'admin-main' : 'p-6'}`}>
-          <div className={`mx-auto w-full ${isAdminRoute ? 'admin-content' : 'max-w-7xl'}`}>
+        <main className={`flex-1 overflow-auto ${isAdminRoute ? 'admin-main' : ''}`}>
+          <div className={`mx-auto w-full ${isAdminRoute ? 'admin-content' : ''}`}>
             <PageHelp />
             <Outlet />
           </div>
@@ -78,7 +79,13 @@ function RouteFallback() {
 }
 
 function Page({ children }) {
-  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+  const responsive = useResponsiveLayout();
+
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <div className={responsive.pageClassName}>{children}</div>
+    </Suspense>
+  );
 }
 
 const router = createBrowserRouter(

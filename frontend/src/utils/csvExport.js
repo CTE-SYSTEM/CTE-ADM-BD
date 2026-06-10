@@ -262,7 +262,7 @@ export const downloadSectionedPdf = ({
   metadata = [],
   sections = [],
 }) => {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ orientation: 'landscape' });
   const totalRows = sections.reduce((sum, section) => sum + (section.rows?.length || 0), 0);
   let cursorY = drawHeader(doc, title, [{ total: totalRows }], [{ header: 'Registros', accessor: 'total' }]);
 
@@ -293,7 +293,7 @@ export const downloadSectionedPdf = ({
       headStyles: {
         fillColor: [15, 23, 42],
         textColor: '#ffffff',
-        fontSize: 7,
+        fontSize: 7.5,
         fontStyle: 'bold',
         halign: 'center',
         cellPadding: { top: 3, right: 2, bottom: 3, left: 2 },
@@ -302,7 +302,7 @@ export const downloadSectionedPdf = ({
         fillColor: [248, 250, 252],
       },
       bodyStyles: {
-        fontSize: 7,
+        fontSize: 7.2,
         textColor: [51, 65, 85],
         cellPadding: { top: 2.5, right: 2, bottom: 2.5, left: 2 },
         lineColor: [226, 232, 240],
@@ -310,7 +310,7 @@ export const downloadSectionedPdf = ({
       },
       styles: {
         overflow: 'linebreak',
-        cellWidth: 'wrap',
+        cellWidth: 'auto',
         font: 'helvetica',
         valign: 'middle',
       },

@@ -55,12 +55,15 @@ services:
       CORS_ORIGIN: http://localhost:5173
       JWT_SECRET: tu_secreto_super_seguro
       NODE_ENV: development
+      BACKUP_ROOT: /backup/CTE-Backup
+      BACKUP_DISPLAY_ROOT: 'C:\\backup\\CTE-Backup'
     ports:
       - "5000:5000"
       - "5555:5555"
     volumes:
       - ./backend:/app
       - /app/node_modules
+      - C:/backup:/backup
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:5000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
       interval: 10s
