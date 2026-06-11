@@ -49,13 +49,34 @@ const TecnicoDashboard = () => {
     refreshIntervalMs: 0,
   });
 
+  const getDateForItem = (item) => {
+    const candidates = [
+      'fecha_hora',
+      'fecha_ingreso',
+      'fecha_finalizacion',
+      'fecha_cierre',
+      'createdAt',
+      'updatedAt',
+      'fecha',
+    ];
+
+    for (const key of candidates) {
+      const value = item[key];
+      if (!value) continue;
+      const date = new Date(value);
+      if (!Number.isNaN(date.getTime())) return date;
+    }
+
+    return null;
+  };
+
   const filterByTime = (items) => {
     if (timeFilter === 'todos') return items;
 
     const ahora = new Date();
     return items.filter((item) => {
-      const fechaItem = new Date(item.createdAt || item.fecha || item.updatedAt);
-      if (Number.isNaN(fechaItem.getTime())) return true;
+      const fechaItem = getDateForItem(item);
+      if (!fechaItem) return false;
 
       if (timeFilter === 'hoy') {
         return (

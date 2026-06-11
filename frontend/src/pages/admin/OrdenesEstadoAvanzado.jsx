@@ -127,9 +127,9 @@ export default function OrdenesEstadoAvanzado() {
                 onClick={downloadReportCsv}
                 disabled={downloading || loading || data.length === 0}
                 className="px-4 py-2 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
-                title="Exportar a Excel / CSV"
+                title="Exportar a Excel"
               >
-                CSV
+                Excel
               </button>
               <button
                 type="button"

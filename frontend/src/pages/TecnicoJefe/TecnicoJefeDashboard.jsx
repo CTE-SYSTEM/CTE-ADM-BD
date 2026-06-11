@@ -424,6 +424,15 @@ const JefeDashboard = () => {
     setSavingId(`correccion-${tipo}-${id}`);
     setEditError('');
 
+    if (tipo === 'repuesto' && String(editForm.estado_aprobacion || '').toUpperCase() === 'APROBADO') {
+      const tieneRepuesto = Boolean(editForm.repuesto_id || editItem.repuesto_id);
+      if (!tieneRepuesto) {
+        setEditError('Debe registrar la pieza en inventario antes de aprobar la solicitud.');
+        setSavingId(null);
+        return;
+      }
+    }
+
     try {
       if (tipo === 'diagnostico') {
         await diagnosticoService.corregirDiagnostico(id, editForm);

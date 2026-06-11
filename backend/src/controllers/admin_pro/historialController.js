@@ -4,19 +4,26 @@ import prisma from '../../app/prismaClient.js';
 export const getHistorialRepuesto = async (req, res) => {
   try {
     const { id } = req.params;
-    // Buscar todas las órdenes donde se usó este repuesto
+    // Buscar solo salidas reales del repuesto.
     const usos = await prisma.ordenes_Repuestos.findMany({
-      where: { repuesto_id: Number(id) },
+      where: {
+        repuesto_id: Number(id),
+        estado_aprobacion: 'APROBADO',
+        estado_entrega: 'ENTREGADO',
+      },
       include: {
         orden: {
           include: {
             diagnostico: {
-              include: { equipo: true }
+              include: { equipo: { include: { cliente: true } } }
             }
           }
         }
       },
-      orderBy: { id_detalle_repuesto: 'desc' }
+      orderBy: [
+        { fecha_entrega: 'desc' },
+        { id_detalle_repuesto: 'desc' }
+      ]
     });
     res.json({ data: usos });
   } catch (error) {

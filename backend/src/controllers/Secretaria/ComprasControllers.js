@@ -36,6 +36,7 @@ export const createCompra = async (req, res) => {
     const cantidadNumber = Number(cantidad);
     const costoNumber = Number(costo_unitario);
     const fecha = fecha_obtencion ? new Date(fecha_obtencion) : undefined;
+    const metodoPago = normalizeText(metodo_pago);
 
     if (!Number.isInteger(cantidadNumber) || cantidadNumber <= 0) {
       return res.status(400).json({ error: 'La cantidad debe ser un numero entero mayor que cero' });
@@ -49,6 +50,10 @@ export const createCompra = async (req, res) => {
       return res.status(400).json({ error: 'La fecha de obtencion no es valida' });
     }
 
+    if (!metodoPago) {
+      return res.status(400).json({ error: 'El metodo de pago es obligatorio' });
+    }
+
     const [compra] = await prisma.$queryRaw(Prisma.sql`
       SELECT * FROM crear_compra_con_variante_proc(
         ${repuestoId},
@@ -57,7 +62,7 @@ export const createCompra = async (req, res) => {
         ${fecha || null},
         ${cantidadNumber},
         ${costoNumber},
-        ${assertInList(normalizeText(metodo_pago), METODOS_PAGO, 'Metodo de pago')}
+        ${assertInList(metodoPago, METODOS_PAGO, 'Metodo de pago')}
       )
     `);
 
@@ -94,6 +99,7 @@ export const updateCompra = async (req, res) => {
     const cantidadNumber = Number(cantidad);
     const costoNumber = Number(costo_unitario);
     const fecha = fecha_obtencion ? new Date(fecha_obtencion) : null;
+    const metodoPagoNormalizado = normalizeText(metodo_pago);
 
     if (!Number.isInteger(compraId) || compraId <= 0) {
       return res.status(400).json({ error: 'Compra invalida' });
@@ -111,7 +117,11 @@ export const updateCompra = async (req, res) => {
       return res.status(400).json({ error: 'La fecha de obtencion no es valida' });
     }
 
-    const metodoPago = assertInList(normalizeText(metodo_pago), METODOS_PAGO, 'Metodo de pago');
+    if (!metodoPagoNormalizado) {
+      return res.status(400).json({ error: 'El metodo de pago es obligatorio' });
+    }
+
+    const metodoPago = assertInList(metodoPagoNormalizado, METODOS_PAGO, 'Metodo de pago');
 
     const compra = await prisma.$transaction(async (tx) => {
       const actual = await tx.compras.findUnique({ where: { id_compra: compraId } });
@@ -139,29 +149,13 @@ export const updateCompra = async (req, res) => {
         throw error;
       }
 
-      if (actual.repuesto_id === repuestoId) {
-        await tx.repuestos.update({
-          where: { id_repuesto: repuestoId },
-          data: {
-            stock_actual: { increment: cantidadNumber - Number(actual.cantidad || 0) },
-            proveedor_id: proveedorId,
-            costo_individual: costoNumber,
-          },
-        });
-      } else {
-        await tx.repuestos.update({
-          where: { id_repuesto: actual.repuesto_id },
-          data: { stock_actual: { decrement: Number(actual.cantidad || 0) } },
-        });
-        await tx.repuestos.update({
-          where: { id_repuesto: repuestoId },
-          data: {
-            stock_actual: { increment: cantidadNumber },
-            proveedor_id: proveedorId,
-            costo_individual: costoNumber,
-          },
-        });
-      }
+      await tx.repuestos.update({
+        where: { id_repuesto: repuestoId },
+        data: {
+          proveedor_id: proveedorId,
+          costo_individual: costoNumber,
+        },
+      });
 
       return tx.compras.update({
         where: { id_compra: compraId },

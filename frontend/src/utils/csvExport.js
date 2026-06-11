@@ -1,19 +1,34 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-const escapeValue = (value) => {
+const escapeHtml = (value) => {
   const text = value == null ? '' : String(value);
-  return `"${text.replace(/"/g, '""')}"`;
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 };
 
-const serializeCsv = (rows, columns) => {
-  const headerRow = columns.map((col) => escapeValue(col.header)).join(',');
-  const dataRows = rows.map((row) =>
-    columns
-      .map((col) => escapeValue(row[col.accessor]))
-      .join(',')
-  );
-  return [headerRow, ...dataRows].join('\r\n');
+const serializeExcel = (rows, columns) => {
+  const headers = columns.map((col) => `<th>${escapeHtml(col.header)}</th>`).join('');
+  const body = rows.map((row) => (
+    `<tr>${columns.map((col) => `<td>${escapeHtml(row[col.accessor])}</td>`).join('')}</tr>`
+  )).join('');
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <table>
+      <thead><tr>${headers}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+  </body>
+</html>`;
 };
 
 const normalizePdfCell = (value) => {
@@ -190,13 +205,14 @@ const drawEmptySection = (doc, y) => {
 };
 
 export const downloadJsonCsv = (rows, columns, filename) => {
-  const csv = serializeCsv(rows, columns);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const excel = serializeExcel(rows, columns);
+  const excelFilename = filename.replace(/\.csv$/i, '.xls');
+  const blob = new Blob([excel], { type: 'application/vnd.ms-excel;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
 
   link.href = url;
-  link.download = filename;
+  link.download = excelFilename;
   document.body.appendChild(link);
   link.click();
   link.remove();

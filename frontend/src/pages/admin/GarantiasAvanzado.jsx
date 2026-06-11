@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { Search, X } from 'lucide-react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
@@ -23,6 +24,19 @@ const transformGarantias = (garantias) =>
     };
   });
 
+const sectionOptions = [
+  { id: 'todos', label: 'Todos los apartados', hint: 'Vista completa del módulo de garantías' },
+  { id: 'revalidacion', label: 'Revalidación por equipo', hint: 'Revalida o asigna garantías a equipos' },
+  { id: 'manual', label: 'Registro manual', hint: 'Genera una póliza desde una factura' },
+  { id: 'global', label: 'Listado global', hint: 'Revisa todas las garantías registradas' },
+];
+
+const normalizeSearchText = (value) =>
+  String(value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
 export default function GarantiasAvanzado() {
   const [garantias, setGarantias] = useState([]);
   const [facturas, setFacturas] = useState([]);
@@ -33,6 +47,8 @@ export default function GarantiasAvanzado() {
   const [condiciones, setCondiciones] = useState('');
   const [duracionMeses, setDuracionMeses] = useState('12');
   const [equipoSearch, setEquipoSearch] = useState('');
+  const [sectionSearch, setSectionSearch] = useState('');
+  const [activeSection, setActiveSection] = useState('todos');
   const [selectedEquipoId, setSelectedEquipoId] = useState('');
   const [createMessage, setCreateMessage] = useState('');
   const [actionMessage, setActionMessage] = useState('');
@@ -169,6 +185,27 @@ export default function GarantiasAvanzado() {
     equiposRevalidacion.find((equipo) => Number(equipo.id_equipo) === Number(selectedEquipoId))
   ), [equiposRevalidacion, selectedEquipoId]);
 
+  const filteredSectionOptions = useMemo(() => {
+    const term = normalizeSearchText(sectionSearch.trim());
+    return sectionOptions.filter((option) =>
+      normalizeSearchText(`${option.label} ${option.hint}`).includes(term)
+    );
+  }, [sectionSearch]);
+
+  const selectedSection = useMemo(
+    () => sectionOptions.find((option) => option.id === activeSection) || sectionOptions[0],
+    [activeSection]
+  );
+
+  const showRevalidacion = activeSection === 'todos' || activeSection === 'revalidacion';
+  const showManual = activeSection === 'todos' || activeSection === 'manual';
+  const showGlobal = activeSection === 'todos' || activeSection === 'global';
+
+  const handleSectionSearchSubmit = useCallback(() => {
+    if (!sectionSearch.trim() || filteredSectionOptions.length === 0) return;
+    setActiveSection(filteredSectionOptions[0].id);
+  }, [filteredSectionOptions, sectionSearch]);
+
   const handleEquipoGarantiaAction = async (equipo) => {
     if (!equipo) return;
     setIsProcessing(true);
@@ -258,7 +295,7 @@ export default function GarantiasAvanzado() {
     try {
       downloadJsonCsv(garantias, columns, 'garantias.csv');
     } catch (err) {
-      setError('No se pudo descargar el reporte en CSV.');
+      setError('No se pudo descargar el reporte en Excel.');
     } finally {
       setDownloading(false);
     }
@@ -307,8 +344,82 @@ export default function GarantiasAvanzado() {
         </div>
       )}
 
+      <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-indigo-500">Buscar apartado</p>
+              <p className="mt-1 text-sm text-gray-400">Escribe para filtrar los apartados del módulo de garantías.</p>
+            </div>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="search"
+                value={sectionSearch}
+                onChange={(event) => setSectionSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleSectionSearchSubmit();
+                  }
+                }}
+                placeholder="Buscar: revalidación, manual, global..."
+                className="w-full rounded-xl border border-gray-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              {sectionSearch && (
+                <button
+                  type="button"
+                  onClick={() => setSectionSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  title="Limpiar búsqueda"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2">
+              <p className="text-xs font-black uppercase tracking-wider text-indigo-500">Vista activa</p>
+              <p className="mt-0.5 text-sm font-bold text-slate-800">{selectedSection.label}</p>
+              <p className="text-xs font-semibold text-slate-500">{selectedSection.hint}</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-100 bg-slate-50 p-2">
+            <div className="max-h-[260px] space-y-1 overflow-y-auto pr-1">
+              {filteredSectionOptions.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-gray-200 bg-white px-3 py-4 text-center text-xs font-semibold text-gray-400">
+                  No hay apartados con ese texto.
+                </div>
+              ) : (
+                filteredSectionOptions.map((option) => {
+                  const active = option.id === activeSection;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setActiveSection(option.id)}
+                      className={`w-full rounded-lg border px-3 py-2 text-left transition ${
+                        active
+                          ? 'border-indigo-200 bg-white text-indigo-700 shadow-sm'
+                          : 'border-transparent bg-transparent text-slate-600 hover:border-gray-200 hover:bg-white'
+                      }`}
+                    >
+                      <span className="block text-xs font-bold">{option.label}</span>
+                      <span className={`block text-[11px] font-semibold ${active ? 'text-indigo-400' : 'text-gray-400'}`}>
+                        {option.hint}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* SECCIÓN 1: Revalidación y Asignación Directa por Equipo */}
-      <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-6 space-y-4">
+      {showRevalidacion && (
+        <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-6 space-y-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between border-b border-gray-50 pb-4">
           <div>
             <h2 className="text-lg font-bold text-slate-800">Revalidación y asignación por equipo</h2>
@@ -391,103 +502,107 @@ export default function GarantiasAvanzado() {
           </div>
         </div>
       </section>
+      )}
 
       {/* SECCIÓN 2: Registro Manual y Tabla Global */}
-      <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
-        
-        {/* Formulario de Creación Manual */}
-        <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-5 h-fit space-y-4">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">Emisión manual</h2>
-            <p className="text-xs text-gray-400">Genera una cobertura directa vinculando un ID de factura existente.</p>
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-3.5">
-            <div>
-              <span className="text-xs font-bold text-gray-500 uppercase block">Factura ID</span>
-              <input
-                type="number"
-                value={facturaId}
-                onChange={(e) => setFacturaId(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                placeholder="Ej. 1042"
-              />
-            </div>
-            <div>
-              <span className="text-xs font-bold text-gray-500 uppercase block">Duración (meses)</span>
-              <input
-                type="number"
-                min="1"
-                value={duracionMeses}
-                onChange={(e) => setDuracionMeses(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <span className="text-xs font-bold text-gray-500 uppercase block">Condiciones de cobertura</span>
-              <textarea
-                value={condiciones}
-                onChange={(e) => setCondiciones(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                rows={3}
-                placeholder="Detalla los términos..."
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm"
-            >
-              Guardar Póliza
-            </button>
-          </form>
-        </section>
-
-        {/* Listado Global de todas las Garantías */}
-        <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-6 space-y-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-50 pb-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-800">Libro de garantías expedidas</h2>
-              <p className="text-sm text-gray-400">Historial completo de estados, plazos de vencimiento y clientes contables.</p>
-            </div>
-            <div className="flex gap-2 self-end sm:self-auto">
-              <button
-                type="button"
-                onClick={downloadGarantiasCsv}
-                disabled={downloading || loading || garantias.length === 0}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
-                title="Exportar a CSV"
-              >
-                CSV
-              </button>
-              <button
-                type="button"
-                onClick={downloadGarantiasPdf}
-                disabled={downloading || loading || garantias.length === 0}
-                className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
-                title="Exportar a PDF"
-              >
-                PDF
-              </button>
-            </div>
-          </div>
-
-          {/* Renderizado de Feedback de acciones de la API */}
-          {createMessage && <div className="rounded-xl bg-emerald-50 p-3.5 text-xs font-semibold text-emerald-700">{createMessage}</div>}
-          {actionMessage && <div className="rounded-xl bg-emerald-50 p-3.5 text-xs font-semibold text-emerald-700">{actionMessage}</div>}
-          {error && <div className="rounded-xl bg-red-50 p-3.5 text-xs font-semibold text-red-700">{error}</div>}
-
-          <div className="overflow-x-auto">
-            {loading ? (
-              <div className="text-gray-400 text-center py-10 text-sm">Consultando libros contables...</div>
-            ) : garantias.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
-                No hay pólizas de garantía registradas en el sistema todavía.
+      {(showManual || showGlobal) && (
+        <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+          {showManual && (
+            <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-5 h-fit space-y-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Emisión manual</h2>
+                <p className="text-xs text-gray-400">Genera una cobertura directa vinculando un ID de factura existente.</p>
               </div>
-            ) : (
-              <Table columns={columns} data={garantias} sortable />
-            )}
-          </div>
-        </section>
-      </div>
+              <form onSubmit={handleSubmit} className="space-y-3.5">
+                <div>
+                  <span className="text-xs font-bold text-gray-500 uppercase block">Factura ID</span>
+                  <input
+                    type="number"
+                    value={facturaId}
+                    onChange={(e) => setFacturaId(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    placeholder="Ej. 1042"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-gray-500 uppercase block">Duración (meses)</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={duracionMeses}
+                    onChange={(e) => setDuracionMeses(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-gray-500 uppercase block">Condiciones de cobertura</span>
+                  <textarea
+                    value={condiciones}
+                    onChange={(e) => setCondiciones(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    rows={3}
+                    placeholder="Detalla los términos..."
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm"
+                >
+                  Guardar Póliza
+                </button>
+              </form>
+            </section>
+          )}
+
+          {showGlobal && (
+            <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-6 space-y-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-50 pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">Libro de garantías expedidas</h2>
+                  <p className="text-sm text-gray-400">Historial completo de estados, plazos de vencimiento y clientes contables.</p>
+                </div>
+                <div className="flex gap-2 self-end sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={downloadGarantiasCsv}
+                    disabled={downloading || loading || garantias.length === 0}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+                    title="Exportar a Excel"
+                  >
+                    Excel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadGarantiasPdf}
+                    disabled={downloading || loading || garantias.length === 0}
+                    className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
+                    title="Exportar a PDF"
+                  >
+                    PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* Renderizado de Feedback de acciones de la API */}
+              {createMessage && <div className="rounded-xl bg-emerald-50 p-3.5 text-xs font-semibold text-emerald-700">{createMessage}</div>}
+              {actionMessage && <div className="rounded-xl bg-emerald-50 p-3.5 text-xs font-semibold text-emerald-700">{actionMessage}</div>}
+              {error && <div className="rounded-xl bg-red-50 p-3.5 text-xs font-semibold text-red-700">{error}</div>}
+
+              <div className="overflow-x-auto">
+                {loading ? (
+                  <div className="text-gray-400 text-center py-10 text-sm">Consultando libros contables...</div>
+                ) : garantias.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
+                    No hay pólizas de garantía registradas en el sistema todavía.
+                  </div>
+                ) : (
+                  <Table columns={columns} data={garantias} sortable />
+                )}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
 
     </div>
   );

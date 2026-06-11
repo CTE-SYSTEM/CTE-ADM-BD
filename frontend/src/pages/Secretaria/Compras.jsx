@@ -107,6 +107,11 @@ const CompraForm = ({ onSubmit, onCancel, proveedores = [], repuestos = [], acti
       return;
     }
 
+    if (!formData.metodo_pago) {
+      setFormError('Seleccione un metodo de pago antes de guardar la compra.');
+      return;
+    }
+
     onSubmit({
       ...formData,
       documento: normalizeText(formData.documento),
@@ -139,7 +144,7 @@ const CompraForm = ({ onSubmit, onCancel, proveedores = [], repuestos = [], acti
       <div data-tour-target="numbers" className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${tourHighlightClass(activeTourTarget === 'numbers')}`}>
         <Field label="Cantidad" name="cantidad" type="number" min="1" step="1" value={formData.cantidad} onChange={handleChange} required />
         <Field label="Costo unitario" name="costo_unitario" type="number" min="0.01" step="0.01" value={formData.costo_unitario} onChange={handleChange} required />
-        <Select label="Metodo de pago" name="metodo_pago" value={formData.metodo_pago} onChange={handleChange}>
+        <Select label="Metodo de pago" name="metodo_pago" value={formData.metodo_pago} onChange={handleChange} required>
           <option value="">Seleccione metodo</option>
           <option value="Efectivo">Efectivo</option>
           <option value="Transferencia">Transferencia</option>

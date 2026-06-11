@@ -85,9 +85,14 @@ const buildDiagnosticoDateFilter = ({ fecha_inicio, fecha_fin, year, month, week
   return { gte: start, lte: end };
 };
 
-const escapeCsv = (value) => {
+const escapeExcelCell = (value) => {
   const text = value == null ? '' : String(value);
-  return `"${text.replace(/"/g, '""')}"`;
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 };
 
 export const downloadDiagnosticosReporteAdmin = async (req, res) => {
@@ -118,10 +123,23 @@ export const downloadDiagnosticosReporteAdmin = async (req, res) => {
       item.diagnostico_real || '-',
     ]);
 
-    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="diagnosticos-reporte.csv"');
-    res.send(csv);
+    const headerHtml = headers.map((header) => `<th>${escapeExcelCell(header)}</th>`).join('');
+    const rowsHtml = rows
+      .map((row) => `<tr>${row.map((cell) => `<td>${escapeExcelCell(cell)}</td>`).join('')}</tr>`)
+      .join('');
+    const excel = `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /></head>
+  <body>
+    <table>
+      <thead><tr>${headerHtml}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  </body>
+</html>`;
+    res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="diagnosticos-reporte.xls"');
+    res.send(excel);
   } catch (error) {
     res.status(500).json({ error: 'Error al generar reporte de diagnosticos', details: error.message });
   }

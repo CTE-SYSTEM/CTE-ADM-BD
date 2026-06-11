@@ -151,7 +151,7 @@ function ExportButton({ children, format, ...props }) {
     <button
       type="button"
       className={`${exportButtonBase} ${tone}`}
-      title={format === 'pdf' ? 'Exportar a PDF' : 'Exportar a Excel / CSV'}
+      title={format === 'pdf' ? 'Exportar a PDF' : 'Exportar a Excel'}
       {...props}
     >
       <Icon size={15} strokeWidth={2.4} aria-hidden="true" />
@@ -164,7 +164,7 @@ function ExportActions({ disabled, onCsv, onPdf }) {
   return (
     <div className="flex flex-wrap gap-2">
       <ExportButton format="csv" onClick={onCsv} disabled={disabled}>
-        CSV
+        Excel
       </ExportButton>
       <ExportButton format="pdf" onClick={onPdf} disabled={disabled}>
         PDF
@@ -660,7 +660,7 @@ export default function Ganancias() {
 
           <div className="grid grid-cols-3 gap-2 w-full md:w-auto min-w-[280px]">
             <button type="button" onClick={() => fetchGanancias()} disabled={loading} className="rounded-xl bg-indigo-600 py-2.5 px-4 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 text-center whitespace-nowrap">Consultar</button>
-            <ExportButton format="csv" onClick={downloadGananciasCsv} disabled={downloading || loading || detail.length === 0}>CSV</ExportButton>
+            <ExportButton format="csv" onClick={downloadGananciasCsv} disabled={downloading || loading || detail.length === 0}>Excel</ExportButton>
             <ExportButton format="pdf" onClick={downloadGananciasPdf} disabled={downloading || loading || detail.length === 0}>PDF</ExportButton>
           </div>
         </div>

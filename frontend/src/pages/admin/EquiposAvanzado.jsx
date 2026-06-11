@@ -109,7 +109,6 @@ export default function EquiposAvanzado() {
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
-    searchText(value);
     setSearchText(value);
     if (/^\d+$/.test(value.trim()) && Number(value.trim()) <= 0) {
       setSearchError('Ingrese un ID de equipo válido mayor a 0');

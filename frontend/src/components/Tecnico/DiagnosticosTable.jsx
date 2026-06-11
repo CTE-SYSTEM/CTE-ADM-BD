@@ -2,6 +2,13 @@ import React from 'react';
 import { Eye, FileText } from 'lucide-react';
 import { EstadoBadge } from './TecnicoBadges';
 
+const formatPresupuesto = (value) => {
+  const amount = Number(String(value).replace(/[^\d.-]/g, ''));
+  if (Number.isNaN(amount) || amount === 0) return null;
+  const [integerPart, decimalPart] = amount.toFixed(2).split('.');
+  return `${integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}.${decimalPart}`;
+};
+
 const DiagnosticosTable = ({ items, loading, readOnly, onOpenDiagnostico }) => (
   <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm">
     <table className="min-w-full divide-y divide-slate-200">
@@ -22,7 +29,7 @@ const DiagnosticosTable = ({ items, loading, readOnly, onOpenDiagnostico }) => (
             <td className="px-6 py-4 font-bold text-slate-900">{item.equipo}</td>
             <td className="px-6 py-4"><EstadoBadge estado={item.estado} /></td>
             <td className="px-6 py-4 font-bold text-emerald-700">
-              {item.presupuesto ? `C$ ${Number(item.presupuesto).toFixed(2)}` : 'Sin presupuesto'}
+              {item.presupuesto ? `C$ ${formatPresupuesto(item.presupuesto)}` : 'Sin presupuesto'}
             </td>
             <td className="px-6 py-4 text-slate-600 italic">{item.diagnostico || 'Sin diagnostico registrado...'}</td>
             <td className="px-6 py-4 text-right">

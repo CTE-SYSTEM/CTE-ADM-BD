@@ -135,7 +135,7 @@ export default function ComprasAvanzado() {
                 disabled={downloading || compras.length === 0}
                 className="rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
               >
-                CSV
+                Excel
               </button>
               <button
                 type="button"

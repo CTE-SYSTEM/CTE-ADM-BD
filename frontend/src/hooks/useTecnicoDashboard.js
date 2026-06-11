@@ -5,6 +5,15 @@ import { mapDiagnostico, mapOrden } from '../utils/tecnicoMappers';
 
 const isInList = (value, list) => list.includes(String(value || '').toUpperCase());
 
+const extractResponseData = (response) => {
+  if (!response?.data) return [];
+  if (Array.isArray(response.data)) return response.data;
+  if (Array.isArray(response.data.data)) return response.data.data;
+  if (Array.isArray(response.data.diagnosticos)) return response.data.diagnosticos;
+  if (Array.isArray(response.data.data?.data)) return response.data.data.data;
+  return [];
+};
+
 export const useTecnicoDashboard = (user) => {
   const [diagnosticos, setDiagnosticos] = useState([]);
   const [ordenes, setOrdenes] = useState([]);
@@ -25,9 +34,9 @@ export const useTecnicoDashboard = (user) => {
         api.get('/repuestos', { params: { disponibles: 1 } }),
       ]);
 
-      setDiagnosticos((diagnosticosRes.data.data || []).map(mapDiagnostico));
-      setOrdenes((ordenesRes.data.data || []).map(mapOrden));
-      setRepuestosCatalogo(repuestosRes.data.data || []);
+      setDiagnosticos(extractResponseData(diagnosticosRes).map(mapDiagnostico));
+      setOrdenes(extractResponseData(ordenesRes).map(mapOrden));
+      setRepuestosCatalogo(extractResponseData(repuestosRes));
     } catch (err) {
       console.error('Error al cargar datos del tecnico:', err);
       setError('No se pudo cargar el circuito del tecnico.');

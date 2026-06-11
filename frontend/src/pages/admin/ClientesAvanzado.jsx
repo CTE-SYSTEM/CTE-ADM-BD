@@ -78,7 +78,7 @@ export default function ClientesAvanzado() {
     try {
       downloadJsonCsv(clientesFiltrados, COLUMNS, 'clientes_equipos.csv');
     } catch (err) {
-      setError('No se pudo descargar el reporte en CSV.');
+      setError('No se pudo descargar el reporte en Excel.');
     } finally {
       setDownloading(false);
     }
@@ -173,7 +173,7 @@ export default function ClientesAvanzado() {
                 disabled={downloading || loading || clientesFiltrados.length === 0}
                 className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
               >
-                Exportar CSV
+                Exportar Excel
               </button>
               <button
                 type="button"

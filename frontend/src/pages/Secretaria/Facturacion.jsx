@@ -191,6 +191,10 @@ const FacturacionPage = () => {
       setError('Esta orden tiene repuestos pendientes de aprobacion. Apruebelos o rechacelos antes de crear la factura.');
       return;
     }
+    if (!form.metodo_pago) {
+      setError('Seleccione un metodo de pago antes de crear la factura.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -361,7 +365,7 @@ const FacturacionPage = () => {
           <Field label="Impuestos" value={form.impuestos} onChange={handleManualImpuestoChange} helper={`IVA sugerido 15%: ${money(ivaSugerido)}`} />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Metodo de pago</label>
-            <select value={form.metodo_pago} onChange={(e) => setForm({ ...form, metodo_pago: e.target.value })} className="w-full border p-2 rounded-lg">
+            <select required value={form.metodo_pago} onChange={(e) => setForm({ ...form, metodo_pago: e.target.value })} className="w-full border p-2 rounded-lg">
               <option value="">Seleccione metodo</option>
               <option value="Efectivo">Efectivo</option>
               <option value="Transferencia">Transferencia</option>
@@ -465,7 +469,7 @@ const FacturacionPage = () => {
             </div>
           </div>
         )}
-        <button type="submit" disabled={loading} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg disabled:opacity-60">
+        <button type="submit" disabled={loading || !form.metodo_pago} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg disabled:opacity-60">
           Crear Factura
         </button>
       </form>

@@ -82,7 +82,7 @@ const helpByPath = {
       ['1. Lee el estado', 'Identifica si la orden esta pendiente, en reparacion o finalizada.'],
       ['2. Abre detalle', 'Usa Ver / Editar para revisar cliente, equipo y repuestos.'],
       ['3. Asigna tecnico', 'Selecciona el tecnico encargado cuando corresponda.'],
-      ['4. Exporta repuestos', 'Descarga CSV si necesitas revisar materiales de una orden.'],
+      ['4. Exporta repuestos', 'Descarga Excel si necesitas revisar materiales de una orden.'],
     ],
   },
   '/admin/repuestos': {
@@ -114,7 +114,7 @@ const helpByPath = {
       ['3. Lee las tarjetas', 'Ingresos, compras de inventario, perdidas reales, ganancia neta y margen de servicios resumen la salud financiera. Toca una tarjeta para aislarla en la grafica.'],
       ['4. Cambia la etapa', 'En Balance por etapa alterna Semanal, Mensual o Anual para revisar la tendencia con la escala correcta.'],
       ['5. Revisa secciones', 'Margen por orden, control de activos, costos y perdidas, rentabilidad y movimientos recientes explican de donde salen los numeros.'],
-      ['6. Exporta evidencia', 'Cada bloque con exportacion permite descargar CSV o PDF. El apartado Reporte general crea un PDF completo por semana, mes o anio segun la fecha base.'],
+      ['6. Exporta evidencia', 'Cada bloque con exportacion permite descargar Excel o PDF. El apartado Reporte general crea un PDF completo por semana, mes o anio segun la fecha base.'],
     ],
   },
   '/admin/tecnicos': {

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { FileDown, FileText } from 'lucide-react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
@@ -21,6 +22,40 @@ const columns = [
   },
   { header: 'Método de Pago', accessor: 'metodo_pago' },
 ];
+
+const exportButtonBase = 'inline-flex h-9 min-w-[72px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 disabled:shadow-none';
+
+function ExportButton({ children, format, ...props }) {
+  const tone = format === 'pdf'
+    ? 'bg-slate-800 hover:bg-slate-900'
+    : 'bg-emerald-600 hover:bg-emerald-700';
+  const Icon = format === 'pdf' ? FileText : FileDown;
+
+  return (
+    <button
+      type="button"
+      className={`${exportButtonBase} ${tone}`}
+      title={format === 'pdf' ? 'Exportar a PDF' : 'Exportar a Excel'}
+      {...props}
+    >
+      <Icon size={15} strokeWidth={2.4} aria-hidden="true" />
+      <span>{children}</span>
+    </button>
+  );
+}
+
+function ExportActions({ disabled, onCsv, onPdf }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <ExportButton format="csv" onClick={onCsv} disabled={disabled}>
+        Excel
+      </ExportButton>
+      <ExportButton format="pdf" onClick={onPdf} disabled={disabled}>
+        PDF
+      </ExportButton>
+    </div>
+  );
+}
 
 export default function FacturasAvanzado() {
   const [facturas, setFacturas] = useState([]);
@@ -211,25 +246,12 @@ export default function FacturasAvanzado() {
               >
                 Consultar
               </button>
-              <button
-                type="button"
-                onClick={downloadFacturasCsv}
-                disabled={downloading || loading || facturasFiltradas.length === 0}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
-                title="Exportar filtrados a Excel / CSV"
-              >
-                CSV
-              </button>
-              <button
-                type="button"
-                onClick={downloadFacturasPdf}
-                disabled={downloading || loading || facturasFiltradas.length === 0}
-                className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-white hover:bg-slate-900 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 whitespace-nowrap"
-                title="Exportar filtrados a PDF impreso"
-              >
-                PDF
-              </button>
-            </div>
+              <ExportActions
+              disabled={downloading || loading || facturasFiltradas.length === 0}
+              onCsv={downloadFacturasCsv}
+              onPdf={downloadFacturasPdf}
+            />
+          </div>
           </div>
         </div>
 

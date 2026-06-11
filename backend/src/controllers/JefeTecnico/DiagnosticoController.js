@@ -408,6 +408,10 @@ export const corregirRepuestoJefeTecnico = async (req, res) => {
     const repuestoFinal = repuesto_id === undefined ? solicitudActual.repuesto_id : repuestoId;
     const cantidadFinal = cantidad === undefined ? solicitudActual.cantidad_usada || 1 : cantidad;
 
+    if (estadoFinal === 'APROBADO' && !repuestoFinal) {
+      return res.status(409).json({ error: 'Registre la pieza antes de aprobar la solicitud' });
+    }
+
     if (estadoFinal === 'APROBADO') {
       await assertStockDisponible(repuestoFinal, cantidadFinal);
     }

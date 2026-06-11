@@ -204,7 +204,7 @@ export default function InventarioAvanzado() {
                 disabled={downloading || loading || repuestos.length === 0}
                 className="w-full sm:w-auto rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-sm disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400"
               >
-                CSV
+                Excel
               </button>
               <button
                 type="button"

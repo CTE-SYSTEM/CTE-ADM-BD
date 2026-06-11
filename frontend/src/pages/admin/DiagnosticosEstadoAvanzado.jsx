@@ -226,7 +226,7 @@ export default function DiagnosticosEstadoAvanzado() {
             Consultar
           </button>
           <button type="button" onClick={downloadReportCsv} disabled={downloading || filteredDiagnosticos.length === 0} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300">
-            CSV
+            Excel
           </button>
         </div>
 

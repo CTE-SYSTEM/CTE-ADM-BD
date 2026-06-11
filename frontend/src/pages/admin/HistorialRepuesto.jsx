@@ -36,10 +36,15 @@ export default function HistorialRepuesto() {
       .then((res) => {
         const data = res.data?.data || [];
         setRepuestos(
-          data.map((repuesto) => ({
-            id_repuesto: repuesto.id_repuesto,
-            label: `ID: #${repuesto.id_repuesto} - ${repuesto.nombre || 'Sin nombre definido'}`.trim(),
-          }))
+          data
+            .filter((repuesto) => (repuesto.ordenes_detalles || []).some((detalle) =>
+              String(detalle.estado_aprobacion || '').toUpperCase() === 'APROBADO'
+              && String(detalle.estado_entrega || '').toUpperCase() === 'ENTREGADO'
+            ))
+            .map((repuesto) => ({
+              id_repuesto: repuesto.id_repuesto,
+              label: `ID: #${repuesto.id_repuesto} - ${repuesto.nombre || 'Sin nombre definido'}`.trim(),
+            }))
         );
       })
       .catch(() => {
@@ -75,7 +80,7 @@ export default function HistorialRepuesto() {
         const data = res.data?.data || [];
         setHistorial(
           data.map((u) => ({
-            fecha_instalacion: u.fecha_instalacion || null,
+            fecha_instalacion: u.fecha_entrega || null,
             equipo: u.orden?.diagnostico?.equipo?.modelo || 'Modelo no especificado',
             cliente: u.orden?.diagnostico?.equipo?.cliente?.nombre || 'Particular / Desconocido',
             orden: u.orden_id || '-',

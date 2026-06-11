@@ -90,11 +90,21 @@ export const completarDiagnostico = async (diagnosticoId, payload) => {
     throw error;
   }
 
+  const presupuestoEstimado = payload.presupuesto_estimado === '' || payload.presupuesto_estimado === null || payload.presupuesto_estimado === undefined
+    ? null
+    : Number(payload.presupuesto_estimado);
+
+  if (presupuestoEstimado !== null && Number.isNaN(presupuestoEstimado)) {
+    const error = new Error('El presupuesto estimado no es un número válido');
+    error.statusCode = 400;
+    throw error;
+  }
+
   const rows = await prisma.$queryRaw`
     SELECT data FROM completar_diagnostico_tecnico_proc(
       ${Number(diagnosticoId)},
       ${diagnosticoReal},
-      ${payload.presupuesto_estimado ? Number(payload.presupuesto_estimado) : null}
+      ${presupuestoEstimado}
     )
   `;
 

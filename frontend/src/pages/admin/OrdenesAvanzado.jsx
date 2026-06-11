@@ -131,11 +131,11 @@ export default function OrdenesAvanzado() {
       const response = await api.get(`/admin_pro/ordenes/${selectedOrden.id_orden}/repuestos/reporte`, {
         responseType: 'blob',
       });
-      const blob = new Blob([response.data], { type: 'text/csv' });
+      const blob = new Blob([response.data], { type: 'application/vnd.ms-excel;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `repuestos-orden-${selectedOrden.id_orden}.csv`;
+      link.download = `repuestos-orden-${selectedOrden.id_orden}.xls`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -335,7 +335,7 @@ export default function OrdenesAvanzado() {
                 disabled={downloading}
                 className="w-full rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-200 transition disabled:bg-slate-300 disabled:cursor-not-allowed"
               >
-                {downloading ? 'Exportando...' : 'Exportar CSV de repuestos'}
+                {downloading ? 'Exportando...' : 'Exportar Excel de repuestos'}
               </button>
             </div>
 

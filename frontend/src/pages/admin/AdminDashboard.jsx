@@ -41,11 +41,21 @@ const equiposPreviewColumns = [
   { header: 'Estado', accessor: 'estado' },
 ];
 
+const dashboardSections = [
+  { id: 'resumen', label: 'Resumen' },
+  { id: 'finanzas', label: 'Finanzas' },
+  { id: 'backups', label: 'Backups' },
+  { id: 'productividad', label: 'Productividad' },
+  { id: 'monitoreo', label: 'Monitoreo' },
+  { id: 'modulos', label: 'Modulos' },
+];
+
 export default function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [equiposPreview, setEquiposPreview] = useState([]);
   const [productividad, setProductividad] = useState(null);
   const [ganancias, setGanancias] = useState(null);
+  const [activeSection, setActiveSection] = useState('resumen');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [backups, setBackups] = useState({ root: '', months: [] });

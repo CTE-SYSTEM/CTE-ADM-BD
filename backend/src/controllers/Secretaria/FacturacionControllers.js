@@ -98,6 +98,9 @@ export const createFactura = async (req, res) => {
 
     const manoObra = parseNonNegativeMoney(mano_obra, 'Mano de obra');
     const impuestoCalculado = parseNonNegativeMoney(impuestos, 'Impuestos');
+    if (!String(metodo_pago || '').trim()) {
+      return res.status(400).json({ error: 'El metodo de pago es obligatorio' });
+    }
     const metodoPago = assertInList(metodo_pago, METODOS_PAGO, 'Metodo de pago');
 
     const orden = await prisma.ordenes.findUnique({

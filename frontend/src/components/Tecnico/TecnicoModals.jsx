@@ -44,7 +44,7 @@ const formatCurrencyInput = (value = '') => {
   if (!cleanValue) return '';
 
   const [integerPart, ...decimalParts] = cleanValue.split('.');
-  const formattedInteger = integerPart.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') || '0';
+  const formattedInteger = integerPart.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0';
   const decimalPart = decimalParts.join('').slice(0, 2);
 
   if (cleanValue.includes('.')) {
@@ -55,6 +55,13 @@ const formatCurrencyInput = (value = '') => {
 };
 
 const parseCurrencyInput = (value = '') => cleanCurrencyInput(value).replace(/(\..*)\./g, '$1');
+
+const formatCurrencyDisplay = (value = '') => {
+  const numeric = Number(String(value).replace(/[^\d.-]/g, ''));
+  if (Number.isNaN(numeric)) return String(value || '');
+  const [integerPart, decimalPart] = numeric.toFixed(2).split('.');
+  return `${integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}.${decimalPart}`;
+};
 
 export const SolicitarRepuestoModal = ({ orden, repuestos, onClose, onSubmit }) => {
   const [repuesto, setRepuesto] = useState('');
@@ -207,7 +214,12 @@ export const DiagnosticoModal = ({ orden, readOnly = false, onClose, onSubmit })
     setError('');
     setLoading(true);
     try {
-      await onSubmit(orden.id, { diagnostico, solucion, presupuesto: parseCurrencyInput(presupuesto) });
+      const presupuestoValue = parseCurrencyInput(presupuesto);
+      await onSubmit(orden.id, {
+        diagnostico,
+        solucion,
+        presupuesto: presupuestoValue === '' ? undefined : presupuestoValue,
+      });
       onClose();
     } catch (err) {
       setError(err?.response?.data?.error || 'No se pudo guardar el diagnostico.');
