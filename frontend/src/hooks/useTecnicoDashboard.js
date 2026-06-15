@@ -79,6 +79,9 @@ export const useTecnicoDashboard = (user) => {
       cantidad: solicitud.cantidad_usada || 1,
       estado: solicitud.estado_aprobacion,
       pendienteInventario: !solicitud.repuesto_id,
+      fecha_ingreso: orden.fecha_ingreso || null,
+      fecha_finalizacion: orden.fecha_finalizacion || orden.fecha_cierre || null,
+      fecha: solicitud.fecha_entrega || orden.fecha_asignacion || orden.fecha_ingreso || null,
     }))),
     [ordenes],
   );

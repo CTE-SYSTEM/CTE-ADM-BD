@@ -14,9 +14,15 @@ const COLUMNS = [
 
 export default function ClientesAvanzado() {
   const [clientes, setClientes] = useState([]);
+  const [clientesBase, setClientesBase] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [editingCliente, setEditingCliente] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editMessage, setEditMessage] = useState('');
 
   // Estados para el buscador multiparámetro
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,8 +33,17 @@ export default function ClientesAvanzado() {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get('/admin_pro/reportes/equipos_cliente');
-      const data = res.data?.data || [];
+      const params = new URLSearchParams();
+      if (fromDate) params.append('fecha_inicio', fromDate);
+      if (toDate) params.append('fecha_fin', toDate);
+      const query = params.toString();
+      const [reportRes, clientesRes] = await Promise.all([
+        api.get(`/admin_pro/reportes/equipos_cliente${query ? `?${query}` : ''}`),
+        api.get('/clientes'),
+      ]);
+      const data = reportRes.data?.data || [];
+      const clientesActivos = clientesRes.data?.data || [];
+      setClientesBase(clientesActivos);
       
       const formateados = data.map((item) => ({
         ...item,
@@ -45,7 +60,7 @@ export default function ClientesAvanzado() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fromDate, toDate]);
 
   useEffect(() => {
     fetchClientes();
@@ -71,6 +86,60 @@ export default function ClientesAvanzado() {
       return clienteMatch || telefonoMatch;
     });
   }, [clientes, searchTerm, searchParam]);
+
+  const openEditCliente = (row) => {
+    const base = clientesBase.find((cliente) => String(cliente.id_cliente) === String(row.id_cliente)) || {};
+    setEditingCliente({
+      id_cliente: row.id_cliente || base.id_cliente,
+      nombre: base.nombre || row.cliente || '',
+      telefono: base.telefono || row.telefono || '',
+      direccion: base.direccion || '',
+      correo: base.correo || '',
+      contacto_secundario: base.contacto_secundario || '',
+    });
+    setEditMessage('');
+  };
+
+  const handleUpdateCliente = async (event) => {
+    event.preventDefault();
+    if (!editingCliente?.id_cliente) return;
+
+    setEditLoading(true);
+    setEditMessage('');
+    try {
+      await api.put(`/clientes/${editingCliente.id_cliente}`, {
+        nombre: editingCliente.nombre,
+        telefono: editingCliente.telefono,
+        direccion: editingCliente.direccion,
+        correo: editingCliente.correo,
+        contacto_secundario: editingCliente.contacto_secundario,
+      });
+      setEditMessage('Cliente actualizado correctamente.');
+      await fetchClientes();
+      window.setTimeout(() => setEditingCliente(null), 800);
+    } catch (err) {
+      setEditMessage(err.response?.data?.error || 'No se pudo actualizar el cliente.');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const columns = useMemo(() => [
+    ...COLUMNS,
+    {
+      header: 'Acciones',
+      accessor: 'acciones',
+      render: (row) => (
+        <button
+          type="button"
+          onClick={() => openEditCliente(row)}
+          className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-700"
+        >
+          Editar
+        </button>
+      ),
+    },
+  ], [clientesBase]);
 
   // Handlers para Descargas de Reportes utilizando la lista filtrada
   const downloadClientesCsv = () => {
@@ -130,14 +199,28 @@ export default function ClientesAvanzado() {
       <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4">
         
         {/* Barra de Herramientas: Título, Buscador y Exportaciones */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-gray-50 pb-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-gray-50 pb-4">
           <div>
             <h2 className="text-lg font-bold text-slate-800">Resumen de clientes</h2>
             <p className="text-sm text-gray-400">Auditoría de activos, diagnósticos parciales y flujos de trabajo.</p>
           </div>
 
           {/* Bloque de Búsqueda y Filtros */}
-          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+          <div className="flex flex-col gap-2 w-full lg:w-auto">
+            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              <label className="block">
+                <span className="text-[10px] font-bold uppercase text-gray-400">Desde</span>
+                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-500" />
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-bold uppercase text-gray-400">Hasta</span>
+                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-500" />
+              </label>
+              <button type="button" onClick={fetchClientes} disabled={loading} className="self-end rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-700 disabled:bg-slate-300">
+                Aplicar
+              </button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex flex-1 items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 focus-within:border-indigo-500 focus-within:bg-white transition">
               <select
                 value={searchParam}
@@ -184,6 +267,7 @@ export default function ClientesAvanzado() {
                 Exportar PDF
               </button>
             </div>
+            </div>
           </div>
         </div>
 
@@ -209,11 +293,61 @@ export default function ClientesAvanzado() {
                   : "No se encontraron resultados que coincidan con la búsqueda."}
               </div>
             ) : (
-              <Table columns={COLUMNS} data={clientesFiltrados} sortable />
+              <Table columns={columns} data={clientesFiltrados} sortable />
             )}
           </div>
         )}
       </section>
+
+      {editingCliente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-gray-100 bg-white p-6 shadow-2xl">
+            <div className="mb-5">
+              <h3 className="text-xl font-bold text-slate-800">Editar cliente</h3>
+              <p className="text-sm text-gray-400">Cliente #{editingCliente.id_cliente}</p>
+            </div>
+
+            <form onSubmit={handleUpdateCliente} className="grid gap-4 md:grid-cols-2">
+              {[
+                ['nombre', 'Nombre'],
+                ['telefono', 'Telefono'],
+                ['correo', 'Correo'],
+                ['contacto_secundario', 'Contacto secundario'],
+              ].map(([name, label]) => (
+                <label key={name} className="block">
+                  <span className="text-xs font-bold text-slate-500 uppercase">{label}</span>
+                  <input
+                    type={name === 'correo' ? 'email' : 'text'}
+                    required={name === 'nombre' || name === 'telefono'}
+                    value={editingCliente[name] || ''}
+                    onChange={(event) => setEditingCliente((prev) => ({ ...prev, [name]: event.target.value }))}
+                    className="mt-1.5 block w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none"
+                  />
+                </label>
+              ))}
+
+              <label className="block md:col-span-2">
+                <span className="text-xs font-bold text-slate-500 uppercase">Direccion</span>
+                <textarea
+                  value={editingCliente.direccion || ''}
+                  onChange={(event) => setEditingCliente((prev) => ({ ...prev, direccion: event.target.value }))}
+                  className="mt-1.5 block min-h-20 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none"
+                />
+              </label>
+
+              <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditingCliente(null)} className="rounded-xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-200">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={editLoading} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-slate-400">
+                  {editLoading ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+              </div>
+              {editMessage && <div className="md:col-span-2 text-center text-sm font-semibold text-indigo-600">{editMessage}</div>}
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

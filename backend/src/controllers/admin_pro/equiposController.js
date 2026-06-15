@@ -5,6 +5,9 @@ import { Prisma } from '@prisma/client';
 export const getEquiposAvanzado = async (req, res) => {
   try {
     const search = req.query.search?.trim();
+    const marca = req.query.marca?.trim();
+    const modelo = req.query.modelo?.trim();
+    const { fecha_inicio, fecha_fin } = req.query;
     const where = {};
 
     if (search) {
@@ -27,6 +30,28 @@ export const getEquiposAvanzado = async (req, res) => {
           }
         }
       ];
+    }
+
+    if (marca) {
+      where.marca = { contains: marca, mode: 'insensitive' };
+    }
+
+    if (modelo) {
+      where.modelo = { contains: modelo, mode: 'insensitive' };
+    }
+
+    if (fecha_inicio || fecha_fin) {
+      const range = {};
+      if (fecha_inicio) range.gte = new Date(`${fecha_inicio}T00:00:00`);
+      if (fecha_fin) range.lte = new Date(`${fecha_fin}T23:59:59`);
+      where.diagnosticos = {
+        some: {
+          OR: [
+            { fecha_hora: range },
+            { ordenes: { some: { fecha_ingreso: range } } },
+          ],
+        },
+      };
     }
 
     const equipos = await prisma.equipos.findMany({

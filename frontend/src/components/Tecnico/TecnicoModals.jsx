@@ -234,7 +234,7 @@ export const DiagnosticoModal = ({ orden, readOnly = false, onClose, onSubmit })
         <div className="flex justify-between items-center mb-6">
           <div>
             <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">
-              {readOnly ? 'Detalle Diagnostico' : 'Completar Diagnostico'}
+              {readOnly ? 'Detalle Diagnostico' : orden.correctionMode ? 'Corregir Diagnostico' : 'Completar Diagnostico'}
             </h3>
             <EstadoBadge estado={orden.estado} />
           </div>
@@ -262,7 +262,7 @@ export const DiagnosticoModal = ({ orden, readOnly = false, onClose, onSubmit })
             <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold uppercase text-slate-600">Cerrar</button>
             {!readOnly && (
               <button type="submit" disabled={loading} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold uppercase">
-                {loading ? 'Guardando...' : 'Marcar Completado'}
+                  {loading ? 'Guardando...' : orden.correctionMode ? 'Guardar Correccion' : 'Marcar Completado'}
               </button>
             )}
           </div>

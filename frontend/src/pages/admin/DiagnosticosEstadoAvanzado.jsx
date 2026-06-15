@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
-import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
+import { downloadJsonPdf } from '../../utils/csvExport';
 
 const reportColumns = [
   { header: 'Estado', accessor: 'estado' },
@@ -73,7 +73,7 @@ export default function DiagnosticosEstadoAvanzado() {
       if (toDate) query.push(`fecha_fin=${toDate}`);
       const [reportRes, diagnosticosRes, tecnicosRes] = await Promise.all([
         api.get(`/admin_pro/reportes/diagnosticos_estado${query.length ? `?${query.join('&')}` : ''}`),
-        api.get('/admin_pro/diagnosticos'),
+        api.get(`/admin_pro/diagnosticos${query.length ? `?${query.join('&')}` : ''}`),
         api.get('/tecnicos'),
       ]);
 
@@ -94,6 +94,10 @@ export default function DiagnosticosEstadoAvanzado() {
   useEffect(() => {
     fetchReport();
   }, []);
+
+  useEffect(() => {
+    if (fromDate || toDate) fetchReport();
+  }, [fromDate, toDate]);
 
   const filteredDiagnosticos = useMemo(() => {
     const term = searchText.trim().toLowerCase();
@@ -131,17 +135,6 @@ export default function DiagnosticosEstadoAvanzado() {
       ),
     },
   ], []);
-
-  const downloadReportCsv = () => {
-    setDownloading(true);
-    try {
-      downloadJsonCsv(filteredDiagnosticos, diagnosticoColumnsBase, 'diagnosticos_general.csv');
-    } catch (err) {
-      setError('No se pudo descargar el reporte general.');
-    } finally {
-      setDownloading(false);
-    }
-  };
 
   const downloadReportPdf = () => {
     setDownloading(true);
@@ -192,18 +185,10 @@ export default function DiagnosticosEstadoAvanzado() {
           <h1 className="text-2xl font-bold text-slate-800">Diagnosticos por estado</h1>
           <p className="text-gray-400 text-sm mt-0.5">Supervisa, busca y edita diagnosticos desde una sola vista.</p>
         </div>
-        <button
-          type="button"
-          onClick={downloadReportPdf}
-          disabled={downloading || loading || filteredDiagnosticos.length === 0}
-          className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:bg-slate-300"
-        >
-          Generar Reporte General
-        </button>
       </div>
 
       <section className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-6">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto_auto] lg:items-end">
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
           <div>
             <span className="text-xs font-bold text-gray-500 uppercase block">Buscador inteligente</span>
             <input
@@ -222,11 +207,8 @@ export default function DiagnosticosEstadoAvanzado() {
             <span className="text-xs font-bold text-gray-500 uppercase block">Hasta</span>
             <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
           </label>
-          <button type="button" onClick={fetchReport} disabled={loading} className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:bg-slate-300">
-            Consultar
-          </button>
-          <button type="button" onClick={downloadReportCsv} disabled={downloading || filteredDiagnosticos.length === 0} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300">
-            Excel
+          <button type="button" onClick={downloadReportPdf} disabled={downloading || filteredDiagnosticos.length === 0} className="rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-slate-800 disabled:bg-slate-300">
+            PDF
           </button>
         </div>
 
@@ -236,11 +218,11 @@ export default function DiagnosticosEstadoAvanzado() {
         {!loading && !error && (
           <div className="grid gap-6 xl:grid-cols-[1fr_1.5fr]">
             <div className="overflow-x-auto">
-              <h2 className="mb-3 text-sm font-black uppercase text-slate-500">Resumen por estado</h2>
+              <h2 className="mb-3 text-sm font-black uppercase text-slate-500">Reportes por estado</h2>
               <Table columns={reportColumns} data={reportData} sortable />
             </div>
             <div className="overflow-x-auto">
-              <h2 className="mb-3 text-sm font-black uppercase text-slate-500">Diagnosticos editables</h2>
+              <h2 className="mb-3 text-sm font-black uppercase text-slate-500">Buscar y editar diagnosticos</h2>
               {filteredDiagnosticos.length === 0 ? (
                 <div className="text-center py-12 text-gray-400 bg-slate-50 rounded-xl border border-dashed border-gray-200 text-sm">
                   No se encontraron diagnosticos con ese termino.

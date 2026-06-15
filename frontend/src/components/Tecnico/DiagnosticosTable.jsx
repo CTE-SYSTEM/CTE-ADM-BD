@@ -9,7 +9,7 @@ const formatPresupuesto = (value) => {
   return `${integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}.${decimalPart}`;
 };
 
-const DiagnosticosTable = ({ items, loading, readOnly, onOpenDiagnostico }) => (
+const DiagnosticosTable = ({ items, loading, readOnly, correctionMode = false, onOpenDiagnostico }) => (
   <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm">
     <table className="min-w-full divide-y divide-slate-200">
       <thead className="bg-slate-100">
@@ -34,11 +34,11 @@ const DiagnosticosTable = ({ items, loading, readOnly, onOpenDiagnostico }) => (
             <td className="px-6 py-4 text-slate-600 italic">{item.diagnostico || 'Sin diagnostico registrado...'}</td>
             <td className="px-6 py-4 text-right">
               <button
-                onClick={() => onOpenDiagnostico({ ...item, readOnly })}
-                className={`p-2 rounded-lg transition-all ${readOnly ? 'bg-slate-100 text-slate-700 hover:bg-slate-700 hover:text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-700 hover:text-white'}`}
-                title={readOnly ? 'Ver detalle' : 'Completar diagnostico'}
+                onClick={() => onOpenDiagnostico({ ...item, readOnly: readOnly && !correctionMode, correctionMode })}
+                className={`p-2 rounded-lg transition-all ${readOnly && !correctionMode ? 'bg-slate-100 text-slate-700 hover:bg-slate-700 hover:text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-700 hover:text-white'}`}
+                title={readOnly && !correctionMode ? 'Ver detalle' : correctionMode ? 'Corregir diagnostico' : 'Completar diagnostico'}
               >
-                {readOnly ? <Eye size={18} /> : <FileText size={18} />}
+                {readOnly && !correctionMode ? <Eye size={18} /> : <FileText size={18} />}
               </button>
             </td>
           </tr>

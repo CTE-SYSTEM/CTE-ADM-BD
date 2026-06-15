@@ -1,7 +1,7 @@
 // backend/src/controllers/JefeTecnico/DiagnosticoController.js
 import prisma from '../../app/prismaClient.js';
 import { Prisma } from '@prisma/client';
-import { notifyJefeTecnico, notifyTecnico } from '../../services/notifications.js';
+import { notifyTecnico } from '../../services/notifications.js';
 import {
   PRIORIDADES,
   REPUESTO_ESTADOS,
@@ -9,7 +9,7 @@ import {
   parsePositiveId,
 } from '../../utils/domainValidation.js';
 
-const LIMITE_CORRECCION_MINUTOS = 30;
+const LIMITE_CORRECCION_MINUTOS = 60;
 
 const minutosTranscurridos = (fechaReferencia) => {
   if (!fechaReferencia) return null;
@@ -31,12 +31,12 @@ const validarCorreccionConTiempo = (fechaReferencia, condicion, entidad) => {
 // --- UTILIDADES INTERNAS ---
 
 /**
- * Verifica si han pasado menos de 30 minutos desde una fecha dada.
+ * Verifica si han pasado menos de 60 minutos desde una fecha dada.
  */
 const esEditablePorTiempo = (fechaReferencia) => {
   if (!fechaReferencia) return true; // Si no hay fecha, es editable (ej. primera asignación)
   const minutosTranscurridos = (new Date() - new Date(fechaReferencia)) / 60000;
-  return minutosTranscurridos <= 30;
+  return minutosTranscurridos <= LIMITE_CORRECCION_MINUTOS;
 };
 
 // --- CONTROLADORES DE DIAGNÓSTICO ---
@@ -502,14 +502,6 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
       include: { equipo: { include: { cliente: true } }, tecnico: true },
     });
 
-    notifyJefeTecnico({
-      type: 'diagnostico_asignado',
-      title: 'Diagnóstico asignado',
-      message: `El diagnóstico #${diagnostico.id_diagnostico} quedó asignado a ${diagnostico.tecnico?.nombre || 'técnico'}. La bandeja del jefe ya refleja el cambio y el técnico recibió el aviso para iniciar.`,
-      severity: 'info',
-      entity: { kind: 'diagnostico', id: diagnostico.id_diagnostico },
-    });
-
     if (diagnostico.tecnico) {
       notifyTecnico(diagnostico.tecnico, {
         type: 'diagnostico_asignado',
@@ -522,6 +514,7 @@ export const asignarTecnicoADiagnostico = async (req, res) => {
 
     res.json({ message: 'Técnico asignado correctamente', data: diagnostico });
   } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
     res.status(500).json({ error: 'Error al asignar técnico', details: error.message });
   }
 };
@@ -580,6 +573,8 @@ export const asignarTecnicoAOrden = async (req, res) => {
 
     if (!tecnico) return res.status(404).json({ error: 'Tecnico no encontrado o inactivo' });
 
+    validarCorreccionConTiempo(ordenActual.fecha_asignacion, id_tecnico !== undefined, 'la asignación de la orden');
+
     const orden = await prisma.ordenes.update({
       where: { id_orden: ordenId },
       data: {
@@ -600,6 +595,7 @@ export const asignarTecnicoAOrden = async (req, res) => {
 
     res.json({ message: 'Orden asignada correctamente', data: orden });
   } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
     res.status(500).json({ error: 'Error al asignar técnico a la orden', details: error.message });
   }
 };

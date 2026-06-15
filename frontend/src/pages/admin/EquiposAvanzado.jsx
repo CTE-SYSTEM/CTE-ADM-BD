@@ -28,10 +28,17 @@ const columns = [
   },
 ];
 
-const fetchEquipos = async (setEquipos, setLoading, setError) => {
+const fetchEquipos = async (setEquipos, setLoading, setError, filters = {}) => {
   setLoading(true);
   try {
-    const res = await api.get('/admin_pro/equipos');
+    const params = new URLSearchParams();
+    if (filters.search) params.append('search', filters.search);
+    if (filters.marca) params.append('marca', filters.marca);
+    if (filters.modelo) params.append('modelo', filters.modelo);
+    if (filters.fromDate) params.append('fecha_inicio', filters.fromDate);
+    if (filters.toDate) params.append('fecha_fin', filters.toDate);
+    const query = params.toString();
+    const res = await api.get(`/admin_pro/equipos${query ? `?${query}` : ''}`);
     const data = res.data;
     if (data.data) {
       setEquipos(
@@ -60,6 +67,10 @@ export default function EquiposAvanzado() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [marcaFilter, setMarcaFilter] = useState('');
+  const [modeloFilter, setModeloFilter] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [searchError, setSearchError] = useState('');
   const showHelp = false;
   
@@ -119,7 +130,22 @@ export default function EquiposAvanzado() {
 
   const clearFilters = () => {
     setSearchText('');
+    setMarcaFilter('');
+    setModeloFilter('');
+    setFromDate('');
+    setToDate('');
     setSearchError('');
+    fetchEquipos(setEquipos, setLoading, setError);
+  };
+
+  const applyServerFilters = () => {
+    fetchEquipos(setEquipos, setLoading, setError, {
+      search: searchText,
+      marca: marcaFilter,
+      modelo: modeloFilter,
+      fromDate,
+      toDate,
+    });
   };
 
   const filteredEquipos = equipos.filter((equipo) => {
@@ -187,7 +213,7 @@ export default function EquiposAvanzado() {
           </div>
           
           {/* Barra de Controles Organizada */}
-          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+          <div className="grid gap-3 md:grid-cols-6">
             <div>
               <input
                 value={searchText}
@@ -196,6 +222,13 @@ export default function EquiposAvanzado() {
                 className="w-full rounded-xl border border-gray-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100/50 transition"
               />
             </div>
+            <input value={marcaFilter} onChange={(e) => setMarcaFilter(e.target.value)} placeholder="Marca" className="w-full rounded-xl border border-gray-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100/50 transition" />
+            <input value={modeloFilter} onChange={(e) => setModeloFilter(e.target.value)} placeholder="Modelo" className="w-full rounded-xl border border-gray-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100/50 transition" />
+            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none" />
+            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none" />
+            <button type="button" onClick={applyServerFilters} disabled={loading} className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:bg-slate-300">
+              Filtrar
+            </button>
             <div>
               <button
                 type="button"

@@ -14,6 +14,7 @@ BEGIN
         'prioridad', d.prioridad,
         'fecha_hora', d.fecha_hora,
         'fecha_asignacion', d.fecha_asignacion,
+        'fecha_completado', d.fecha_completado,
         'estado_del_diagnostico', d.estado_del_diagnostico,
         'Estado_aprobacion', d."Estado_aprobacion",
         'deja_cargador', d.deja_cargador,

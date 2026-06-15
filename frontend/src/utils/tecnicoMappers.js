@@ -12,6 +12,10 @@ export const mapDiagnostico = (diagnostico) => ({
   diagnostico: diagnostico.diagnostico_real || '',
   solucion: '',
   presupuesto: diagnostico.presupuesto_estimado || '',
+  fecha_hora: diagnostico.fecha_completado || diagnostico.fecha_hora || diagnostico.createdAt || null,
+  fecha_asignacion: diagnostico.fecha_asignacion || null,
+  fecha_completado: diagnostico.fecha_completado || null,
+  updatedAt: diagnostico.updatedAt || null,
 });
 
 export const mapOrden = (orden) => {
@@ -35,7 +39,10 @@ export const mapOrden = (orden) => {
     justificacion_irreparable: orden.justificacion_irreparable || '',
     irreparable_estado: orden.irreparable_estado || 'PENDIENTE',
     requiere_piezas: orden.requiere_piezas !== false,
+    fecha_ingreso: orden.fecha_ingreso || null,
     fecha_asignacion: orden.fecha_asignacion || null,
     fecha_finalizacion: orden.fecha_finalizacion || orden.fecha_cierre || null,
+    fecha_cierre: orden.fecha_cierre || null,
+    updatedAt: orden.updatedAt || null,
   };
 };

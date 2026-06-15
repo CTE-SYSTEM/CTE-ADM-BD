@@ -29,8 +29,51 @@ const adminReportQueries = {
   diagnosticos_estado: ({ fechaInicio, fechaFin }) =>
     Prisma.sql`SELECT * FROM admin_pro.diagnosticos_por_estado(CAST(${fechaInicio} AS DATE), CAST(${fechaFin} AS DATE))`,
 
-  equipos_cliente: () =>
-    Prisma.sql`SELECT * FROM admin_pro.equipos_por_cliente()`,
+  equipos_cliente: ({ fechaInicio, fechaFin }) =>
+    Prisma.sql`
+      SELECT
+        c.id_cliente,
+        c.nombre::TEXT AS cliente,
+        c.telefono::TEXT AS telefono,
+        COUNT(DISTINCT CASE
+          WHEN (${fechaInicio}::DATE IS NULL AND ${fechaFin}::DATE IS NULL)
+            OR d.fecha_hora::DATE BETWEEN COALESCE(${fechaInicio}::DATE, d.fecha_hora::DATE) AND COALESCE(${fechaFin}::DATE, d.fecha_hora::DATE)
+            OR o.fecha_ingreso::DATE BETWEEN COALESCE(${fechaInicio}::DATE, o.fecha_ingreso::DATE) AND COALESCE(${fechaFin}::DATE, o.fecha_ingreso::DATE)
+          THEN e.id_equipo
+        END)::INT AS total_equipos,
+        COUNT(DISTINCT CASE
+          WHEN (${fechaInicio}::DATE IS NULL OR d.fecha_hora::DATE >= ${fechaInicio}::DATE)
+            AND (${fechaFin}::DATE IS NULL OR d.fecha_hora::DATE <= ${fechaFin}::DATE)
+          THEN d.id_diagnostico
+        END)::INT AS total_diagnosticos,
+        COUNT(DISTINCT CASE
+          WHEN (${fechaInicio}::DATE IS NULL OR o.fecha_ingreso::DATE >= ${fechaInicio}::DATE)
+            AND (${fechaFin}::DATE IS NULL OR o.fecha_ingreso::DATE <= ${fechaFin}::DATE)
+          THEN o.id_orden
+        END)::INT AS total_ordenes,
+        MAX(CASE
+          WHEN (${fechaInicio}::DATE IS NULL OR COALESCE(o.fecha_ingreso, d.fecha_hora)::DATE >= ${fechaInicio}::DATE)
+            AND (${fechaFin}::DATE IS NULL OR COALESCE(o.fecha_ingreso, d.fecha_hora)::DATE <= ${fechaFin}::DATE)
+          THEN COALESCE(o.fecha_ingreso, d.fecha_hora)
+        END) AS ultima_visita
+      FROM "Clientes" c
+      LEFT JOIN "Equipos" e ON e.cliente_id = c.id_cliente
+      LEFT JOIN "Diagnosticos" d ON d.equipo_id = e.id_equipo
+      LEFT JOIN "Ordenes" o ON o.diagnostico_id = d.id_diagnostico
+      GROUP BY c.id_cliente, c.nombre, c.telefono
+      HAVING ${fechaInicio}::DATE IS NULL AND ${fechaFin}::DATE IS NULL
+        OR COUNT(DISTINCT CASE
+          WHEN (${fechaInicio}::DATE IS NULL OR d.fecha_hora::DATE >= ${fechaInicio}::DATE)
+            AND (${fechaFin}::DATE IS NULL OR d.fecha_hora::DATE <= ${fechaFin}::DATE)
+          THEN d.id_diagnostico
+        END) > 0
+        OR COUNT(DISTINCT CASE
+          WHEN (${fechaInicio}::DATE IS NULL OR o.fecha_ingreso::DATE >= ${fechaInicio}::DATE)
+            AND (${fechaFin}::DATE IS NULL OR o.fecha_ingreso::DATE <= ${fechaFin}::DATE)
+          THEN o.id_orden
+        END) > 0
+      ORDER BY ultima_visita DESC NULLS LAST, total_equipos DESC, cliente ASC
+    `,
 
   garantias_vencer: ({ dias }) =>
     Prisma.sql`SELECT * FROM admin_pro.garantias_por_vencer(CAST(${dias} AS INT))`,

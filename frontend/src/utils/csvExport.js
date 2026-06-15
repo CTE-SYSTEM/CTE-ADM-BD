@@ -11,24 +11,195 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#39;');
 };
 
-const serializeExcel = (rows, columns) => {
-  const headers = columns.map((col) => `<th>${escapeHtml(col.header)}</th>`).join('');
-  const body = rows.map((row) => (
-    `<tr>${columns.map((col) => `<td>${escapeHtml(row[col.accessor])}</td>`).join('')}</tr>`
-  )).join('');
+const escapeXml = escapeHtml;
 
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-  </head>
-  <body>
-    <table>
-      <thead><tr>${headers}</tr></thead>
-      <tbody>${body}</tbody>
-    </table>
-  </body>
-</html>`;
+const getColumnName = (index) => {
+  let column = '';
+  let value = index + 1;
+
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    column = String.fromCharCode(65 + remainder) + column;
+    value = Math.floor((value - 1) / 26);
+  }
+
+  return column;
+};
+
+const normalizeExcelValue = (value) => {
+  if (value == null) return { type: 'string', value: '' };
+  if (typeof value === 'number' && Number.isFinite(value)) return { type: 'number', value };
+  if (typeof value === 'object') return { type: 'string', value: JSON.stringify(value) };
+  return { type: 'string', value: String(value) };
+};
+
+const buildExcelCell = (value, rowIndex, columnIndex) => {
+  const cellRef = `${getColumnName(columnIndex)}${rowIndex}`;
+  const normalized = normalizeExcelValue(value);
+
+  if (normalized.type === 'number') {
+    return `<c r="${cellRef}"><v>${normalized.value}</v></c>`;
+  }
+
+  return `<c r="${cellRef}" t="inlineStr"><is><t>${escapeXml(normalized.value)}</t></is></c>`;
+};
+
+const buildWorksheetXml = (rows, columns) => {
+  const headerRow = `<row r="1">${columns.map((column, columnIndex) => buildExcelCell(column.header, 1, columnIndex)).join('')}</row>`;
+  const dataRows = rows.map((row, rowIndex) => {
+    const excelRowIndex = rowIndex + 2;
+    return `<row r="${excelRowIndex}">${columns.map((column, columnIndex) => buildExcelCell(row[column.accessor], excelRowIndex, columnIndex)).join('')}</row>`;
+  }).join('');
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>${headerRow}${dataRows}</sheetData>
+</worksheet>`;
+};
+
+const encoder = new TextEncoder();
+
+const crcTable = Array.from({ length: 256 }, (_, index) => {
+  let crc = index;
+  for (let bit = 0; bit < 8; bit += 1) {
+    crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+  }
+  return crc >>> 0;
+});
+
+const crc32 = (bytes) => {
+  let crc = 0xffffffff;
+  bytes.forEach((byte) => {
+    crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  });
+  return (crc ^ 0xffffffff) >>> 0;
+};
+
+const writeUint16 = (view, offset, value) => view.setUint16(offset, value, true);
+const writeUint32 = (view, offset, value) => view.setUint32(offset, value, true);
+
+const concatBytes = (parts) => {
+  const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+
+  parts.forEach((part) => {
+    result.set(part, offset);
+    offset += part.length;
+  });
+
+  return result;
+};
+
+const createZip = (files) => {
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  files.forEach((file) => {
+    const nameBytes = encoder.encode(file.name);
+    const contentBytes = encoder.encode(file.content);
+    const checksum = crc32(contentBytes);
+
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const localView = new DataView(localHeader.buffer);
+    writeUint32(localView, 0, 0x04034b50);
+    writeUint16(localView, 4, 20);
+    writeUint16(localView, 6, 0);
+    writeUint16(localView, 8, 0);
+    writeUint16(localView, 10, 0);
+    writeUint16(localView, 12, 0);
+    writeUint32(localView, 14, checksum);
+    writeUint32(localView, 18, contentBytes.length);
+    writeUint32(localView, 22, contentBytes.length);
+    writeUint16(localView, 26, nameBytes.length);
+    writeUint16(localView, 28, 0);
+    localHeader.set(nameBytes, 30);
+
+    localParts.push(localHeader, contentBytes);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const centralView = new DataView(centralHeader.buffer);
+    writeUint32(centralView, 0, 0x02014b50);
+    writeUint16(centralView, 4, 20);
+    writeUint16(centralView, 6, 20);
+    writeUint16(centralView, 8, 0);
+    writeUint16(centralView, 10, 0);
+    writeUint16(centralView, 12, 0);
+    writeUint16(centralView, 14, 0);
+    writeUint32(centralView, 16, checksum);
+    writeUint32(centralView, 20, contentBytes.length);
+    writeUint32(centralView, 24, contentBytes.length);
+    writeUint16(centralView, 28, nameBytes.length);
+    writeUint16(centralView, 30, 0);
+    writeUint16(centralView, 32, 0);
+    writeUint16(centralView, 34, 0);
+    writeUint16(centralView, 36, 0);
+    writeUint32(centralView, 38, 0);
+    writeUint32(centralView, 42, offset);
+    centralHeader.set(nameBytes, 46);
+    centralParts.push(centralHeader);
+
+    offset += localHeader.length + contentBytes.length;
+  });
+
+  const centralDirectory = concatBytes(centralParts);
+  const endHeader = new Uint8Array(22);
+  const endView = new DataView(endHeader.buffer);
+  writeUint32(endView, 0, 0x06054b50);
+  writeUint16(endView, 4, 0);
+  writeUint16(endView, 6, 0);
+  writeUint16(endView, 8, files.length);
+  writeUint16(endView, 10, files.length);
+  writeUint32(endView, 12, centralDirectory.length);
+  writeUint32(endView, 16, offset);
+  writeUint16(endView, 20, 0);
+
+  return concatBytes([...localParts, centralDirectory, endHeader]);
+};
+
+const serializeExcel = (rows, columns) => {
+  const worksheetXml = buildWorksheetXml(rows, columns);
+
+  return createZip([
+    {
+      name: '[Content_Types].xml',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`,
+    },
+    {
+      name: '_rels/.rels',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`,
+    },
+    {
+      name: 'xl/workbook.xml',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Reporte" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`,
+    },
+    {
+      name: 'xl/_rels/workbook.xml.rels',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>`,
+    },
+    {
+      name: 'xl/worksheets/sheet1.xml',
+      content: worksheetXml,
+    },
+  ]);
 };
 
 const normalizePdfCell = (value) => {
@@ -206,8 +377,8 @@ const drawEmptySection = (doc, y) => {
 
 export const downloadJsonCsv = (rows, columns, filename) => {
   const excel = serializeExcel(rows, columns);
-  const excelFilename = filename.replace(/\.csv$/i, '.xls');
-  const blob = new Blob([excel], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+  const excelFilename = filename.replace(/\.(csv|xls)$/i, '.xlsx');
+  const blob = new Blob([excel], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
 

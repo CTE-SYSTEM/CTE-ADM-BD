@@ -38,6 +38,14 @@ export const createCompra = async (req, res) => {
     const fecha = fecha_obtencion ? new Date(fecha_obtencion) : undefined;
     const metodoPago = normalizeText(metodo_pago);
 
+    if (!Number.isInteger(repuestoId) || repuestoId <= 0) {
+      return res.status(400).json({ error: 'Seleccione un repuesto valido' });
+    }
+
+    if (!Number.isInteger(proveedorId) || proveedorId <= 0) {
+      return res.status(400).json({ error: 'Seleccione un proveedor valido' });
+    }
+
     if (!Number.isInteger(cantidadNumber) || cantidadNumber <= 0) {
       return res.status(400).json({ error: 'La cantidad debe ser un numero entero mayor que cero' });
     }
@@ -69,7 +77,11 @@ export const createCompra = async (req, res) => {
     res.status(201).json({ data: compra });
   } catch (error) {
     console.error('Error al crear compra:', error);
-    if (error.message?.includes('no es valido')) {
+    if (
+      error.message?.includes('no es valido')
+      || error.message?.includes('no existe')
+      || error.message?.includes('descontinuado')
+    ) {
       return res.status(400).json({ error: error.message });
     }
     res.status(500).json({ error: 'Error al crear compra', details: error.message });
@@ -103,6 +115,14 @@ export const updateCompra = async (req, res) => {
 
     if (!Number.isInteger(compraId) || compraId <= 0) {
       return res.status(400).json({ error: 'Compra invalida' });
+    }
+
+    if (!Number.isInteger(repuestoId) || repuestoId <= 0) {
+      return res.status(400).json({ error: 'Seleccione un repuesto valido' });
+    }
+
+    if (!Number.isInteger(proveedorId) || proveedorId <= 0) {
+      return res.status(400).json({ error: 'Seleccione un proveedor valido' });
     }
 
     if (!Number.isInteger(cantidadNumber) || cantidadNumber <= 0) {

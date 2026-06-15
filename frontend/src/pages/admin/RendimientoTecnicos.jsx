@@ -13,6 +13,9 @@ const columns = [
   { header: 'Total facturado', accessor: 'total_facturado' },
 ];
 
+const padDate = (value) => String(value).padStart(2, '0');
+const toInputDate = (date) => `${date.getFullYear()}-${padDate(date.getMonth() + 1)}-${padDate(date.getDate())}`;
+
 export default function RendimientoTecnicos() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,6 +23,7 @@ export default function RendimientoTecnicos() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [periodLabel, setPeriodLabel] = useState('Rango personalizado');
 
   const fetchReport = async () => {
     setLoading(true);
@@ -50,9 +54,34 @@ export default function RendimientoTecnicos() {
     }
   };
 
+  const applyQuickPeriod = (period) => {
+    const now = new Date();
+    const start = new Date(now);
+    const end = new Date(now);
+
+    if (period === 'semana') {
+      const day = start.getDay() || 7;
+      start.setDate(start.getDate() - day + 1);
+      setPeriodLabel('Semana actual');
+    } else if (period === 'mes') {
+      start.setDate(1);
+      setPeriodLabel('Mes actual');
+    } else {
+      start.setMonth(0, 1);
+      setPeriodLabel('Año actual');
+    }
+
+    setFromDate(toInputDate(start));
+    setToDate(toInputDate(end));
+  };
+
   useEffect(() => {
     fetchReport();
   }, []);
+
+  useEffect(() => {
+    if (fromDate || toDate) fetchReport();
+  }, [fromDate, toDate]);
 
   const downloadReportCsv = async () => {
     setDownloading(true);
@@ -101,13 +130,29 @@ export default function RendimientoTecnicos() {
             <p className="text-xs text-gray-400 mt-0.5">Consulta la carga de trabajo y el rendimiento por intervalos de fecha específicos.</p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3 w-full xl:max-w-4xl items-end">
+          <div className="grid gap-4 sm:grid-cols-4 w-full xl:max-w-5xl items-end">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                ['semana', 'Semana'],
+                ['mes', 'Mes'],
+                ['anio', 'Año'],
+              ].map(([period, label]) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => applyQuickPeriod(period)}
+                  className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-200"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <label className="block space-y-1.5">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Desde</span>
               <input
                 type="date"
                 value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
+                onChange={(e) => { setPeriodLabel('Rango personalizado'); setFromDate(e.target.value); }}
                 className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </label>
@@ -117,21 +162,16 @@ export default function RendimientoTecnicos() {
               <input
                 type="date"
                 value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
+                onChange={(e) => { setPeriodLabel('Rango personalizado'); setToDate(e.target.value); }}
                 className="w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </label>
 
             {/* Grupo de Botones de Control de Reportes */}
             <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={fetchReport}
-                disabled={loading}
-                className="rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-700 transition shadow-sm disabled:bg-slate-300 disabled:cursor-not-allowed"
-              >
-                Consultar
-              </button>
+              <div className="rounded-xl bg-indigo-50 py-2.5 text-center text-xs font-bold text-indigo-700">
+                {periodLabel}
+              </div>
               <button
                 type="button"
                 onClick={downloadReportCsv}

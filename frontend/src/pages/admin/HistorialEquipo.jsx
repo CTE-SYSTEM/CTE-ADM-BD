@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
+import { downloadJsonPdf } from '../../utils/csvExport';
 
 const DIAGNOSTICO_ESTADOS = ['PENDIENTE', 'INGRESADO', 'EN_REVISION', 'DIAGNOSTICADO', 'COMPLETADO', 'APROBADO', 'RECHAZADO'];
 const ORDEN_ESTADOS = ['PENDIENTE', 'APROBADO', 'EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'IRREPARABLE', 'ENTREGADO'];
 const PRIORIDADES = ['Baja', 'Normal', 'Alta', 'Urgente'];
 
 const normalize = (value) => String(value || '').toLowerCase();
+const padDate = (value) => String(value).padStart(2, '0');
+const toInputDate = (date) => `${date.getFullYear()}-${padDate(date.getMonth() + 1)}-${padDate(date.getDate())}`;
 
 const equipoLabel = (equipo) => [equipo.marca, equipo.modelo, equipo.numero_serie].filter(Boolean).join(' ') || `Equipo #${equipo.id_equipo}`;
 
@@ -23,6 +26,8 @@ export default function HistorialEquipo() {
   const [editing, setEditing] = useState(null);
   const [editMessage, setEditMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -117,6 +122,52 @@ export default function HistorialEquipo() {
       return [diagnosticoItem, ...ordenes];
     }).sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0))
   ), [historial]);
+
+  const filteredHistorialItems = useMemo(() => {
+    const start = fromDate ? new Date(`${fromDate}T00:00:00`) : null;
+    const end = toDate ? new Date(`${toDate}T23:59:59`) : null;
+    return historialItems.filter((item) => {
+      const date = item.fecha ? new Date(item.fecha) : null;
+      if (!date) return !start && !end;
+      if (start && date < start) return false;
+      if (end && date > end) return false;
+      return true;
+    });
+  }, [historialItems, fromDate, toDate]);
+
+  const applyQuickPeriod = (period) => {
+    const now = new Date();
+    const start = new Date(now);
+    if (period === 'semana') {
+      const day = start.getDay() || 7;
+      start.setDate(start.getDate() - day + 1);
+    } else if (period === 'mes') {
+      start.setDate(1);
+    } else {
+      start.setMonth(0, 1);
+    }
+    setFromDate(toInputDate(start));
+    setToDate(toInputDate(now));
+  };
+
+  const downloadHistorialPdf = () => {
+    const rows = filteredHistorialItems.map((item) => ({
+      fecha: item.fecha ? new Date(item.fecha).toLocaleString() : '-',
+      tipo: item.tipo,
+      referencia: item.titulo,
+      estado: item.estado || '-',
+      tecnico: item.tecnico,
+      detalle: item.descripcion,
+    }));
+    downloadJsonPdf(rows, [
+      { header: 'Fecha', accessor: 'fecha' },
+      { header: 'Tipo', accessor: 'tipo' },
+      { header: 'Referencia', accessor: 'referencia' },
+      { header: 'Estado', accessor: 'estado' },
+      { header: 'Tecnico', accessor: 'tecnico' },
+      { header: 'Detalle', accessor: 'detalle' },
+    ], `historial_equipo_${selectedEquipo?.id_equipo || 'sin_equipo'}.pdf`, 'Historial de equipo');
+  };
 
   const openEdit = (item) => {
     if (item.tipo === 'diagnostico') {
@@ -276,18 +327,30 @@ export default function HistorialEquipo() {
             <p className="text-xs font-black uppercase text-indigo-600">Paso 4</p>
             <h2 className="text-xl font-bold text-slate-800">Linea de tiempo editable</h2>
           </div>
-          {selectedEquipo && <span className="rounded-xl bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">Equipo #{selectedEquipo.id_equipo}</span>}
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              ['semana', 'Semana'],
+              ['mes', 'Mes'],
+              ['anio', 'Año'],
+            ].map(([period, label]) => (
+              <button key={period} type="button" onClick={() => applyQuickPeriod(period)} className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200">{label}</button>
+            ))}
+            <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs text-slate-700" />
+            <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} className="rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs text-slate-700" />
+            <button type="button" onClick={downloadHistorialPdf} disabled={!selectedEquipo || filteredHistorialItems.length === 0} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:bg-slate-300">PDF</button>
+            {selectedEquipo && <span className="rounded-xl bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">Equipo #{selectedEquipo.id_equipo}</span>}
+          </div>
         </div>
 
         {historyLoading ? (
           <div className="py-16 text-center text-sm text-gray-400">Cargando historial completo...</div>
         ) : !selectedEquipo ? (
           <div className="rounded-xl border border-dashed border-gray-200 bg-slate-50 p-12 text-center text-sm text-gray-400">El historial aparecera aqui al seleccionar un equipo.</div>
-        ) : historialItems.length === 0 ? (
+        ) : filteredHistorialItems.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-200 bg-slate-50 p-12 text-center text-sm text-gray-400">Este equipo no cuenta con diagnosticos u ordenes registradas.</div>
         ) : (
           <div className="space-y-3">
-            {historialItems.map((item) => (
+            {filteredHistorialItems.map((item) => (
               <article key={`${item.tipo}-${item.id}`} className="rounded-xl border border-gray-100 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>

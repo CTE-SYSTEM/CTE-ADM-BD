@@ -39,7 +39,7 @@ export const TecnicoTabContent = ({
           onChange={(value) => onSearch('diagnosticosCompletados', value)}
           placeholder="Buscar por ID, cliente, equipo, falla..."
         />
-        <DiagnosticosTable items={diagnosticosCompletados} loading={loading} readOnly onOpenDiagnostico={onOpenDiagnostico} />
+        <DiagnosticosTable items={diagnosticosCompletados} loading={loading} readOnly correctionMode onOpenDiagnostico={onOpenDiagnostico} />
       </section>
     )}
 

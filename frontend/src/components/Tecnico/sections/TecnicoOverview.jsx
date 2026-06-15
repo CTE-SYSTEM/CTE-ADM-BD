@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, CheckCircle2, ClipboardList, Package, Wrench } from 'lucide-react';
+import { Calendar, CheckCircle2, ClipboardList, Gauge, Package, Wrench } from 'lucide-react';
 import PageHelp from '../../PageHelp';
 import { TecnicoStatCard } from '../TecnicoStats';
 
@@ -72,10 +72,12 @@ export const TecnicoTimeFilter = ({ timeFilter, onChange }) => (
 );
 
 export const TecnicoStatsGrid = ({ stats }) => (
-  <div className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-4">
+  <div className="mb-10 grid grid-cols-1 gap-6 md:grid-cols-3 xl:grid-cols-6">
     <TecnicoStatCard icon={<ClipboardList size={22} />} label="En revision" value={stats.enRevisionCount} color="violet" />
     <TecnicoStatCard icon={<CheckCircle2 size={22} />} label="Diagnosticos completados" value={stats.completadosCount} color="emerald" />
     <TecnicoStatCard icon={<Wrench size={22} />} label="Ordenes activas" value={stats.ordenesActivasCount} color="blue" />
-    <TecnicoStatCard icon={<Package size={22} />} label="Mis piezas" value={stats.piezasCount} color="amber" />
+    <TecnicoStatCard icon={<CheckCircle2 size={22} />} label="Ordenes cerradas" value={stats.ordenesCompletadasCount} color="emerald" />
+    <TecnicoStatCard icon={<Package size={22} />} label="Piezas pendientes" value={stats.piezasPendientesCount} color="amber" />
+    <TecnicoStatCard icon={<Gauge size={22} />} label="Cierre diagnosticos" value={`${stats.tasaDiagnosticos}%`} color="blue" />
   </div>
 );

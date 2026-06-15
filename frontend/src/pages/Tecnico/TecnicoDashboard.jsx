@@ -98,12 +98,27 @@ const TecnicoDashboard = () => {
     });
   };
 
-  const statsCalculadas = useMemo(() => ({
-    enRevisionCount: filterByTime(diagnosticosEnRevision).length,
-    completadosCount: filterByTime(diagnosticosCompletados).length,
-    ordenesActivasCount: filterByTime(ordenesActivas).length,
-    piezasCount: filterByTime(solicitudesRepuestos).length,
-  }), [timeFilter, diagnosticosEnRevision, diagnosticosCompletados, ordenesActivas, solicitudesRepuestos]);
+  const statsCalculadas = useMemo(() => {
+    const diagnosticosActivosPeriodo = filterByTime(diagnosticosEnRevision);
+    const diagnosticosCompletadosPeriodo = filterByTime(diagnosticosCompletados);
+    const ordenesActivasPeriodo = filterByTime(ordenesActivas);
+    const ordenesCompletadasPeriodo = filterByTime(ordenesCompletadas);
+    const piezasPeriodo = filterByTime(solicitudesRepuestos);
+    const diagnosticosTotales = diagnosticosActivosPeriodo.length + diagnosticosCompletadosPeriodo.length;
+    const tasaDiagnosticos = diagnosticosTotales
+      ? Math.round((diagnosticosCompletadosPeriodo.length / diagnosticosTotales) * 100)
+      : 0;
+
+    return {
+      enRevisionCount: diagnosticosActivosPeriodo.length,
+      completadosCount: diagnosticosCompletadosPeriodo.length,
+      ordenesActivasCount: ordenesActivasPeriodo.length,
+      ordenesCompletadasCount: ordenesCompletadasPeriodo.length,
+      piezasCount: piezasPeriodo.length,
+      piezasPendientesCount: piezasPeriodo.filter((pieza) => String(pieza.estado || '').toUpperCase() === 'PENDIENTE').length,
+      tasaDiagnosticos,
+    };
+  }, [timeFilter, diagnosticosEnRevision, diagnosticosCompletados, ordenesActivas, ordenesCompletadas, solicitudesRepuestos]);
 
   const diagnosticosEnRevisionFiltrados = useMemo(
     () => filterItems(diagnosticosEnRevision, searches.diagnosticosEnRevision, (item) => [

@@ -82,7 +82,9 @@ export const getMisOrdenes = async (username) => {
   return { tecnico, data };
 };
 
-export const completarDiagnostico = async (diagnosticoId, payload) => {
+const LIMITE_CORRECCION_DIAGNOSTICO_MINUTOS = 60;
+
+export const completarDiagnostico = async (diagnosticoId, payload, username) => {
   const diagnosticoReal = String(payload.diagnostico_real || '').trim();
   if (!diagnosticoReal) {
     const error = new Error('El informe tecnico es obligatorio');
@@ -98,6 +100,69 @@ export const completarDiagnostico = async (diagnosticoId, payload) => {
     const error = new Error('El presupuesto estimado no es un número válido');
     error.statusCode = 400;
     throw error;
+  }
+
+  const tecnico = await getTecnicoActivoByUsername(username);
+  if (!tecnico) {
+    const error = new Error('Tecnico no encontrado o inactivo');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const diagnosticoActual = await prisma.diagnosticos.findUnique({
+    where: { id_diagnostico: Number(diagnosticoId) },
+    select: {
+      id_diagnostico: true,
+      tecnico_id: true,
+      estado_del_diagnostico: true,
+      fecha_completado: true,
+      ordenes: { select: { id_orden: true }, take: 1 },
+    },
+  });
+
+  if (!diagnosticoActual) {
+    const error = new Error('Diagnostico no encontrado');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (Number(diagnosticoActual.tecnico_id) !== Number(tecnico.id_tecnico)) {
+    const error = new Error('No puede corregir un diagnostico asignado a otro tecnico');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const estadoActual = String(diagnosticoActual.estado_del_diagnostico || '').toUpperCase();
+  if (estadoActual === 'COMPLETADO') {
+    if (diagnosticoActual.ordenes?.length) {
+      const error = new Error('No se puede corregir: este diagnostico ya tiene una orden creada');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    if (diagnosticoActual.fecha_completado) {
+      const minutos = (Date.now() - new Date(diagnosticoActual.fecha_completado).getTime()) / 60000;
+      if (minutos > LIMITE_CORRECCION_DIAGNOSTICO_MINUTOS) {
+        const error = new Error(`El plazo de ${LIMITE_CORRECCION_DIAGNOSTICO_MINUTOS} minutos para corregir el diagnostico ha expirado`);
+        error.statusCode = 403;
+        throw error;
+      }
+    }
+
+    const diagnostico = await prisma.diagnosticos.update({
+      where: { id_diagnostico: Number(diagnosticoId) },
+      data: {
+        diagnostico_real: diagnosticoReal,
+        presupuesto_estimado: presupuestoEstimado,
+        fecha_completado: new Date(),
+      },
+      include: {
+        equipo: { include: { cliente: true } },
+        tecnico: true,
+      },
+    });
+
+    return diagnostico;
   }
 
   const rows = await prisma.$queryRaw`

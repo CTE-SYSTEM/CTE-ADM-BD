@@ -68,7 +68,7 @@ export const getMisOrdenes = async (req, res) => {
 
 export const actualizarDiagnosticoAsignado = async (req, res) => {
   try {
-    const diagnostico = await completarDiagnostico(req.params.id, req.body);
+    const diagnostico = await completarDiagnostico(req.params.id, req.body, req.user?.username);
 
     notifyJefeTecnico({
       type: 'diagnostico_completado',
