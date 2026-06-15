@@ -31,7 +31,6 @@ CREATE OR REPLACE FUNCTION solicitar_pieza_orden_tecnico_proc(
 DECLARE
     v_repuesto_id INT;
     v_id INT;
-    v_tecnico_id INT;
 BEGIN
     IF EXISTS (
         SELECT 1
@@ -75,14 +74,8 @@ BEGIN
         'PENDIENTE'
     ) RETURNING id_detalle_repuesto INTO v_id;
 
-    SELECT COALESCE(o.tecnico_id, d.tecnico_id) INTO v_tecnico_id
-    FROM "Ordenes" o
-    JOIN "Diagnosticos" d ON o.diagnostico_id = d.id_diagnostico
-    WHERE o.id_orden = p_id_orden::INT;
-
     UPDATE "Ordenes"
-    SET estado = 'ESPERANDO_PIEZA',
-        tecnico_id = COALESCE(tecnico_id, v_tecnico_id)
+    SET estado = 'ESPERANDO_PIEZA'
     WHERE id_orden = p_id_orden::INT
       AND UPPER(COALESCE(estado, '')) <> 'FINALIZADO';
 

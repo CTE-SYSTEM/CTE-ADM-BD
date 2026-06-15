@@ -246,7 +246,9 @@ export const buildCorreccionesColumns = ({ onEdit }) => [
     header: 'Tecnico',
     accessor: 'tecnico',
     render: (row) => {
-      const tecnico = row.tecnico || row.orden?.tecnico || row.diagnostico?.tecnico;
+      const tecnico = row.id_orden
+        ? row.tecnico
+        : row.orden?.tecnico || row.tecnico || row.diagnostico?.tecnico;
       return <span className="font-bold text-slate-700 uppercase text-xs">{tecnico?.nombre || 'Sin tecnico'}</span>;
     },
   },
@@ -291,7 +293,7 @@ export const buildIrreparablesColumns = ({ savingId, onDecisionIrreparable, onVi
     header: 'Tecnico',
     accessor: 'tecnico',
     render: (row) => {
-      const tecnico = row.tecnico || row.diagnostico?.tecnico;
+      const tecnico = row.tecnico;
       return (
         <div className="flex flex-col">
           <span className="font-bold text-slate-800 uppercase text-xs">{tecnico?.nombre || 'Sin tecnico'}</span>

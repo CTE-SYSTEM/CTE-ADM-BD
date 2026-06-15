@@ -65,12 +65,12 @@ export const obtenerDiagnosticoParaOrden = async (diagnosticoId) => {
   return diagRow?.data;
 };
 
-export const crearOrden = async ({ diagnostico_id, tecnico_id, prioridad, estado, requiere_piezas }) => {
+export const crearOrden = async ({ diagnostico_id, prioridad, estado, requiere_piezas }) => {
   const diagnosticoId = parsePositiveId(diagnostico_id);
   const [row] = await prisma.$queryRaw(Prisma.sql`
     SELECT data FROM crear_orden_secretaria_proc(
       ${diagnosticoId}::int,
-      ${tecnico_id ? parsePositiveId(tecnico_id) : null}::int,
+      ${null}::int,
       ${assertInList(prioridad || 'Normal', PRIORIDADES, 'Prioridad')},
       ${assertInList(estado || 'PENDIENTE', ORDEN_ESTADOS, 'Estado de la orden')},
       ${requiere_piezas === undefined ? null : requiere_piezas === true || requiere_piezas === 'true'}

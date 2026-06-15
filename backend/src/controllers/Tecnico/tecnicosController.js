@@ -87,7 +87,7 @@ export const actualizarDiagnosticoAsignado = async (req, res) => {
 
 export const actualizarEstadoOrden = async (req, res) => {
   try {
-    const orden = await actualizarEstadoOrdenService(req.params.id, req.body);
+    const orden = await actualizarEstadoOrdenService(req.params.id, req.body, req.user?.username);
     const estadoNuevo = String(orden.estado || '').toUpperCase();
     const estadoCierre = estadoNuevo === 'FINALIZADO';
     const estadoIrreparable = estadoNuevo === 'IRREPARABLE';

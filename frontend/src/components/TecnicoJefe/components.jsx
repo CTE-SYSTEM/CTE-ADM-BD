@@ -182,7 +182,7 @@ export const DetailModal = ({ detalles, loadingDetalles, onClose }) => {
   const equipo = getEquipo(detalles || {}) || {};
   const orden = detalles?.orden || detalles;
   const diagnostico = detalles?.diagnostico || detalles?.orden?.diagnostico || {};
-  const tecnico = orden?.tecnico || diagnostico?.tecnico;
+  const tecnico = orden?.id_orden ? orden?.tecnico : diagnostico?.tecnico;
   const esSolicitudRepuesto = Boolean(detalles?.id_detalle_repuesto);
   const irreparableEstado = String(orden?.irreparable_estado || '').toUpperCase();
   const tieneIrreparable = Boolean(orden?.justificacion_irreparable || orden?.observacion_final || irreparableEstado);

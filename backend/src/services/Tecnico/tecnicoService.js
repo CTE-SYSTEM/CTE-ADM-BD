@@ -76,8 +76,30 @@ export const getMisOrdenes = async (username) => {
   const tecnico = await getTecnicoActivoByUsername(username);
   if (!tecnico) return { tecnico: null, data: [] };
 
-  const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_mis_ordenes_tecnico(${username})`);
-  const data = rows.map((row) => row.data);
+  const ordenes = await prisma.ordenes.findMany({
+    where: { tecnico_id: tecnico.id_tecnico },
+    include: ordenInclude,
+    orderBy: [
+      { fecha_ingreso: 'desc' },
+      { id_orden: 'desc' },
+    ],
+  });
+
+  const ordenesFinalizadasRecientes = ordenes
+    .filter((orden) => String(orden.estado || '').toUpperCase() === 'FINALIZADO')
+    .slice(0, 5)
+    .map((orden) => orden.id_orden);
+  const limiteEdicionCompletada = Date.now() - 24 * 60 * 60 * 1000;
+
+  const data = ordenes.map((orden) => ({
+    ...orden,
+    puede_editar_completada: String(orden.estado || '').toUpperCase() !== 'FINALIZADO'
+      || (
+        ordenesFinalizadasRecientes.includes(orden.id_orden)
+        && orden.fecha_ingreso
+        && new Date(orden.fecha_ingreso).getTime() >= limiteEdicionCompletada
+      ),
+  }));
 
   return { tecnico, data };
 };
@@ -176,7 +198,7 @@ export const completarDiagnostico = async (diagnosticoId, payload, username) => 
   return rows[0]?.data;
 };
 
-export const actualizarEstadoOrden = async (ordenId, payload) => {
+export const actualizarEstadoOrden = async (ordenId, payload, username) => {
   const { estado, resultado_final, enciende_salida, usa_corriente_ac_salida, observacion_final } = payload;
   if (!estado) {
     const error = new Error('El estado es obligatorio');
@@ -194,8 +216,15 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
   const estadoCierre = estadoNuevo === 'FINALIZADO';
   const estadoIrreparable = estadoNuevo === 'IRREPARABLE';
 
+  const tecnico = await getTecnicoActivoByUsername(username);
+  if (!tecnico) {
+    const error = new Error('Tecnico no encontrado o inactivo');
+    error.statusCode = 403;
+    throw error;
+  }
+
   const [ordenActual] = await prisma.$queryRaw(Prisma.sql`
-    SELECT id_orden, estado, requiere_piezas
+    SELECT id_orden, estado, requiere_piezas, tecnico_id
     FROM "Ordenes"
     WHERE id_orden = ${Number(ordenId)}
   `);
@@ -203,6 +232,12 @@ export const actualizarEstadoOrden = async (ordenId, payload) => {
   if (!ordenActual) {
     const error = new Error('Orden no encontrada');
     error.statusCode = 404;
+    throw error;
+  }
+
+  if (!ordenActual.tecnico_id || Number(ordenActual.tecnico_id) !== Number(tecnico.id_tecnico)) {
+    const error = new Error('No puede actualizar una orden que no tiene asignado este tecnico');
+    error.statusCode = 403;
     throw error;
   }
 
@@ -303,8 +338,7 @@ export const solicitarRepuesto = async (ordenId, payload, username) => {
     throw error;
   }
 
-  const tecnicoOrdenId = orden.tecnico_id || orden.diagnostico?.tecnico_id;
-  if (Number(tecnicoOrdenId) !== Number(tecnico.id_tecnico)) {
+  if (!orden.tecnico_id || Number(orden.tecnico_id) !== Number(tecnico.id_tecnico)) {
     const error = new Error('No puede solicitar repuestos para una orden que no tiene asignado este tecnico');
     error.statusCode = 403;
     throw error;
@@ -314,13 +348,6 @@ export const solicitarRepuesto = async (ordenId, payload, username) => {
     const error = new Error('Esta orden fue marcada como servicio sin piezas y no permite solicitar repuestos');
     error.statusCode = 409;
     throw error;
-  }
-
-  if (!orden.tecnico_id) {
-    await prisma.ordenes.update({
-      where: { id_orden: Number(ordenId) },
-      data: { tecnico_id: tecnico.id_tecnico },
-    });
   }
 
   if (!nombreSolicitado && !repuestoId) {

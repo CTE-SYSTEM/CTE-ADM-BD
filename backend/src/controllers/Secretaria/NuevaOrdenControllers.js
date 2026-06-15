@@ -1,6 +1,5 @@
-import prisma from '../../app/prismaClient.js';
 import ordenService from '../../services/Secretaria/ordenService.js';
-import { notifyJefeTecnico, notifyRole, notifyTecnico } from '../../services/notifications.js';
+import { notifyJefeTecnico, notifyRole } from '../../services/notifications.js';
 
 export const getOrdenes = async (req, res) => {
   try {
@@ -29,7 +28,7 @@ export const getDiagnosticosListosParaOrden = async (req, res) => {
 
 export const createOrden = async (req, res) => {
   try {
-    const { diagnostico_id, tecnico_id, prioridad, estado, requiere_piezas } = req.body;
+    const { diagnostico_id, prioridad, estado, requiere_piezas } = req.body;
     const diagnosticoId = ordenService.validarOrdenDiagnosticoId(diagnostico_id);
 
     if (!diagnosticoId) {
@@ -61,12 +60,17 @@ export const createOrden = async (req, res) => {
       return res.status(409).json({ error: 'Ya existe una orden para este diagnostico' });
     }
 
-    const orden = await ordenService.crearOrden({ diagnostico_id: diagnosticoId, tecnico_id, prioridad, estado, requiere_piezas });
+    const orden = await ordenService.crearOrden({
+      diagnostico_id: diagnosticoId,
+      prioridad,
+      estado,
+      requiere_piezas,
+    });
 
     notifyJefeTecnico({
       type: 'orden_creada',
       title: 'Nueva orden registrada',
-      message: `La orden #${orden?.id_orden || orden?.id || diagnosticoId} ya está lista para revisión`,
+      message: `La orden #${orden?.id_orden || orden?.id || diagnosticoId} ya esta lista para asignacion`,
       severity: 'info',
       entity: { kind: 'orden', id: Number(orden?.id_orden || orden?.id || 0) || diagnosticoId },
     });
@@ -78,23 +82,6 @@ export const createOrden = async (req, res) => {
       severity: 'success',
       entity: { kind: 'orden', id: Number(orden?.id_orden || orden?.id || 0) || diagnosticoId },
     });
-
-    if (tecnico_id) {
-      const tecnico = await prisma.tecnicos.findFirst({
-        where: { id_tecnico: Number(tecnico_id), activo: true },
-        select: { id_tecnico: true, nombre: true, usuario_id: true },
-      });
-
-      if (tecnico?.usuario_id) {
-        notifyTecnico(tecnico, {
-          type: 'orden_asignada',
-          title: 'Nueva orden asignada',
-          message: `Se te asignó la orden #${orden?.id_orden || diagnosticoId}`,
-          severity: 'info',
-          entity: { kind: 'orden', id: Number(orden?.id_orden || diagnosticoId) },
-        });
-      }
-    }
 
     res.status(201).json({ data: orden });
   } catch (error) {

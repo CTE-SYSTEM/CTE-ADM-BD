@@ -54,9 +54,7 @@ BEGIN
     ordenes_base AS (
         SELECT o.*
         FROM "Ordenes" o
-        JOIN "Diagnosticos" d ON o.diagnostico_id = d.id_diagnostico
         JOIN tecnico_actual ta ON o.tecnico_id = ta.id_tecnico
-            OR (o.tecnico_id IS NULL AND d.tecnico_id = ta.id_tecnico)
     ),
     ordenes_finalizadas AS (
         SELECT

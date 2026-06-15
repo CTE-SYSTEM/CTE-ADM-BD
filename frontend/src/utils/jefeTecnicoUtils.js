@@ -8,17 +8,22 @@ export const getRowKey = (row) => {
   return `repuesto-${row.id_detalle_repuesto}`;
 };
 
-export const getTecnicoId = (row) =>
-  row.tecnico_id
-  ?? row.id_tecnico
-  ?? row.tecnico?.id_tecnico
-  ?? row.orden?.tecnico_id
-  ?? row.orden?.tecnico?.id_tecnico
-  ?? row.diagnostico?.tecnico_id
-  ?? row.diagnostico?.tecnico?.id_tecnico
-  ?? row.orden?.diagnostico?.tecnico_id
-  ?? row.orden?.diagnostico?.tecnico?.id_tecnico
-  ?? '';
+export const getTecnicoId = (row) => {
+  if (row.id_orden) {
+    return row.tecnico_id ?? row.tecnico?.id_tecnico ?? '';
+  }
+
+  if (row.orden) {
+    return row.orden.tecnico_id ?? row.orden.tecnico?.id_tecnico ?? '';
+  }
+
+  return row.tecnico_id
+    ?? row.id_tecnico
+    ?? row.tecnico?.id_tecnico
+    ?? row.diagnostico?.tecnico_id
+    ?? row.diagnostico?.tecnico?.id_tecnico
+    ?? '';
+};
 
 export const getEquipo = (row) => row.equipo || row.diagnostico?.equipo || row.orden?.diagnostico?.equipo;
 
