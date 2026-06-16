@@ -1,19 +1,22 @@
 import prisma from '../app/prismaClient.js';
 
-const upper = (value) => String(value || '').toUpperCase();
+const upper = (value) => String(value || '').trim().toUpperCase();
 
 const getFiltroFlujo = ({ diagnostico, orden, repuestosPendientes, factura, garantia }) => {
   const estadoDiagnostico = upper(diagnostico?.estado_del_diagnostico);
   const estadoOrden = upper(orden?.estado);
+  const tieneFactura = Boolean(factura?.id_factura);
+  const tieneGarantia = Boolean(garantia?.id_garantia);
 
-  if (factura && garantia) return 'con-garantia';
-  if (factura) return 'entregados';
+  if (tieneFactura && tieneGarantia) return 'con-garantia';
+  if (tieneFactura) return 'entregados';
 
   if (orden) {
-    if (['ENTREGADO'].includes(estadoOrden)) return 'entregados';
+    if (estadoOrden === 'ENTREGADO') return 'entregados';
     if (['FINALIZADO', 'IRREPARABLE'].includes(estadoOrden)) return 'listos-facturar';
     if (estadoOrden === 'ESPERANDO_PIEZA' || repuestosPendientes > 0) return 'esperando-pieza';
     if (['EN_REPARACION', 'APROBADO'].includes(estadoOrden)) return 'en-reparacion';
+    if (estadoOrden === 'PENDIENTE' || !estadoOrden) return 'pendientes';
     return 'pendientes';
   }
 
@@ -28,6 +31,18 @@ const buildResumen = (items) => items.reduce((acc, item) => {
   acc.todos += 1;
   return acc;
 }, { todos: 0 });
+
+const normalizeOrdenEstado = (estado) => {
+  const normalized = upper(estado);
+  if (normalized === 'ENTREGADO') return 'ENTREGADO';
+  if (normalized === 'FINALIZADO') return 'FINALIZADO';
+  if (normalized === 'IRREPARABLE') return 'IRREPARABLE';
+  if (normalized === 'ESPERANDO_PIEZA') return 'ESPERANDO_PIEZA';
+  if (normalized === 'EN_REPARACION') return 'EN_REPARACION';
+  if (normalized === 'APROBADO') return 'APROBADO';
+  if (normalized === 'PENDIENTE') return 'PENDIENTE';
+  return 'PENDIENTE';
+};
 
 const mapOrden = (orden) => {
   if (!orden) return null;
@@ -45,7 +60,7 @@ const mapOrden = (orden) => {
   return {
     orden: {
       id_orden: orden.id_orden,
-      estado: orden.estado || 'PENDIENTE',
+      estado: normalizeOrdenEstado(orden.estado),
       prioridad: orden.prioridad,
       fecha_ingreso: orden.fecha_ingreso,
       tecnico: orden.tecnico,
