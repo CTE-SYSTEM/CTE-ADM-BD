@@ -76,14 +76,12 @@ const getPeriodQuery = (granularidad, fechaInicio, fechaFin) => {
     ),
     perdidas_reales AS (
       SELECT
-        DATE_TRUNC(${config.trunc}, COALESCE(o.fecha_cierre, o.fecha_ingreso))::DATE AS periodo,
-        COALESCE(SUM(COALESCE(f.mano_obra, 0)), 0) AS perdidas_reales,
-        COUNT(*)::INT AS ordenes_irreparables
-      FROM "Ordenes" o
-      LEFT JOIN "Facturas" f ON f.orden_id = o.id_orden
-      WHERE UPPER(COALESCE(o.estado, '')) = 'IRREPARABLE'
-        AND COALESCE(o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
-      GROUP BY DATE_TRUNC(${config.trunc}, COALESCE(o.fecha_cierre, o.fecha_ingreso))::DATE
+        p.periodo,
+        GREATEST(COALESCE(c.compras_inventario, 0) - COALESCE(i.ingresos, 0), 0) AS perdidas_reales,
+        CASE WHEN COALESCE(c.compras_inventario, 0) > COALESCE(i.ingresos, 0) THEN COALESCE(c.compras, 0) ELSE 0 END::INT AS eventos_perdida
+      FROM periodos p
+      LEFT JOIN ingresos i ON i.periodo = p.periodo
+      LEFT JOIN compras c ON c.periodo = p.periodo
     )
     SELECT
       ${granularidad}::TEXT AS granularidad,
@@ -104,7 +102,8 @@ const getPeriodQuery = (granularidad, fechaInicio, fechaFin) => {
       COALESCE(i.facturas, 0)::INT AS facturas,
       COALESCE(c.compras, 0)::INT AS compras,
       COALESCE(co.ordenes_procesadas, 0)::INT AS ordenes_procesadas,
-      COALESCE(pr.ordenes_irreparables, 0)::INT AS ordenes_irreparables
+      COALESCE(pr.eventos_perdida, 0)::INT AS eventos_perdida,
+      0::INT AS ordenes_irreparables
     FROM periodos p
     LEFT JOIN ingresos i ON i.periodo = p.periodo
     LEFT JOIN compras c ON c.periodo = p.periodo
@@ -212,6 +211,18 @@ export const getGananciasAdmin = async (req, res) => {
           (SELECT COUNT(*) FROM "Repuestos" WHERE activo = true AND descontinuada = false AND stock_actual <= 0)::INT AS repuestos_sin_stock
       `),
       prisma.$queryRaw(Prisma.sql`
+        WITH resumen_compras AS (
+          SELECT
+            COALESCE(SUM(COALESCE(c.cantidad, 0) * COALESCE(c.costo_unitario, 0)), 0) AS compras_inventario,
+            COALESCE(MAX(c.fecha_obtencion), CAST(${fechaFin} AS DATE)::TIMESTAMP) AS fecha
+          FROM "Compras" c
+          WHERE c.fecha_obtencion::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+        ),
+        resumen_ingresos AS (
+          SELECT COALESCE(SUM(COALESCE(f.total, 0)), 0) AS ingresos
+          FROM "Facturas" f
+          WHERE f.fecha_emision::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+        )
         SELECT *
         FROM (
           SELECT 'Compra de inventario'::TEXT AS accion, 'Inventario capitalizado'::TEXT AS clasificacion, c.fecha_obtencion AS fecha, COALESCE(c.cantidad, 0) * COALESCE(c.costo_unitario, 0) AS monto
@@ -226,11 +237,14 @@ export const getGananciasAdmin = async (req, res) => {
           WHERE orp.estado_aprobacion = 'APROBADO'
             AND COALESCE(f.fecha_emision, o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
           UNION ALL
-          SELECT 'Orden irreparable'::TEXT AS accion, 'Perdida real'::TEXT AS clasificacion, COALESCE(o.fecha_cierre, o.fecha_ingreso) AS fecha, COALESCE(f.mano_obra, 0) AS monto
-          FROM "Ordenes" o
-          LEFT JOIN "Facturas" f ON f.orden_id = o.id_orden
-          WHERE UPPER(COALESCE(o.estado, '')) = 'IRREPARABLE'
-            AND COALESCE(o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+          SELECT
+            'Deficit de ingresos del local'::TEXT AS accion,
+            'Perdida real de ingresos'::TEXT AS clasificacion,
+            rc.fecha AS fecha,
+            GREATEST(COALESCE(rc.compras_inventario, 0) - COALESCE(ri.ingresos, 0), 0) AS monto
+          FROM resumen_compras rc
+          CROSS JOIN resumen_ingresos ri
+          WHERE GREATEST(COALESCE(rc.compras_inventario, 0) - COALESCE(ri.ingresos, 0), 0) > 0
         ) perdidas
         ORDER BY fecha DESC NULLS LAST
         LIMIT 100
@@ -274,6 +288,21 @@ export const getGananciasAdmin = async (req, res) => {
         LIMIT 100
       `),
       prisma.$queryRaw(Prisma.sql`
+        WITH resumen_compras AS (
+          SELECT
+            COALESCE(SUM(COALESCE(c.cantidad, 0) * COALESCE(c.costo_unitario, 0)), 0) AS compras_inventario,
+            COUNT(*)::INT AS compras,
+            COALESCE(MAX(c.fecha_obtencion), CAST(${fechaFin} AS DATE)::TIMESTAMP) AS fecha
+          FROM "Compras" c
+          WHERE c.fecha_obtencion::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+        ),
+        resumen_ingresos AS (
+          SELECT
+            COALESCE(SUM(COALESCE(f.total, 0)), 0) AS ingresos,
+            COUNT(*)::INT AS facturas
+          FROM "Facturas" f
+          WHERE f.fecha_emision::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+        )
         SELECT *
         FROM (
           SELECT
@@ -300,23 +329,21 @@ export const getGananciasAdmin = async (req, res) => {
           UNION ALL
           SELECT
             'Perdida real'::TEXT AS tipo,
-            COALESCE(o.fecha_cierre, o.fecha_ingreso) AS fecha,
-            CONCAT('Orden #', o.id_orden)::TEXT AS referencia,
-            COALESCE(cl.nombre, 'Sin cliente')::TEXT AS cliente,
-            TRIM(CONCAT(COALESCE(e.tipo, 'Equipo'), ' ', COALESCE(e.marca, ''), ' ', COALESCE(e.modelo, '')))::TEXT AS equipo,
-            COALESCE(t.nombre, dt.nombre, 'Sin asignar')::TEXT AS tecnico,
-            'Orden irreparable'::TEXT AS concepto,
-            COALESCE(f.mano_obra, 0) AS monto,
-            COALESCE(NULLIF(o.justificacion_irreparable, ''), NULLIF(o.observacion_final, ''), NULLIF(o.resultado_final, ''), 'Orden marcada como irreparable.')::TEXT AS razon
-          FROM "Ordenes" o
-          JOIN "Diagnosticos" d ON d.id_diagnostico = o.diagnostico_id
-          JOIN "Equipos" e ON e.id_equipo = d.equipo_id
-          JOIN "Clientes" cl ON cl.id_cliente = e.cliente_id
-          LEFT JOIN "Facturas" f ON f.orden_id = o.id_orden
-          LEFT JOIN "Tecnicos" t ON t.id_tecnico = o.tecnico_id
-          LEFT JOIN "Tecnicos" dt ON dt.id_tecnico = d.tecnico_id
-          WHERE UPPER(COALESCE(o.estado, '')) = 'IRREPARABLE'
-            AND COALESCE(o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+            rc.fecha AS fecha,
+            CONCAT('Periodo ', CAST(${fechaInicio} AS DATE), ' a ', CAST(${fechaFin} AS DATE))::TEXT AS referencia,
+            '-'::TEXT AS cliente,
+            '-'::TEXT AS equipo,
+            '-'::TEXT AS tecnico,
+            'Deficit de ingresos del local'::TEXT AS concepto,
+            GREATEST(COALESCE(rc.compras_inventario, 0) - COALESCE(ri.ingresos, 0), 0) AS monto,
+            CONCAT(
+              'Ingresos facturados: ', COALESCE(ri.ingresos, 0),
+              ' / Compras e inversion de inventario: ', COALESCE(rc.compras_inventario, 0),
+              '. Esta perdida no depende de ordenes irreparables; refleja ingreso del local por debajo de la inversion del periodo.'
+            )::TEXT AS razon
+          FROM resumen_compras rc
+          CROSS JOIN resumen_ingresos ri
+          WHERE GREATEST(COALESCE(rc.compras_inventario, 0) - COALESCE(ri.ingresos, 0), 0) > 0
         ) fuentes
         ORDER BY monto DESC, fecha DESC NULLS LAST
         LIMIT 100
@@ -340,6 +367,7 @@ export const getGananciasAdmin = async (req, res) => {
         acc.facturas += Number(item.facturas) || 0;
         acc.compras += Number(item.compras) || 0;
         acc.ordenes_procesadas += Number(item.ordenes_procesadas) || 0;
+        acc.eventos_perdida += Number(item.eventos_perdida) || 0;
         acc.ordenes_irreparables += Number(item.ordenes_irreparables) || 0;
         return acc;
       },
@@ -355,6 +383,7 @@ export const getGananciasAdmin = async (req, res) => {
         facturas: 0,
         compras: 0,
         ordenes_procesadas: 0,
+        eventos_perdida: 0,
         ordenes_irreparables: 0,
       }
     );
@@ -378,8 +407,8 @@ export const getGananciasAdmin = async (req, res) => {
       Number(activos.repuestos_sin_stock || 0) > 0
         ? { nivel: 'medio', titulo: 'Inventario sin stock', detalle: `${activos.repuestos_sin_stock} repuestos activos estan sin unidades disponibles.` }
         : null,
-      totals.ordenes_irreparables > 0
-        ? { nivel: 'alto', titulo: 'Ordenes irreparables', detalle: `${totals.ordenes_irreparables} ordenes irreparables impactan el periodo.` }
+      totals.perdidas_reales > 0
+        ? { nivel: 'alto', titulo: 'Perdida real de ingresos', detalle: 'Las compras/inversiones del periodo superan lo facturado por el local.' }
         : null,
     ].filter(Boolean);
 

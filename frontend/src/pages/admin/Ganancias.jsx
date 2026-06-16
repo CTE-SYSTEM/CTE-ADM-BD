@@ -207,7 +207,7 @@ const buildGananciasReportSections = (reportData, periodKey) => {
   const summaryRows = [
     { label: 'Ingresos', value: formatCurrency(reportTotals.ingresos), detail: `${reportTotals.facturas || 0} facturas` },
     { label: 'Compras inventario', value: formatCurrency(reportTotals.compras_inventario), detail: `${reportTotals.compras || 0} compras capitalizadas` },
-    { label: 'Pérdidas reales', value: formatCurrency(reportTotals.perdidas_reales), detail: `${reportTotals.ordenes_irreparables || 0} órdenes irreparables` },
+    { label: 'Pérdidas reales', value: formatCurrency(reportTotals.perdidas_reales), detail: `${reportTotals.eventos_perdida || 0} compras en periodos con deficit` },
     { label: 'Ganancia neta', value: formatCurrency(reportTotals.ganancia_neta), detail: `Margen neto ${reportMarginPercent}%` },
     { label: 'Margen de servicios', value: formatCurrency(reportTotals.margen_servicio), detail: `${formatPercent(reportTotals.rentabilidad_porcentaje)} rentabilidad` },
   ];
@@ -357,7 +357,7 @@ export default function Ganancias() {
   const metricCards = useMemo(() => ([
     { key: 'ingresos', label: 'Ingresos', value: totals.ingresos, detail: `${totals.facturas || 0} facturas`, tone: 'emerald' },
     { key: 'compras_inventario', label: 'Compras inventario', value: totals.compras_inventario, detail: `${totals.compras || 0} compras capitalizadas`, tone: 'sky' },
-    { key: 'perdidas_reales', label: 'Pérdidas reales', value: totals.perdidas_reales, detail: `${totals.ordenes_irreparables || 0} órdenes irreparables`, tone: 'red' },
+    { key: 'perdidas_reales', label: 'Pérdidas reales', value: totals.perdidas_reales, detail: `${totals.eventos_perdida || 0} compras en periodos con deficit`, tone: 'red' },
     { key: 'ganancia_neta', label: balanceLabel, value: totals.ganancia_neta, detail: `Margen neto ${marginPercent}%`, tone: 'indigo' },
     { key: 'margen_servicio', label: 'Margen de servicios', value: totals.margen_servicio, detail: `${formatPercent(totals.rentabilidad_porcentaje)} rentabilidad`, tone: 'amber' },
   ]), [balanceLabel, marginPercent, totals]);
@@ -873,7 +873,7 @@ export default function Ganancias() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">Por que se perdio dinero</h2>
-                  <p className="text-sm text-gray-400">Costos consumidos, repuestos usados e irreparables con su razon operativa.</p>
+                  <p className="text-sm text-gray-400">Costos consumidos y deficit de ingresos del local con su razon operativa.</p>
                 </div>
                 <ExportActions
                   disabled={downloading || lossSources.length === 0}

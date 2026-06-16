@@ -21,9 +21,11 @@ const filtros = [
   { id: 'en-revision', label: 'En revisión' },
   { id: 'listos-orden', label: 'Listos para orden' },
   { id: 'en-reparacion', label: 'En reparación' },
+  { id: 'esperando-pieza', label: 'Esperando pieza' },
   { id: 'listos-facturar', label: 'Listos para facturar' },
   { id: 'entregados', label: 'Entregados' },
   { id: 'con-garantia', label: 'Con garantía' },
+  { id: 'rechazados', label: 'Rechazados' },
 ];
 
 const pasos = [
@@ -41,9 +43,11 @@ const estadoColor = {
   'en-revision': 'bg-sky-50 text-sky-700 border-sky-200',
   'listos-orden': 'bg-violet-50 text-violet-700 border-violet-200',
   'en-reparacion': 'bg-blue-50 text-blue-700 border-blue-200',
+  'esperando-pieza': 'bg-orange-50 text-orange-700 border-orange-200',
   'listos-facturar': 'bg-rose-50 text-rose-700 border-rose-200',
   entregados: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   'con-garantia': 'bg-teal-50 text-teal-700 border-teal-200',
+  rechazados: 'bg-slate-100 text-slate-700 border-slate-300',
 };
 
 const hasStep = (item, key) => {

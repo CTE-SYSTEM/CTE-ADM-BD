@@ -792,6 +792,21 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   RETURN QUERY
+  WITH resumen_compras AS (
+    SELECT
+      COALESCE(SUM(COALESCE(c.cantidad, 0) * COALESCE(c.costo_unitario, 0)), 0) AS compras_inventario,
+      COUNT(*)::INT AS compras,
+      COALESCE(MAX(c.fecha_obtencion), p_fecha_fin::TIMESTAMP) AS fecha
+    FROM "Compras" c
+    WHERE c.fecha_obtencion::DATE BETWEEN p_fecha_inicio AND p_fecha_fin
+  ),
+  resumen_ingresos AS (
+    SELECT
+      COALESCE(SUM(COALESCE(f.total, 0)), 0) AS ingresos,
+      COUNT(*)::INT AS facturas
+    FROM "Facturas" f
+    WHERE f.fecha_emision::DATE BETWEEN p_fecha_inicio AND p_fecha_fin
+  )
   SELECT *
   FROM (
     SELECT
@@ -818,23 +833,21 @@ BEGIN
     UNION ALL
     SELECT
       'Perdida real'::TEXT AS tipo,
-      COALESCE(o.fecha_cierre, o.fecha_ingreso) AS fecha,
-      CONCAT('Orden #', o.id_orden)::TEXT AS referencia,
-      COALESCE(cl.nombre, 'Sin cliente')::TEXT AS cliente,
-      TRIM(CONCAT(COALESCE(e.tipo, 'Equipo'), ' ', COALESCE(e.marca, ''), ' ', COALESCE(e.modelo, '')))::TEXT AS equipo,
-      COALESCE(t.nombre, dt.nombre, 'Sin asignar')::TEXT AS tecnico,
-      'Orden irreparable'::TEXT AS concepto,
-      COALESCE(f.mano_obra, 0) AS monto,
-      COALESCE(NULLIF(o.justificacion_irreparable, ''), NULLIF(o.observacion_final, ''), NULLIF(o.resultado_final, ''), 'Orden marcada como irreparable.')::TEXT AS razon
-    FROM "Ordenes" o
-    JOIN "Diagnosticos" d ON d.id_diagnostico = o.diagnostico_id
-    JOIN "Equipos" e ON e.id_equipo = d.equipo_id
-    JOIN "Clientes" cl ON cl.id_cliente = e.cliente_id
-    LEFT JOIN "Facturas" f ON f.orden_id = o.id_orden
-    LEFT JOIN "Tecnicos" t ON t.id_tecnico = o.tecnico_id
-    LEFT JOIN "Tecnicos" dt ON dt.id_tecnico = d.tecnico_id
-    WHERE UPPER(COALESCE(o.estado, '')) = 'IRREPARABLE'
-      AND COALESCE(o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN p_fecha_inicio AND p_fecha_fin
+      rc.fecha AS fecha,
+      CONCAT('Periodo ', p_fecha_inicio, ' a ', p_fecha_fin)::TEXT AS referencia,
+      '-'::TEXT AS cliente,
+      '-'::TEXT AS equipo,
+      '-'::TEXT AS tecnico,
+      'Deficit de ingresos del local'::TEXT AS concepto,
+      GREATEST(COALESCE(rc.compras_inventario, 0) - COALESCE(ri.ingresos, 0), 0) AS monto,
+      CONCAT(
+        'Ingresos facturados: ', COALESCE(ri.ingresos, 0),
+        ' / Compras e inversion de inventario: ', COALESCE(rc.compras_inventario, 0),
+        '. Esta perdida no depende de ordenes irreparables; refleja ingreso del local por debajo de la inversion del periodo.'
+      )::TEXT AS razon
+    FROM resumen_compras rc
+    CROSS JOIN resumen_ingresos ri
+    WHERE GREATEST(COALESCE(rc.compras_inventario, 0) - COALESCE(ri.ingresos, 0), 0) > 0
   ) fuentes
   ORDER BY monto DESC, fecha DESC NULLS LAST
   LIMIT GREATEST(COALESCE(p_limite, 100), 1);

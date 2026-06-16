@@ -3,15 +3,31 @@ import prisma from '../app/prismaClient.js';
 const upper = (value) => String(value || '').toUpperCase();
 
 const getFiltroFlujo = ({ diagnostico, orden, repuestosPendientes, factura, garantia }) => {
+  const estadoDiagnostico = upper(diagnostico?.estado_del_diagnostico);
+  const estadoOrden = upper(orden?.estado);
+
   if (factura && garantia) return 'con-garantia';
   if (factura) return 'entregados';
-  if (orden && ['FINALIZADO', 'IRREPARABLE'].includes(upper(orden.estado))) return 'listos-facturar';
-  if (orden) return 'en-reparacion';
-  if (['COMPLETADO', 'DIAGNOSTICADO'].includes(upper(diagnostico?.estado_del_diagnostico))) return 'listos-orden';
-  if (['PENDIENTE', 'INGRESADO', 'EN_REVISION'].includes(upper(diagnostico?.estado_del_diagnostico))) return 'en-revision';
-  if (repuestosPendientes > 0) return 'pendientes';
+
+  if (orden) {
+    if (['ENTREGADO'].includes(estadoOrden)) return 'entregados';
+    if (['FINALIZADO', 'IRREPARABLE'].includes(estadoOrden)) return 'listos-facturar';
+    if (estadoOrden === 'ESPERANDO_PIEZA' || repuestosPendientes > 0) return 'esperando-pieza';
+    if (['EN_REPARACION', 'APROBADO'].includes(estadoOrden)) return 'en-reparacion';
+    return 'pendientes';
+  }
+
+  if (['COMPLETADO', 'DIAGNOSTICADO', 'APROBADO'].includes(estadoDiagnostico)) return 'listos-orden';
+  if (estadoDiagnostico === 'EN_REVISION') return 'en-revision';
+  if (estadoDiagnostico === 'RECHAZADO') return 'rechazados';
   return 'pendientes';
 };
+
+const buildResumen = (items) => items.reduce((acc, item) => {
+  acc[item.filtro] = (acc[item.filtro] || 0) + 1;
+  acc.todos += 1;
+  return acc;
+}, { todos: 0 });
 
 const mapOrden = (orden) => {
   if (!orden) return null;
@@ -118,7 +134,8 @@ export const obtenerFlujoAtencion = async ({ filtro = 'todos', search = '' } = {
     };
   });
 
-  return items.filter((item) => {
+  const resumen = buildResumen(items);
+  const data = items.filter((item) => {
     const matchesFiltro = filtro === 'todos' || item.filtro === filtro;
     if (!matchesFiltro) return false;
     if (!normalizedSearch) return true;
@@ -131,12 +148,18 @@ export const obtenerFlujoAtencion = async ({ filtro = 'todos', search = '' } = {
       item.equipo?.tipo,
       item.equipo?.numero_serie,
       item.diagnostico?.falla_reportada,
+      item.diagnostico?.estado,
+      item.diagnostico?.aprobacion,
       item.orden?.id_orden,
+      item.orden?.estado,
       item.factura?.id_factura,
+      item.filtro,
     ].filter(Boolean).join(' ').toLowerCase();
 
     return haystack.includes(normalizedSearch);
   });
+
+  return { data, resumen };
 };
 
 export default {
