@@ -2,6 +2,7 @@ import { Router } from 'express';
 import authMiddleware from '../../../middlewares/authMiddleware.js';
 import { onlyAdminPro } from '../../../controllers/admin_pro/accessController.js';
 import { getEquiposAvanzado, getEquipoUltimoDiagnostico, updateEquipoAdmin } from '../../../controllers/admin_pro/equiposController.js';
+import { updateClienteAdmin } from '../../../controllers/admin_pro/clientesController.js';
 import { getRepuestosAvanzado, updateRepuestoAdmin } from '../../../controllers/admin_pro/repuestosController.js';
 import {
   getOrdenesAvanzado,
@@ -41,6 +42,7 @@ router.use(authMiddleware);
 router.use(onlyAdminPro);
 
 router.get('/equipos', getEquiposAvanzado);
+router.put('/clientes/:id', updateClienteAdmin);
 router.get('/equipos/:id/historial', getHistorialEquipo);
 router.put('/equipos/:id', updateEquipoAdmin);
 router.get('/repuestos', getRepuestosAvanzado);

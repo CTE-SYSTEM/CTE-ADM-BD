@@ -33,27 +33,87 @@ const normalizeExcelValue = (value) => {
   return { type: 'string', value: String(value) };
 };
 
-const buildExcelCell = (value, rowIndex, columnIndex) => {
-  const cellRef = `${getColumnName(columnIndex)}${rowIndex}`;
-  const normalized = normalizeExcelValue(value);
-
-  if (normalized.type === 'number') {
-    return `<c r="${cellRef}"><v>${normalized.value}</v></c>`;
-  }
-
-  return `<c r="${cellRef}" t="inlineStr"><is><t>${escapeXml(normalized.value)}</t></is></c>`;
+const EXCEL_STYLE = {
+  default: 0,
+  title: 1,
+  subtitle: 2,
+  summaryLabel: 3,
+  summaryValue: 4,
+  header: 5,
+  text: 6,
+  textAlt: 7,
+  number: 8,
+  numberAlt: 9,
 };
 
-const buildWorksheetXml = (rows, columns) => {
-  const headerRow = `<row r="1">${columns.map((column, columnIndex) => buildExcelCell(column.header, 1, columnIndex)).join('')}</row>`;
+const buildExcelCell = (value, rowIndex, columnIndex, styleId = EXCEL_STYLE.default) => {
+  const cellRef = `${getColumnName(columnIndex)}${rowIndex}`;
+  const normalized = normalizeExcelValue(value);
+  const style = styleId ? ` s="${styleId}"` : '';
+
+  if (normalized.type === 'number') {
+    return `<c r="${cellRef}"${style}><v>${normalized.value}</v></c>`;
+  }
+
+  return `<c r="${cellRef}"${style} t="inlineStr"><is><t>${escapeXml(normalized.value)}</t></is></c>`;
+};
+
+const buildColumnWidths = (rows, columns) => columns.map((column, index) => {
+  const maxContent = rows.reduce((max, row) => {
+    const value = normalizeExcelValue(row[column.accessor]).value;
+    return Math.max(max, String(value).length);
+  }, String(column.header || '').length);
+  const width = Math.min(Math.max(maxContent + 4, 14), 42);
+  return `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`;
+}).join('');
+
+const buildWorksheetXml = (rows, columns, options = {}) => {
+  const title = options.title || 'Reporte';
+  const generatedAt = formatReportDate();
+  const summaries = getNumericSummaries(rows, columns);
+  const columnCount = Math.max(columns.length, 1);
+  const lastColumn = getColumnName(columnCount - 1);
+  const headerRowIndex = summaries.length ? 4 + summaries.length + 1 : 4;
+  const headerRow = `<row r="${headerRowIndex}" ht="22" customHeight="1">${columns.map((column, columnIndex) => buildExcelCell(column.header, headerRowIndex, columnIndex, EXCEL_STYLE.header)).join('')}</row>`;
   const dataRows = rows.map((row, rowIndex) => {
-    const excelRowIndex = rowIndex + 2;
-    return `<row r="${excelRowIndex}">${columns.map((column, columnIndex) => buildExcelCell(row[column.accessor], excelRowIndex, columnIndex)).join('')}</row>`;
+    const excelRowIndex = rowIndex + headerRowIndex + 1;
+    const rowStyle = rowIndex % 2 === 0 ? EXCEL_STYLE.text : EXCEL_STYLE.textAlt;
+    return `<row r="${excelRowIndex}">${columns.map((column, columnIndex) => {
+      const normalized = normalizeExcelValue(row[column.accessor]);
+      const style = normalized.type === 'number'
+        ? (rowIndex % 2 === 0 ? EXCEL_STYLE.number : EXCEL_STYLE.numberAlt)
+        : rowStyle;
+      return buildExcelCell(row[column.accessor], excelRowIndex, columnIndex, style);
+    }).join('')}</row>`;
   }).join('');
+  const summaryRows = summaries.map((summary, index) => {
+    const rowIndex = 4 + index;
+    return `<row r="${rowIndex}">${buildExcelCell(summary.label, rowIndex, 0, EXCEL_STYLE.summaryLabel)}${buildExcelCell(summary.value, rowIndex, 1, EXCEL_STYLE.summaryValue)}</row>`;
+  }).join('');
+  const mergeCells = columnCount > 1
+    ? [
+      `<mergeCell ref="A1:${lastColumn}1"/>`,
+      `<mergeCell ref="A2:${lastColumn}2"/>`,
+    ]
+    : [];
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <sheetData>${headerRow}${dataRows}</sheetData>
+  <dimension ref="A1:${lastColumn}${Math.max(headerRowIndex + rows.length, headerRowIndex)}"/>
+  <sheetViews>
+    <sheetView workbookViewId="0">
+      <pane ySplit="${headerRowIndex}" topLeftCell="A${headerRowIndex + 1}" activePane="bottomLeft" state="frozen"/>
+    </sheetView>
+  </sheetViews>
+  <cols>${buildColumnWidths(rows, columns)}</cols>
+  <sheetData>
+    <row r="1" ht="26" customHeight="1">${buildExcelCell(title, 1, 0, EXCEL_STYLE.title)}</row>
+    <row r="2">${buildExcelCell(`Centro Tecnico Electronico - Admin Pro | Generado: ${generatedAt} | ${rows.length} registros`, 2, 0, EXCEL_STYLE.subtitle)}</row>
+    ${summaries.length ? `<row r="3">${buildExcelCell('Resumen del reporte', 3, 0, EXCEL_STYLE.summaryLabel)}</row>${summaryRows}` : ''}
+    ${headerRow}${dataRows}
+  </sheetData>
+  <autoFilter ref="A${headerRowIndex}:${lastColumn}${Math.max(headerRowIndex + rows.length, headerRowIndex)}"/>
+  ${mergeCells.length ? `<mergeCells count="${mergeCells.length}">${mergeCells.join('')}</mergeCells>` : ''}
 </worksheet>`;
 };
 
@@ -158,8 +218,50 @@ const createZip = (files) => {
   return concatBytes([...localParts, centralDirectory, endHeader]);
 };
 
-const serializeExcel = (rows, columns) => {
-  const worksheetXml = buildWorksheetXml(rows, columns);
+const excelStylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="1">
+    <numFmt numFmtId="164" formatCode="#,##0.00"/>
+  </numFmts>
+  <fonts count="4">
+    <font><sz val="10"/><color rgb="FF334155"/><name val="Calibri"/></font>
+    <font><b/><sz val="15"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+    <font><sz val="10"/><color rgb="FFCBD5E1"/><name val="Calibri"/></font>
+    <font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="6">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF0F172A"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF4F46E5"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF8FAFC"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFEFF6FF"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="3">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border><left style="thin"><color rgb="FFE2E8F0"/></left><right style="thin"><color rgb="FFE2E8F0"/></right><top style="thin"><color rgb="FFE2E8F0"/></top><bottom style="thin"><color rgb="FFE2E8F0"/></bottom><diagonal/></border>
+    <border><bottom style="medium"><color rgb="FF4F46E5"/></bottom></border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="10">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="4" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="164" fontId="0" fillId="4" borderId="2" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>
+    <xf numFmtId="164" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+  <dxfs count="0"/>
+  <tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>
+</styleSheet>`;
+
+const serializeExcel = (rows, columns, options = {}) => {
+  const worksheetXml = buildWorksheetXml(rows, columns, options);
 
   return createZip([
     {
@@ -170,6 +272,7 @@ const serializeExcel = (rows, columns) => {
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
   <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 </Types>`,
     },
     {
@@ -193,7 +296,12 @@ const serializeExcel = (rows, columns) => {
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`,
+    },
+    {
+      name: 'xl/styles.xml',
+      content: excelStylesXml,
     },
     {
       name: 'xl/worksheets/sheet1.xml',
@@ -375,8 +483,7 @@ const drawEmptySection = (doc, y) => {
   return y + 8;
 };
 
-export const downloadJsonCsv = (rows, columns, filename) => {
-  const excel = serializeExcel(rows, columns);
+const saveExcel = (excel, filename) => {
   const excelFilename = filename.replace(/\.(csv|xls)$/i, '.xlsx');
   const blob = new Blob([excel], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
@@ -388,6 +495,11 @@ export const downloadJsonCsv = (rows, columns, filename) => {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+};
+
+export const downloadJsonCsv = (rows, columns, filename, title = 'Reporte') => {
+  const excel = serializeExcel(rows, columns, { title });
+  saveExcel(excel, filename);
 };
 
 export const downloadJsonPdf = (rows, columns, filename, title = 'Reporte') => {
@@ -520,4 +632,118 @@ export const downloadSectionedPdf = ({
 
   drawFooter(doc);
   doc.save(filename);
+};
+
+const buildSectionedWorksheetXml = ({ title, description, metadata, sections }) => {
+  const generatedAt = formatReportDate();
+  const maxColumns = Math.max(1, ...sections.map((section) => section.columns?.length || 1));
+  const lastColumn = getColumnName(maxColumns - 1);
+  const rowsXml = [
+    `<row r="1" ht="26" customHeight="1">${buildExcelCell(title, 1, 0, EXCEL_STYLE.title)}</row>`,
+    `<row r="2">${buildExcelCell(`Centro Tecnico Electronico - Admin Pro | Generado: ${generatedAt}`, 2, 0, EXCEL_STYLE.subtitle)}</row>`,
+  ];
+  let rowIndex = 3;
+
+  if (description) {
+    rowsXml.push(`<row r="${rowIndex}">${buildExcelCell(description, rowIndex, 0, EXCEL_STYLE.text)}</row>`);
+    rowIndex += 1;
+  }
+
+  (metadata || []).forEach((item) => {
+    rowsXml.push(`<row r="${rowIndex}">${buildExcelCell(item.label, rowIndex, 0, EXCEL_STYLE.summaryLabel)}${buildExcelCell(item.value, rowIndex, 1, EXCEL_STYLE.summaryValue)}</row>`);
+    rowIndex += 1;
+  });
+
+  rowIndex += 1;
+
+  (sections || []).forEach((section) => {
+    rowsXml.push(`<row r="${rowIndex}" ht="22" customHeight="1">${buildExcelCell(section.title, rowIndex, 0, EXCEL_STYLE.title)}</row>`);
+    rowIndex += 1;
+
+    rowsXml.push(`<row r="${rowIndex}">${(section.columns || []).map((column, columnIndex) => buildExcelCell(column.header, rowIndex, columnIndex, EXCEL_STYLE.header)).join('')}</row>`);
+    rowIndex += 1;
+
+    if (!section.rows?.length) {
+      rowsXml.push(`<row r="${rowIndex}">${buildExcelCell('Sin registros para este periodo.', rowIndex, 0, EXCEL_STYLE.textAlt)}</row>`);
+      rowIndex += 1;
+    } else {
+      section.rows.forEach((row, index) => {
+        rowsXml.push(`<row r="${rowIndex}">${section.columns.map((column, columnIndex) => {
+          const normalized = normalizeExcelValue(row[column.accessor]);
+          const style = normalized.type === 'number'
+            ? (index % 2 === 0 ? EXCEL_STYLE.number : EXCEL_STYLE.numberAlt)
+            : (index % 2 === 0 ? EXCEL_STYLE.text : EXCEL_STYLE.textAlt);
+          return buildExcelCell(row[column.accessor], rowIndex, columnIndex, style);
+        }).join('')}</row>`);
+        rowIndex += 1;
+      });
+    }
+
+    rowIndex += 1;
+  });
+
+  const mergeCells = maxColumns > 1
+    ? [
+      `<mergeCell ref="A1:${lastColumn}1"/>`,
+      `<mergeCell ref="A2:${lastColumn}2"/>`,
+    ]
+    : [];
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:${lastColumn}${Math.max(rowIndex, 2)}"/>
+  <sheetViews><sheetView workbookViewId="0"/></sheetViews>
+  <cols>${Array.from({ length: maxColumns }, (_, index) => `<col min="${index + 1}" max="${index + 1}" width="${index === 0 ? 24 : 20}" customWidth="1"/>`).join('')}</cols>
+  <sheetData>${rowsXml.join('')}</sheetData>
+  ${mergeCells.length ? `<mergeCells count="${mergeCells.length}">${mergeCells.join('')}</mergeCells>` : ''}
+</worksheet>`;
+};
+
+export const downloadSectionedExcel = ({
+  title = 'Reporte general',
+  filename = 'reporte_general.xlsx',
+  description = '',
+  metadata = [],
+  sections = [],
+}) => {
+  const worksheetXml = buildSectionedWorksheetXml({ title, description, metadata, sections });
+  const excel = createZip([
+    {
+      name: '[Content_Types].xml',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`,
+    },
+    {
+      name: '_rels/.rels',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`,
+    },
+    {
+      name: 'xl/workbook.xml',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="Reporte" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`,
+    },
+    {
+      name: 'xl/_rels/workbook.xml.rels',
+      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`,
+    },
+    { name: 'xl/styles.xml', content: excelStylesXml },
+    { name: 'xl/worksheets/sheet1.xml', content: worksheetXml },
+  ]);
+
+  saveExcel(excel, filename);
 };

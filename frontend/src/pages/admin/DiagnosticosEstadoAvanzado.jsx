@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
-import { downloadJsonPdf } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 const reportColumns = [
   { header: 'Estado', accessor: 'estado' },
@@ -147,6 +147,17 @@ export default function DiagnosticosEstadoAvanzado() {
     }
   };
 
+  const downloadReportExcel = () => {
+    setDownloading(true);
+    try {
+      downloadJsonCsv(filteredDiagnosticos, diagnosticoColumnsBase, 'diagnosticos_general.xlsx', 'Reporte General de Diagnosticos');
+    } catch (err) {
+      setError('No se pudo descargar el reporte general en Excel.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleUpdateDiagnostico = async (event) => {
     event.preventDefault();
     if (!editingDiagnostico) return;
@@ -207,6 +218,9 @@ export default function DiagnosticosEstadoAvanzado() {
             <span className="text-xs font-bold text-gray-500 uppercase block">Hasta</span>
             <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500" />
           </label>
+          <button type="button" onClick={downloadReportExcel} disabled={downloading || filteredDiagnosticos.length === 0} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300">
+            Excel
+          </button>
           <button type="button" onClick={downloadReportPdf} disabled={downloading || filteredDiagnosticos.length === 0} className="rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-bold text-white hover:bg-slate-800 disabled:bg-slate-300">
             PDF
           </button>

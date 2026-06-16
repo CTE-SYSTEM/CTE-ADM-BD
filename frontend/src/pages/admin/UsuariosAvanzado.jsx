@@ -3,7 +3,7 @@ import api from '../../services/api';
 import Table from '../../components/Table';
 import { AuthContext } from '../../context/AuthContext';
 import { Plus, X } from 'lucide-react';
-import { downloadJsonPdf } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 const ASSIGNABLE_ROLES = ['Secretaria', 'TecnicoJefe', 'Tecnico'];
 const PASSWORD_ADMIN_ROLES = ['admin_pro', 'Administrador', 'Admin'];
@@ -274,8 +274,11 @@ export default function UsuariosAvanzado() {
   }, [usuarios, searchText]);
 
   const userReportColumns = columns.filter((column) => column.accessor !== 'acciones');
-  const downloadGeneralReport = () => {
+  const downloadGeneralPdf = () => {
     downloadJsonPdf(filteredUsuarios, userReportColumns, 'usuarios_general.pdf', 'Reporte General de Usuarios');
+  };
+  const downloadGeneralExcel = () => {
+    downloadJsonCsv(filteredUsuarios, userReportColumns, 'usuarios_general.xlsx', 'Reporte General de Usuarios');
   };
 
   return (
@@ -289,11 +292,19 @@ export default function UsuariosAvanzado() {
         <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={downloadGeneralReport}
+          onClick={downloadGeneralExcel}
+          disabled={filteredUsuarios.length === 0}
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-400"
+        >
+          Excel
+        </button>
+        <button
+          type="button"
+          onClick={downloadGeneralPdf}
           disabled={filteredUsuarios.length === 0}
           className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-400 disabled:bg-slate-700 disabled:text-slate-400"
         >
-          Generar Reporte General
+          PDF
         </button>
         <button
           type="button"

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
-import { downloadJsonPdf } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 // Columnas principales de la tabla de órdenes maestras
 const columns = [
@@ -184,8 +184,11 @@ export default function OrdenesAvanzado() {
   }, [ordenes, searchText]);
 
   const reportColumns = columns.filter((column) => column.accessor !== 'acciones');
-  const downloadGeneralReport = () => {
+  const downloadGeneralPdf = () => {
     downloadJsonPdf(filteredOrdenes, reportColumns, 'ordenes_general.pdf', 'Reporte General de Ordenes');
+  };
+  const downloadGeneralExcel = () => {
+    downloadJsonCsv(filteredOrdenes, reportColumns, 'ordenes_general.xlsx', 'Reporte General de Ordenes');
   };
 
   const ordenesWithActions = useMemo(() => (
@@ -210,14 +213,24 @@ export default function OrdenesAvanzado() {
           <h1 className="text-2xl font-bold text-slate-800">Gestión avanzada de órdenes</h1>
           <p className="text-gray-400 text-sm mt-0.5">Supervisa el estado de órdenes en taller, técnicos asignados y repuestos vinculados.</p>
         </div>
-        <button
-          type="button"
-          onClick={downloadGeneralReport}
-          disabled={filteredOrdenes.length === 0}
-          className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:bg-slate-300"
-        >
-          Generar Reporte General
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={downloadGeneralExcel}
+            disabled={filteredOrdenes.length === 0}
+            className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:bg-slate-300"
+          >
+            Excel
+          </button>
+          <button
+            type="button"
+            onClick={downloadGeneralPdf}
+            disabled={filteredOrdenes.length === 0}
+            className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:bg-slate-300"
+          >
+            PDF
+          </button>
+        </div>
       </div>
 
       {/* Grid de KPIs Superiores */}

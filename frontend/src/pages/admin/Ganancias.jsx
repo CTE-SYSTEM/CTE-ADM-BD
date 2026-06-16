@@ -4,7 +4,7 @@ import MetricBarChart from '../../components/MetricBarChart';
 import Table from '../../components/Table';
 import useResponsiveLayout from '../../features/responsive/useResponsiveLayout';
 import api from '../../services/api';
-import { downloadJsonCsv, downloadJsonPdf, downloadSectionedPdf } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf, downloadSectionedExcel, downloadSectionedPdf } from '../../utils/csvExport';
 
 const currentYear = new Date().getFullYear();
 const padDatePart = (value) => String(value).padStart(2, '0');
@@ -130,7 +130,7 @@ const sectionOptions = [
   { id: 'costos', label: 'Costos y perdidas', hint: 'Acciones financieras' },
   { id: 'rentabilidad', label: 'Rentabilidad', hint: 'Etapas del periodo' },
   { id: 'movimientos', label: 'Movimientos', hint: 'Ingresos y gastos' },
-  { id: 'reporte-general', label: 'Reporte general', hint: 'PDF completo' },
+  { id: 'reporte-general', label: 'Reporte general', hint: 'PDF o Excel completo' },
 ];
 
 const normalizeSearchText = (value) =>
@@ -593,6 +593,39 @@ export default function Ganancias() {
     }
   };
 
+  const downloadGeneralGananciasExcel = async () => {
+    setDownloading(true);
+    setError('');
+
+    try {
+      const query = new URLSearchParams();
+      query.set('fecha_inicio', generalReportRange.from);
+      query.set('fecha_fin', generalReportRange.to);
+      query.set('detalle_limite', '100');
+
+      const res = await api.get(`/admin_pro/analitica/ganancias?${query.toString()}`);
+      const reportData = res.data?.data || {};
+      const sections = buildGananciasReportSections(reportData, generalReportRange.periodKey);
+
+      downloadSectionedExcel({
+        title: 'Reporte General de Ganancias',
+        filename: `ganancias_reporte_general_${generalReportRange.from}_${generalReportRange.to}.xlsx`,
+        description: 'Reporte completo del modulo de ganancias con resumen, alertas, margenes, activos, costos, rentabilidad y movimientos.',
+        metadata: [
+          { label: 'Periodo', value: generalReportRange.label },
+          { label: 'Desde', value: generalReportRange.from },
+          { label: 'Hasta', value: generalReportRange.to },
+          { label: 'Detalle', value: 'Hasta 100 movimientos recientes' },
+        ],
+        sections,
+      });
+    } catch {
+      setError('No se pudo generar el reporte general de ganancias en Excel.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className={responsive.pageClassName}>
       <div>
@@ -995,6 +1028,16 @@ export default function Ganancias() {
                     className="mt-1.5 w-full rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
+
+                <button
+                  type="button"
+                  onClick={downloadGeneralGananciasExcel}
+                  disabled={downloading || loading || !generalReportDate}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 sm:w-auto"
+                >
+                  <FileDown size={16} strokeWidth={2.4} aria-hidden="true" />
+                  Generar Excel completo
+                </button>
 
                 <button
                   type="button"

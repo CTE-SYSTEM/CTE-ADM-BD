@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
-import { downloadJsonPdf } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 const DIAGNOSTICO_ESTADOS = ['PENDIENTE', 'INGRESADO', 'EN_REVISION', 'DIAGNOSTICADO', 'COMPLETADO', 'APROBADO', 'RECHAZADO'];
 const ORDEN_ESTADOS = ['PENDIENTE', 'APROBADO', 'EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'IRREPARABLE', 'ENTREGADO'];
@@ -150,8 +150,7 @@ export default function HistorialEquipo() {
     setToDate(toInputDate(now));
   };
 
-  const downloadHistorialPdf = () => {
-    const rows = filteredHistorialItems.map((item) => ({
+  const getHistorialExportRows = () => filteredHistorialItems.map((item) => ({
       fecha: item.fecha ? new Date(item.fecha).toLocaleString() : '-',
       tipo: item.tipo,
       referencia: item.titulo,
@@ -159,14 +158,22 @@ export default function HistorialEquipo() {
       tecnico: item.tecnico,
       detalle: item.descripcion,
     }));
-    downloadJsonPdf(rows, [
+
+  const historialExportColumns = [
       { header: 'Fecha', accessor: 'fecha' },
       { header: 'Tipo', accessor: 'tipo' },
       { header: 'Referencia', accessor: 'referencia' },
       { header: 'Estado', accessor: 'estado' },
       { header: 'Tecnico', accessor: 'tecnico' },
       { header: 'Detalle', accessor: 'detalle' },
-    ], `historial_equipo_${selectedEquipo?.id_equipo || 'sin_equipo'}.pdf`, 'Historial de equipo');
+  ];
+
+  const downloadHistorialPdf = () => {
+    downloadJsonPdf(getHistorialExportRows(), historialExportColumns, `historial_equipo_${selectedEquipo?.id_equipo || 'sin_equipo'}.pdf`, 'Historial de equipo');
+  };
+
+  const downloadHistorialExcel = () => {
+    downloadJsonCsv(getHistorialExportRows(), historialExportColumns, `historial_equipo_${selectedEquipo?.id_equipo || 'sin_equipo'}.xlsx`, 'Historial de equipo');
   };
 
   const openEdit = (item) => {
@@ -337,6 +344,7 @@ export default function HistorialEquipo() {
             ))}
             <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs text-slate-700" />
             <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} className="rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs text-slate-700" />
+            <button type="button" onClick={downloadHistorialExcel} disabled={!selectedEquipo || filteredHistorialItems.length === 0} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300">Excel</button>
             <button type="button" onClick={downloadHistorialPdf} disabled={!selectedEquipo || filteredHistorialItems.length === 0} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:bg-slate-300">PDF</button>
             {selectedEquipo && <span className="rounded-xl bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">Equipo #{selectedEquipo.id_equipo}</span>}
           </div>

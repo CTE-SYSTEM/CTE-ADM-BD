@@ -107,7 +107,7 @@ export default function ClientesAvanzado() {
     setEditLoading(true);
     setEditMessage('');
     try {
-      await api.put(`/clientes/${editingCliente.id_cliente}`, {
+      await api.put(`/admin_pro/clientes/${editingCliente.id_cliente}`, {
         nombre: editingCliente.nombre,
         telefono: editingCliente.telefono,
         direccion: editingCliente.direccion,

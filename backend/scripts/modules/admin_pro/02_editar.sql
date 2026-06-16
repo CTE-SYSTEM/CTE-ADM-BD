@@ -90,7 +90,7 @@ RETURNS JSON AS $$
 DECLARE
     v_usuario_existe BOOLEAN;
 BEGIN
-    IF p_actor_rol IS DISTINCT FROM 'admin_pro' THEN
+    IF p_actor_rol NOT IN ('admin_pro', 'Administrador', 'Admin') THEN
         RETURN json_build_object('error', 'Solo admin_pro puede cambiar contrasenas de usuarios');
     END IF;
 

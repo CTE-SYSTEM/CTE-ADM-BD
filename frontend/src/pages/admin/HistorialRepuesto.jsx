@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
-import { downloadJsonPdf } from '../../utils/csvExport';
+import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
 
 // Extraídas fuera del componente para evitar recreaciones redundantes en memoria
 const columns = [
@@ -130,6 +130,10 @@ export default function HistorialRepuesto() {
     downloadJsonPdf(historialFiltrado, columns, `historial_repuesto_${selectedRepuestoId || 'sin_repuesto'}.pdf`, 'Historial de repuesto');
   };
 
+  const downloadHistorialExcel = () => {
+    downloadJsonCsv(historialFiltrado, columns, `historial_repuesto_${selectedRepuestoId || 'sin_repuesto'}.xlsx`, 'Historial de repuesto');
+  };
+
   return (
     <div className="p-4 space-y-6 max-w-7xl mx-auto">
       
@@ -175,6 +179,7 @@ export default function HistorialRepuesto() {
           ))}
           <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs text-slate-700" />
           <input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} className="rounded-xl border border-gray-200 bg-slate-50 px-3 py-2 text-xs text-slate-700" />
+          <button type="button" onClick={downloadHistorialExcel} disabled={!selectedRepuestoId || historialFiltrado.length === 0} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:bg-slate-300">Excel</button>
           <button type="button" onClick={downloadHistorialPdf} disabled={!selectedRepuestoId || historialFiltrado.length === 0} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:bg-slate-300">PDF</button>
         </div>
         </div>

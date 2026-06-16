@@ -106,12 +106,18 @@ export const updateUsuarioPassword = async (req, res) => {
       return res.status(400).json({ error: 'La nueva contrasena debe tener al menos 6 caracteres' });
     }
 
-    const hash = await bcrypt.hash(String(password), 10);
-    const [result] = await prisma.$queryRaw(Prisma.sql`
-      SELECT admin_pro.cambiar_password_usuario(${req.user?.rol}, ${Number(id)}, ${hash}) AS data
-    `);
+    const usuario = await prisma.usuarios.findUnique({
+      where: { id_usuario: Number(id) },
+      select: { id_usuario: true },
+    });
 
-    if (result?.data?.error) return res.status(400).json({ error: result.data.error });
+    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    const hash = await bcrypt.hash(String(password), 10);
+    await prisma.usuarios.update({
+      where: { id_usuario: Number(id) },
+      data: { contrasena_hash: hash },
+    });
 
     res.json({ message: 'Contrasena actualizada correctamente' });
   } catch (error) {
