@@ -69,7 +69,7 @@
 
 .admin-scroll-wrapper {
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 
 .admin-table-top-scrollbar::-webkit-scrollbar {
@@ -87,4 +87,28 @@
 
 .admin-table-top-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Estilos para scrollbar vertical en tablas admin */
+.admin-scroll-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-scroll-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.admin-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Firefox */
+.admin-scroll-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
 }
