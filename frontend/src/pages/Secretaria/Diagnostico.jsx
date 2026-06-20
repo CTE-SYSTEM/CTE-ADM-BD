@@ -1,9 +1,9 @@
 // frontend/src/pages/Secretaria/Diagnostico.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, HelpCircle, LayoutList } from 'lucide-react';
+import { AlertCircle, CheckCircle2, HelpCircle, LayoutList, Printer } from 'lucide-react';
 import { DiagnosticoForm } from '../../components/Secretaria/Diagnostico/DiagnosticoForm';
-import { DiagnosticosTable } from '../../components/Secretaria/Diagnostico/DiagnosticosTable';
+import { DiagnosticosTable, printDiagnostico } from '../../components/Secretaria/Diagnostico/DiagnosticosTable';
 import { GuidedTour, initialFormState, tourHighlightClass, tourSteps } from '../../components/Secretaria/Diagnostico/constants';
 import { filterDiagnosticos, normalizeDiagnosticos, sortClientesByName } from '../../components/Secretaria/Diagnostico/helpers';
 import { EstadoBadge, PrioridadBadge } from '../../components/Secretaria/Diagnostico/badges';
@@ -87,6 +87,10 @@ const Diagnostico = () => {
   const filteredDiagnosticos = useMemo(
     () => filterDiagnosticos(diagnosticos, searchTerm, filterTecnico),
     [diagnosticos, filterTecnico, searchTerm],
+  );
+  const ultimoDiagnostico = useMemo(
+    () => filterDiagnosticos(diagnosticos, '', 'TODOS')[0],
+    [diagnosticos],
   );
 
   const closeTour = () => {
@@ -183,7 +187,16 @@ const Diagnostico = () => {
           <h2 className="text-2xl font-bold text-gray-800">Diagnostico de Ingreso</h2>
           <p className="text-gray-500 font-medium">Gestion de recepcion y revision tecnica inicial.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => ultimoDiagnostico && printDiagnostico(ultimoDiagnostico)}
+            disabled={!ultimoDiagnostico || loading}
+            className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-200 disabled:text-gray-500"
+            title="Imprimir la hoja del diagnostico mas reciente"
+          >
+            <Printer className="w-4 h-4" /> Imprimir ultima hoja
+          </button>
           <button type="button" onClick={startTour} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 shadow-sm hover:bg-gray-50" title="Iniciar tutorial guiado">
             <HelpCircle className="w-4 h-4" /> Ayuda
           </button>
