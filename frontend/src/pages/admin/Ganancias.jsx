@@ -6,173 +6,29 @@ import useResponsiveLayout from '../../features/responsive/useResponsiveLayout';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf, downloadSectionedExcel, downloadSectionedPdf } from '../../utils/csvExport';
 
-const currentYear = new Date().getFullYear();
-const padDatePart = (value) => String(value).padStart(2, '0');
-const toDateInputValue = (date) => `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
-const formatCurrency = (value) => `C$ ${Number(value || 0).toFixed(2)}`;
-const formatPercent = (value) => `${Number(value || 0).toFixed(1)}%`;
-
-const detailColumns = [
-  { header: 'Tipo', accessor: 'tipo' },
-  { header: 'Fecha', accessor: 'fecha' },
-  { header: 'Concepto', accessor: 'concepto' },
-  { header: 'Monto', accessor: 'monto' },
-  { header: 'Pago', accessor: 'metodo_pago' },
-];
-
-const chartSeries = [
-  { key: 'ingresos', label: 'Ingresos', color: '#059669' },
-  { key: 'compras_inventario', label: 'Compras inventario', color: '#0ea5e9' },
-  { key: 'ganancia_neta', label: 'Ganancia neta', color: '#4f46e5' },
-  { key: 'costo_repuestos_usados', label: 'Costo usado', color: '#d97706' },
-  { key: 'perdidas_reales', label: 'Perdidas reales', color: '#991b1b' },
-];
-
-const quickFilters = [
-  { key: 'semana', label: 'Semana' },
-  { key: 'mes', label: 'Mes' },
-  { key: 'trimestre', label: 'Trimestre' },
-  { key: 'anio', label: 'Año' },
-];
-
-const periodFilters = [
-  { key: 'semanal', label: 'Semanal' },
-  { key: 'mensual', label: 'Mensual' },
-  { key: 'anual', label: 'Anual' },
-];
-
-const generalReportPeriods = [
-  { key: 'semana', label: 'Semana' },
-  { key: 'mes', label: 'Mes' },
-  { key: 'anio', label: 'Año' },
-];
-
-const orderMarginColumns = [
-  { header: 'Orden', accessor: 'orden' },
-  { header: 'Factura', accessor: 'factura' },
-  { header: 'Fecha', accessor: 'fecha' },
-  { header: 'Cliente', accessor: 'cliente' },
-  { header: 'Equipo', accessor: 'equipo' },
-  { header: 'Técnico', accessor: 'tecnico' },
-  { header: 'Estado', accessor: 'estado' },
-  { header: 'Facturado', accessor: 'total_facturado' },
-  { header: 'Mano obra', accessor: 'mano_obra' },
-  { header: 'Ganancia repuestos', accessor: 'ganancia_repuestos' },
-  { header: 'Costo', accessor: 'costo_repuestos' },
-  { header: 'Ganancia', accessor: 'ganancia_servicio' },
-  { header: 'Margen', accessor: 'margen_porcentaje' },
-];
-
-const lossColumns = [
-  { header: 'Acción', accessor: 'accion' },
-  { header: 'Clasificación', accessor: 'clasificacion' },
-  { header: 'Fecha', accessor: 'fecha' },
-  { header: 'Monto', accessor: 'monto' },
-];
-
-const gainSourceColumns = [
-  { header: 'Fuente', accessor: 'fuente' },
-  { header: 'Fecha', accessor: 'fecha' },
-  { header: 'Referencia', accessor: 'referencia' },
-  { header: 'Cliente', accessor: 'cliente' },
-  { header: 'Ingreso', accessor: 'ingreso_total' },
-  { header: 'Costo', accessor: 'costo_repuestos' },
-  { header: 'Ganancia', accessor: 'ganancia_total' },
-  { header: 'Motivo', accessor: 'motivo' },
-];
-
-const lossSourceColumns = [
-  { header: 'Tipo', accessor: 'tipo' },
-  { header: 'Fecha', accessor: 'fecha' },
-  { header: 'Referencia', accessor: 'referencia' },
-  { header: 'Cliente', accessor: 'cliente' },
-  { header: 'Concepto', accessor: 'concepto' },
-  { header: 'Monto', accessor: 'monto' },
-  { header: 'Razon', accessor: 'razon' },
-];
-
-const profitabilityColumns = [
-  { header: 'Periodo', accessor: 'etiqueta' },
-  { header: 'Ingresos', accessor: 'ingresos' },
-  { header: 'Compras inventario', accessor: 'compras_inventario' },
-  { header: 'Costos consumidos', accessor: 'costo_repuestos_usados' },
-  { header: 'Pérdidas reales', accessor: 'perdidas_reales' },
-  { header: 'Ganancia neta', accessor: 'ganancia_neta' },
-  { header: 'Margen servicio', accessor: 'margen_servicio' },
-  { header: 'Rentabilidad', accessor: 'rentabilidad_porcentaje' },
-  { header: 'Órdenes', accessor: 'ordenes_procesadas' },
-];
-
-const summaryColumns = [
-  { header: 'Indicador', accessor: 'label' },
-  { header: 'Valor', accessor: 'value' },
-  { header: 'Detalle', accessor: 'detail' },
-];
-
-const alertColumns = [
-  { header: 'Nivel', accessor: 'nivel' },
-  { header: 'Alerta', accessor: 'titulo' },
-  { header: 'Detalle', accessor: 'detalle' },
-];
-
-const assetColumns = [
-  { header: 'Activo', accessor: 'label' },
-  { header: 'Valor', accessor: 'value' },
-];
-
-const sectionOptions = [
-  { id: 'todos', label: 'Todos los apartados', hint: 'Vista completa del modulo' },
-  { id: 'resumen', label: 'Resumen financiero', hint: 'Totales y alertas' },
-  { id: 'balance', label: 'Balance por etapa', hint: 'Semanal, mensual, anual' },
-  { id: 'explicacion', label: 'Ganancias y perdidas', hint: 'Origen y razon' },
-  { id: 'ordenes', label: 'Margen por orden', hint: 'Ordenes finalizadas' },
-  { id: 'activos', label: 'Control de activos', hint: 'Inventario y cuentas' },
-  { id: 'costos', label: 'Costos y perdidas', hint: 'Acciones financieras' },
-  { id: 'rentabilidad', label: 'Rentabilidad', hint: 'Etapas del periodo' },
-  { id: 'movimientos', label: 'Movimientos', hint: 'Ingresos y gastos' },
-  { id: 'reporte-general', label: 'Reporte general', hint: 'PDF o Excel completo' },
-];
-
-const normalizeSearchText = (value) =>
-  String(value ?? '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-
-const exportButtonBase = 'inline-flex h-9 min-w-[72px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold text-white shadow-sm transition disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-gray-400 disabled:shadow-none';
-
-function ExportButton({ children, format, ...props }) {
-  const tone = format === 'pdf'
-    ? 'bg-slate-800 hover:bg-slate-900'
-    : 'bg-emerald-600 hover:bg-emerald-700';
-  const Icon = format === 'pdf' ? FileText : FileDown;
-
-  return (
-    <button
-      type="button"
-      className={`${exportButtonBase} ${tone}`}
-      title={format === 'pdf' ? 'Exportar a PDF' : 'Exportar a Excel'}
-      {...props}
-    >
-      <Icon size={15} strokeWidth={2.4} aria-hidden="true" />
-      <span>{children}</span>
-    </button>
-  );
-}
-
-function ExportActions({ disabled, onCsv, onPdf }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      <ExportButton format="csv" onClick={onCsv} disabled={disabled}>
-        Excel
-      </ExportButton>
-      <ExportButton format="pdf" onClick={onPdf} disabled={disabled}>
-        PDF
-      </ExportButton>
-    </div>
-  );
-}
-
+import {
+  ExportActions,
+  ExportButton,
+  alertColumns,
+  assetColumns,
+  chartSeries,
+  currentYear,
+  detailColumns,
+  formatCurrency,
+  formatPercent,
+  gainSourceColumns,
+  generalReportPeriods,
+  lossColumns,
+  lossSourceColumns,
+  normalizeSearchText,
+  orderMarginColumns,
+  periodFilters,
+  profitabilityColumns,
+  quickFilters,
+  sectionOptions,
+  summaryColumns,
+  toDateInputValue,
+} from './ganancias.config.jsx';
 const getReportRange = (period, anchorValue) => {
   const anchor = anchorValue ? new Date(`${anchorValue}T00:00:00`) : new Date();
 
@@ -207,7 +63,7 @@ const buildGananciasReportSections = (reportData, periodKey) => {
   const summaryRows = [
     { label: 'Ingresos', value: formatCurrency(reportTotals.ingresos), detail: `${reportTotals.facturas || 0} facturas` },
     { label: 'Compras inventario', value: formatCurrency(reportTotals.compras_inventario), detail: `${reportTotals.compras || 0} compras capitalizadas` },
-    { label: 'Pérdidas reales', value: formatCurrency(reportTotals.perdidas_reales), detail: `${reportTotals.eventos_perdida || 0} compras en periodos con deficit` },
+    { label: 'Pérdidas reales', value: formatCurrency(reportTotals.perdidas_reales), detail: `${reportTotals.eventos_perdida || 0} ordenes con costo no recuperado` },
     { label: 'Ganancia neta', value: formatCurrency(reportTotals.ganancia_neta), detail: `Margen neto ${reportMarginPercent}%` },
     { label: 'Margen de servicios', value: formatCurrency(reportTotals.margen_servicio), detail: `${formatPercent(reportTotals.rentabilidad_porcentaje)} rentabilidad` },
   ];
@@ -357,7 +213,7 @@ export default function Ganancias() {
   const metricCards = useMemo(() => ([
     { key: 'ingresos', label: 'Ingresos', value: totals.ingresos, detail: `${totals.facturas || 0} facturas`, tone: 'emerald' },
     { key: 'compras_inventario', label: 'Compras inventario', value: totals.compras_inventario, detail: `${totals.compras || 0} compras capitalizadas`, tone: 'sky' },
-    { key: 'perdidas_reales', label: 'Pérdidas reales', value: totals.perdidas_reales, detail: `${totals.eventos_perdida || 0} compras en periodos con deficit`, tone: 'red' },
+    { key: 'perdidas_reales', label: 'Pérdidas reales', value: totals.perdidas_reales, detail: `${totals.eventos_perdida || 0} ordenes con costo no recuperado`, tone: 'red' },
     { key: 'ganancia_neta', label: balanceLabel, value: totals.ganancia_neta, detail: `Margen neto ${marginPercent}%`, tone: 'indigo' },
     { key: 'margen_servicio', label: 'Margen de servicios', value: totals.margen_servicio, detail: `${formatPercent(totals.rentabilidad_porcentaje)} rentabilidad`, tone: 'amber' },
   ]), [balanceLabel, marginPercent, totals]);
@@ -457,6 +313,11 @@ export default function Ganancias() {
   }, [sectionSearch]);
   const selectedSection = sectionOptions.find((option) => option.id === activeSection) || sectionOptions[0];
   const showSection = (sectionId) => activeSection === 'todos' || activeSection === sectionId;
+  const showCostos = showSection('costos');
+  const showRentabilidad = showSection('rentabilidad');
+  const costosRentabilidadClassName = showCostos && showRentabilidad
+    ? responsive.splitGridClassName
+    : 'grid gap-5';
 
   const handleSectionSearchSubmit = useCallback(() => {
     if (!sectionSearch.trim() || filteredSectionOptions.length === 0) return;
@@ -873,7 +734,7 @@ export default function Ganancias() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">Por que se perdio dinero</h2>
-                  <p className="text-sm text-gray-400">Costos consumidos y deficit de ingresos del local con su razon operativa.</p>
+                  <p className="text-sm text-gray-400">Costos consumidos, margenes negativos e irreparables sin recuperacion.</p>
                 </div>
                 <ExportActions
                   disabled={downloading || lossSources.length === 0}
@@ -934,8 +795,8 @@ export default function Ganancias() {
             </div>
           </section>}
 
-          {(showSection('costos') || showSection('rentabilidad')) && <section className={responsive.splitGridClassName}>
-            {showSection('costos') && <div id="ganancias-costos" className={`scroll-mt-28 ${responsive.sectionClassName}`}>
+          {(showCostos || showRentabilidad) && <section className={costosRentabilidadClassName}>
+            {showCostos && <div id="ganancias-costos" className={`scroll-mt-28 ${responsive.sectionClassName}`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">Costos y pérdidas por acción</h2>
@@ -956,7 +817,7 @@ export default function Ganancias() {
               </div>
             </div>}
 
-            {showSection('rentabilidad') && <div id="ganancias-rentabilidad" className={`scroll-mt-28 ${responsive.sectionClassName}`}>
+            {showRentabilidad && <div id="ganancias-rentabilidad" className={`scroll-mt-28 ${responsive.sectionClassName}`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">Rentabilidad {periodFilters.find((item) => item.key === activePeriod)?.label.toLowerCase()}</h2>
@@ -1060,3 +921,4 @@ export default function Ganancias() {
     </div>
   );
 }
+

@@ -18,19 +18,29 @@ export default function useResponsiveLayout() {
   const [viewport, setViewport] = useState(getViewportState);
 
   useEffect(() => {
-    const handleResize = () => setViewport(getViewportState());
+    let frameId = null;
+    const handleResize = () => {
+      if (frameId) window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(() => setViewport(getViewportState()));
+    };
+
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   return useMemo(() => ({
     ...viewport,
     pageClassName: viewport.isMobile
-      ? 'p-3 space-y-5 max-w-full mx-auto'
-      : 'p-4 space-y-6 max-w-7xl mx-auto',
+      ? 'w-full max-w-full space-y-5 px-3 py-4'
+      : 'mx-auto w-full max-w-7xl space-y-6 px-4 py-5',
     sectionClassName: viewport.isMobile
-      ? 'rounded-xl bg-white p-4 shadow-sm border border-gray-100 space-y-4'
-      : 'rounded-2xl bg-white p-6 shadow-sm border border-gray-100 space-y-4',
-    splitGridClassName: viewport.isDesktop ? 'grid gap-6 xl:grid-cols-2' : 'grid gap-5',
+      ? 'rounded-xl bg-white p-4 shadow-sm border border-gray-100 space-y-4 min-w-0'
+      : 'rounded-2xl bg-white p-5 sm:p-6 shadow-sm border border-gray-100 space-y-4 min-w-0',
+    splitGridClassName: viewport.isDesktop ? 'grid min-w-0 gap-6 xl:grid-cols-2' : 'grid min-w-0 gap-5',
+    formGridClassName: viewport.isMobile ? 'grid gap-3' : 'grid gap-4 md:grid-cols-2 xl:grid-cols-4',
+    tableWrapClassName: 'min-w-0 overflow-x-auto',
   }), [viewport]);
 }

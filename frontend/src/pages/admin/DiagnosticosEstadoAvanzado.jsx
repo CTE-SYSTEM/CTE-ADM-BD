@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
+import { printDiagnostico } from '../../components/Secretaria/Diagnostico/DiagnosticosTable';
 
 const reportColumns = [
   { header: 'Estado', accessor: 'estado' },
@@ -122,16 +123,25 @@ export default function DiagnosticosEstadoAvanzado() {
       header: 'Acciones',
       accessor: 'acciones',
       render: (row) => (
-        <button
-          type="button"
-          onClick={() => {
-            setEditingDiagnostico({ ...row });
-            setMessage('');
-          }}
-          className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
-        >
-          Editar
-        </button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => printDiagnostico(row.raw)}
+            className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+          >
+            Imprimir
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingDiagnostico({ ...row });
+              setMessage('');
+            }}
+            className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+          >
+            Editar
+          </button>
+        </div>
       ),
     },
   ], []);

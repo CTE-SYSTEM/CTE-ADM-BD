@@ -3,40 +3,7 @@ import { Search, X } from 'lucide-react';
 import Table from '../../components/Table';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
-
-const transformGarantias = (garantias) =>
-  garantias.map((g) => {
-    const fechaVencimiento = g.fecha_vencimiento ? new Date(g.fecha_vencimiento) : null;
-    const isExpired = fechaVencimiento ? fechaVencimiento < new Date() : true;
-    return {
-      id_garantia: g.id_garantia,
-      factura_id: g.factura_id,
-      orden_id: g.factura?.orden?.id_orden || '-',
-      cliente: g.factura?.orden?.diagnostico?.equipo?.cliente?.nombre || '-',
-      equipo: g.factura?.orden?.diagnostico?.equipo?.modelo || '-',
-      fecha_inicio: g.fecha_inicio ? new Date(g.fecha_inicio).toLocaleDateString() : '-',
-      fecha_vencimiento: g.fecha_vencimiento ? new Date(g.fecha_vencimiento).toLocaleDateString() : '-',
-      duracion_meses: g.duracion_meses ?? '-',
-      condiciones: g.condiciones || '-',
-      estado: isExpired ? 'Vencida' : 'Vigente',
-      isExpired,
-      duracion_actual: g.duracion_meses ?? 12,
-    };
-  });
-
-const sectionOptions = [
-  { id: 'todos', label: 'Todos los apartados', hint: 'Vista completa del módulo de garantías' },
-  { id: 'revalidacion', label: 'Revalidación por equipo', hint: 'Revalida o asigna garantías a equipos' },
-  { id: 'manual', label: 'Registro manual', hint: 'Genera una póliza desde una factura' },
-  { id: 'global', label: 'Listado global', hint: 'Revisa todas las garantías registradas' },
-];
-
-const normalizeSearchText = (value) =>
-  String(value ?? '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-
+import { getEquipoLabel, getFacturaEquipoId, normalizeSearchText, sectionOptions, transformGarantias } from './garantiasAvanzado.utils';
 export default function GarantiasAvanzado() {
   const [garantias, setGarantias] = useState([]);
   const [facturas, setFacturas] = useState([]);
@@ -80,12 +47,9 @@ export default function GarantiasAvanzado() {
     fetchGarantias();
   }, [fetchGarantias]);
 
-  // Auxiliares puros para legibilidad
-  const getFacturaEquipoId = (factura) => factura?.orden?.diagnostico?.equipo?.id_equipo;
   const getFacturaGarantia = useCallback((factura) => (
     garantias.find((garantia) => Number(garantia.factura_id) === Number(factura.id_factura))
   ), [garantias]);
-  const getEquipoLabel = (equipo) => [equipo.marca, equipo.modelo, equipo.tipo].filter(Boolean).join(' ') || `Equipo #${equipo.id_equipo}`;
 
   // Columnas del Listado Principal de Garantías
   const columns = useMemo(() => [
@@ -382,6 +346,11 @@ export default function GarantiasAvanzado() {
               <p className="mt-0.5 text-sm font-bold text-slate-800">{selectedSection.label}</p>
               <p className="text-xs font-semibold text-slate-500">{selectedSection.hint}</p>
             </div>
+            {filteredSectionOptions.length === 0 && (
+              <div className="rounded-lg border border-dashed border-gray-200 bg-white px-3 py-4 text-center text-xs font-semibold text-gray-400">
+                No hay apartados con ese texto.
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-gray-100 bg-slate-50 p-2">
@@ -433,12 +402,16 @@ export default function GarantiasAvanzado() {
           />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
+        <div className={`grid gap-6 ${equipoSearch.trim() ? 'grid-cols-1' : 'xl:grid-cols-[1fr_320px]'}`}>
           <div className="min-w-0 overflow-x-auto">
             {loading ? (
               <div className="text-gray-400 text-center py-10 text-sm">Sincronizando inventario de equipos...</div>
+            ) : equiposRevalidacion.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-slate-50 px-6 py-10 text-center text-sm text-gray-500">
+                No hay equipos que coincidan con la búsqueda.
+              </div>
             ) : (
-              <Table columns={equiposColumns} data={equiposRevalidacion} sortable />
+              <Table columns={equiposColumns} data={equiposRevalidacion} sortable emptyMessage="No hay equipos disponibles" />
             )}
           </div>
 
@@ -506,7 +479,7 @@ export default function GarantiasAvanzado() {
 
       {/* SECCIÓN 2: Registro Manual y Tabla Global */}
       {(showManual || showGlobal) && (
-        <div className="grid gap-6 lg:grid-cols-[340px_1fr]">
+        <div className={`grid gap-6 ${showManual && showGlobal ? 'lg:grid-cols-[340px_1fr]' : 'grid-cols-1'}`}>
           {showManual && (
             <section className="bg-white shadow-sm rounded-2xl border border-gray-100 p-5 h-fit space-y-4">
               <div>
@@ -607,3 +580,4 @@ export default function GarantiasAvanzado() {
     </div>
   );
 }
+

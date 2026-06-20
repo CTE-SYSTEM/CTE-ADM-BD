@@ -228,6 +228,73 @@ const runBackup = async () => {
     const reportFile = await createReportFile(backupFolder, `backup_report_${timestamp}.txt`, reportLines);
     reportLines.push(`- Informe de backup: ${reportFile}`);
 
+    // Crear un tar.gz con todo el contenido del folder de backup
+    const archiveName = `cte_backup_${timestamp}.tar.gz`;
+    const archivePath = path.join(BACKUP_ROOT, archiveName);
+    try {
+      // `tar` está disponible en la mayoría de imágenes base (alpine/busybox)
+      await execFileAsync('tar', ['-czf', archivePath, '-C', backupFolder, '.']);
+      reportLines.push(`- Archivo comprimido: ${archivePath}`);
+    } catch (tarErr) {
+      reportLines.push(`- Falló creación de tar.gz: ${tarErr.message}`);
+    }
+
+    // Calcular checksum SHA256 del archivo (si existe)
+    const manifest = { timestamp: new Date().toISOString(), files: [], archive: null };
+    try {
+      const filesInFolder = await fs.readdir(backupFolder);
+      for (const f of filesInFolder) {
+        const p = path.join(backupFolder, f);
+        const stat = await fs.stat(p);
+        manifest.files.push({ name: f, size: stat.size });
+      }
+
+      if (await fileExists(archivePath)) {
+        const hash = await sha256File(archivePath);
+        const stat = await fs.stat(archivePath);
+        manifest.archive = { name: path.basename(archivePath), size: stat.size, sha256: hash };
+
+        // Encriptar archivo si se proporciona passphrase
+        if (process.env.BACKUP_PASSPHRASE) {
+          const encPath = `${archivePath}.enc`;
+          try {
+            await execFileAsync('openssl', ['enc', '-aes-256-cbc', '-pbkdf2', '-salt', '-in', archivePath, '-out', encPath, '-pass', `pass:${process.env.BACKUP_PASSPHRASE}`]);
+            const encHash = await sha256File(encPath);
+            const encStat = await fs.stat(encPath);
+            manifest.archive_encrypted = { name: path.basename(encPath), size: encStat.size, sha256: encHash };
+            reportLines.push(`- Archivo encriptado: ${encPath}`);
+            // opcional: eliminar el archivo sin encriptar
+            await fs.unlink(archivePath);
+            manifest.archive = null;
+          } catch (encErr) {
+            reportLines.push(`- Error en encriptado: ${encErr.message}`);
+          }
+        }
+      }
+    } catch (mErr) {
+      reportLines.push(`- Error generando manifest: ${mErr.message}`);
+    }
+
+    // Guardar manifest
+    try {
+      const manifestPath = path.join(BACKUP_ROOT, `manifest_${timestamp}.json`);
+      await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+      reportLines.push(`- Manifest guardado: ${manifestPath}`);
+    } catch (wErr) {
+      reportLines.push(`- No se pudo guardar manifest: ${wErr.message}`);
+    }
+
+      // Ejecutar limpieza por retención si está configurada
+      try {
+        const retentionDays = Number(process.env.BACKUP_RETENTION_DAYS || '0');
+        if (retentionDays > 0) {
+          await purgeOldBackups(retentionDays);
+          reportLines.push(`- Retención aplicada: archivos más antiguos a ${retentionDays} días eliminados`);
+        }
+      } catch (retErr) {
+        reportLines.push(`- Error aplicando retención: ${retErr.message}`);
+      }
+
     console.log('[BackupService] Backup mensual completado correctamente.');
     reportLines.forEach((line) => console.log(line));
 
@@ -238,6 +305,69 @@ const runBackup = async () => {
     console.error('[BackupService] Error al generar backup mensual:', error);
     throw error;
   }
+};
+
+const purgeOldBackups = async (days) => {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const removed = [];
+
+  // scan root files
+  try {
+    await createDirectory(BACKUP_ROOT);
+    const entries = await fs.readdir(BACKUP_ROOT, { withFileTypes: true });
+    for (const e of entries) {
+      const p = path.join(BACKUP_ROOT, e.name);
+      if (e.isFile()) {
+        const stat = await fs.stat(p);
+        if (stat.mtimeMs < cutoff) {
+          await fs.unlink(p);
+          removed.push(p);
+        }
+      } else if (e.isDirectory()) {
+        // scan month folder
+        const monthFiles = await fs.readdir(p, { withFileTypes: true });
+        for (const mf of monthFiles) {
+          if (mf.isFile()) {
+            const mfPath = path.join(p, mf.name);
+            const stat = await fs.stat(mfPath);
+            if (stat.mtimeMs < cutoff) {
+              await fs.unlink(mfPath);
+              removed.push(mfPath);
+            }
+          }
+        }
+        // try remove empty dir
+        const remaining = await fs.readdir(p);
+        if (remaining.length === 0) {
+          await fs.rmdir(p);
+        }
+      }
+    }
+  } catch (err) {
+    throw new Error(`Error purgando backups: ${err.message}`);
+  }
+
+  return removed;
+};
+
+const fileExists = async (p) => {
+  try {
+    await fs.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const sha256File = async (filePath) => {
+  const { createHash } = await import('node:crypto');
+  const stream = (await import('node:fs')).createReadStream(filePath);
+  return await new Promise((resolve, reject) => {
+    const hash = createHash('sha256');
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+    stream.on('error', reject);
+  });
 };
 
 const listBackupFiles = async () => {
@@ -261,9 +391,59 @@ const listBackupFiles = async () => {
 
 export const getBackupSummary = async () => ({ root: BACKUP_DISPLAY_ROOT, months: await listBackupFiles() });
 
+const listRootFiles = async () => {
+  await createDirectory(BACKUP_ROOT);
+  const entries = await fs.readdir(BACKUP_ROOT, { withFileTypes: true });
+  const files = [];
+  for (const e of entries) {
+    if (e.isFile()) {
+      const p = path.join(BACKUP_ROOT, e.name);
+      const stat = await fs.stat(p);
+      files.push({ name: e.name, size: stat.size, mtime: stat.mtime.toISOString() });
+    }
+  }
+  files.sort((a, b) => b.mtime.localeCompare(a.mtime));
+  return files;
+};
+
+export const getBackupFilePath = async (fileName) => {
+  // prevent path traversal
+  if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+    throw new Error('Invalid file name');
+  }
+  const p = path.join(BACKUP_ROOT, fileName);
+  try {
+    await fs.access(p);
+    return p;
+  } catch {
+    throw new Error('File not found');
+  }
+};
+
+export const getBackupSummaryWithRoot = async () => ({ root: BACKUP_DISPLAY_ROOT, months: await listBackupFiles(), rootFiles: await listRootFiles() });
+
 export const createBackupNow = async () => {
   const result = await runBackup();
   return { root: BACKUP_DISPLAY_ROOT, months: await listBackupFiles(), latestBackup: result };
+};
+
+export const saveUploadedBackup = async (buffer, originalName) => {
+  // sanitize name
+  if (originalName.includes('..') || originalName.includes('/') || originalName.includes('\\')) {
+    throw new Error('Invalid file name');
+  }
+  await createDirectory(BACKUP_ROOT);
+  const destPath = path.join(BACKUP_ROOT, originalName);
+  // avoid overwrite: if exists, append timestamp
+  let finalPath = destPath;
+  if (await fileExists(destPath)) {
+    const ts = formatDate(new Date());
+    const ext = path.extname(originalName);
+    const base = path.basename(originalName, ext);
+    finalPath = path.join(BACKUP_ROOT, `${base}_${ts}${ext}`);
+  }
+  await fs.writeFile(finalPath, buffer);
+  return { path: finalPath, name: path.basename(finalPath) };
 };
 
 const scheduleNextBackup = () => {

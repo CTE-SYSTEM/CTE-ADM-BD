@@ -2,9 +2,12 @@ import React, { useState, useMemo } from 'react';
 
 const defaultContentClassName = 'max-w-[220px] whitespace-normal break-words leading-relaxed';
 
-const Table = ({ columns, data, sortable = false }) => {
+const Table = ({ columns, data, sortable = false, emptyMessage = 'No hay registros disponibles', emptyClassName = '' }) => {
   // Estado para controlar qué columna ordena y en qué sentido ('asc' o 'desc')
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  const normalizedData = Array.isArray(data) ? data : [];
+  const hasData = normalizedData.length > 0;
 
   // Manejador del clic en las cabeceras (solo se ejecuta si sortable es true)
   const handleSort = (accessor) => {
@@ -64,8 +67,20 @@ const Table = ({ columns, data, sortable = false }) => {
     return sortableItems;
   }, [data, sortConfig, sortable]);
 
+  if (!hasData) {
+    return (
+      <div className={`w-full min-w-0 rounded-xl border border-gray-200 bg-white shadow-sm ${emptyClassName}`.trim()}>
+        <div className="p-8 text-center">
+          <div className="inline-block rounded-2xl border border-dashed border-gray-200 bg-slate-50 px-6 py-8 text-sm text-gray-500">
+            {emptyMessage}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full min-w-0 overflow-auto rounded-xl border border-gray-200 bg-white shadow-sm custom-scrollbar max-h-[calc(100vh-260px)]">
+    <div className={`w-full min-w-0 overflow-auto rounded-xl border border-gray-200 bg-white shadow-sm custom-scrollbar ${emptyClassName}`.trim()}>
       <table className="w-full min-w-max table-auto border-collapse">
         <thead className="sticky top-0 z-10 bg-white">
           <tr className="border-b border-gray-100 bg-gray-50/50">
@@ -99,28 +114,20 @@ const Table = ({ columns, data, sortable = false }) => {
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
-          {processedData.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length} className="p-10 text-center text-gray-400 font-light">
-                No hay registros disponibles
-              </td>
+          {processedData.map((row, i) => (
+            <tr key={i} className="hover:bg-gray-50/30 transition-all duration-200">
+              {columns.map((c, colIndex) => (
+                <td 
+                  key={c.accessor || c.header || colIndex} 
+                  className={`min-w-0 px-3 py-3 text-sm text-gray-600 align-top sm:px-5 sm:py-3.5 ${c.cellClassName || ''}`}
+                >
+                  <div className={c.contentClassName || defaultContentClassName}>
+                    {c.render ? c.render(row) : (row[c.accessor] !== undefined && row[c.accessor] !== null ? row[c.accessor] : '-')}
+                  </div>
+                </td>
+              ))}
             </tr>
-          ) : (
-            processedData.map((row, i) => (
-              <tr key={i} className="hover:bg-gray-50/30 transition-all duration-200">
-                {columns.map((c, colIndex) => (
-                  <td 
-                    key={c.accessor || c.header || colIndex} 
-                    className={`min-w-0 px-3 py-3 text-sm text-gray-600 align-top sm:px-5 sm:py-3.5 ${c.cellClassName || ''}`}
-                  >
-                    <div className={c.contentClassName || defaultContentClassName}>
-                      {c.render ? c.render(row) : (row[c.accessor] !== undefined && row[c.accessor] !== null ? row[c.accessor] : '-')}
-                    </div>
-                  </td>
-                ))}
-              </tr>
-            ))
-          )}
+          ))}
         </tbody>
       </table>
     </div>

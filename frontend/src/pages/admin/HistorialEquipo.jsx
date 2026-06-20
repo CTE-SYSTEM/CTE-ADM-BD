@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import { downloadJsonCsv, downloadJsonPdf } from '../../utils/csvExport';
+import { printDiagnostico } from '../../components/Secretaria/Diagnostico/DiagnosticosTable';
 
 const DIAGNOSTICO_ESTADOS = ['PENDIENTE', 'INGRESADO', 'EN_REVISION', 'DIAGNOSTICADO', 'COMPLETADO', 'APROBADO', 'RECHAZADO'];
 const ORDEN_ESTADOS = ['PENDIENTE', 'APROBADO', 'EN_REPARACION', 'ESPERANDO_PIEZA', 'FINALIZADO', 'IRREPARABLE', 'ENTREGADO'];
@@ -370,9 +371,20 @@ export default function HistorialEquipo() {
                     <p className="mt-1 text-xs font-semibold text-gray-400">{item.fecha ? new Date(item.fecha).toLocaleString() : 'Sin fecha'} - {item.tecnico}</p>
                     <p className="mt-3 max-w-4xl whitespace-pre-wrap text-sm text-slate-700">{item.descripcion}</p>
                   </div>
-                  <button type="button" onClick={() => openEdit(item)} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800">
-                    Editar
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    {item.tipo === 'diagnostico' && (
+                      <button
+                        type="button"
+                        onClick={() => printDiagnostico(item.raw)}
+                        className="rounded-xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200"
+                      >
+                        Imprimir
+                      </button>
+                    )}
+                    <button type="button" onClick={() => openEdit(item)} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800">
+                      Editar
+                    </button>
+                  </div>
                 </div>
               </article>
             ))}

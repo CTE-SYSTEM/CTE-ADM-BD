@@ -62,6 +62,10 @@ export default function AdminDashboard() {
   const [backupError, setBackupError] = useState('');
   const [backupMessage, setBackupMessage] = useState('');
   const [manualBackupLoading, setManualBackupLoading] = useState(false);
+  const [selectedBackupFile, setSelectedBackupFile] = useState(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [uploadMessage, setUploadMessage] = useState('');
   const showHelp = false;
 
   useEffect(() => {
@@ -237,6 +241,48 @@ export default function AdminDashboard() {
               >
                 {manualBackupLoading ? 'Generando backup...' : 'Generar backup ahora'}
               </button>
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center rounded-xl border px-3 py-2 text-xs bg-white cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".tar,.gz,.tgz,.tar.gz,.enc,.sql,.json"
+                    onChange={(e) => {
+                      setUploadError('');
+                      setUploadMessage('');
+                      setSelectedBackupFile(e.target.files?.[0] || null);
+                    }}
+                    className="hidden"
+                  />
+                  {selectedBackupFile ? selectedBackupFile.name : 'Seleccionar backup'}
+                </label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setUploadError('');
+                    setUploadMessage('');
+                    if (!selectedBackupFile) {
+                      setUploadError('Selecciona un archivo primero');
+                      return;
+                    }
+                    setUploadLoading(true);
+                    try {
+                      const form = new FormData();
+                      form.append('file', selectedBackupFile, selectedBackupFile.name);
+                      const resp = await api.post('/admin_pro/backups/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+                      setBackups(resp.data?.data || backups);
+                      setUploadMessage(resp.data?.message || 'Backup subido correctamente');
+                      setSelectedBackupFile(null);
+                    } catch (err) {
+                      setUploadError(err.response?.data?.error || 'Error al subir archivo');
+                    }
+                    setUploadLoading(false);
+                  }}
+                  disabled={uploadLoading}
+                  className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
+                >
+                  {uploadLoading ? 'Subiendo...' : 'Subir backup'}
+                </button>
+              </div>
             </div>
 
             {backupMessage && (
@@ -244,6 +290,12 @@ export default function AdminDashboard() {
             )}
             {backupError && (
               <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{backupError}</div>
+            )}
+            {uploadMessage && (
+              <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{uploadMessage}</div>
+            )}
+            {uploadError && (
+              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{uploadError}</div>
             )}
 
             <div className="grid gap-4 md:grid-cols-3">

@@ -25,7 +25,9 @@ import {
   deleteUsuario,
 } from '../../../controllers/admin_pro/usuariosController.js';
 import { getMonitoreoGeneral, getDashboardResumen } from '../../../controllers/admin_pro/dashboardController.js';
-import { getBackups, triggerBackupNow } from '../../../controllers/admin_pro/backupController.js';
+import { getBackups, triggerBackupNow, downloadBackup, uploadBackup } from '../../../controllers/admin_pro/backupController.js';
+import multer from 'multer';
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 * 1024 } });
 import {
   downloadDiagnosticosReporteAdmin,
   getDiagnosticosAdmin,
@@ -78,6 +80,8 @@ router.delete('/usuarios/:id', deleteUsuario);
 router.get('/dashboard', getDashboardResumen);
 router.get('/backups', getBackups);
 router.post('/backups/manual', triggerBackupNow);
+router.get('/backups/download/:file', downloadBackup);
+router.post('/backups/upload', upload.single('file'), uploadBackup);
 router.get('/analitica/productividad', getProductividadAdmin);
 router.get('/analitica/ganancias', getGananciasAdmin);
 router.put('/ordenes/:id', updateOrdenAdmin);

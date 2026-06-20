@@ -74,14 +74,36 @@ const getPeriodQuery = (granularidad, fechaInicio, fechaFin) => {
       WHERE COALESCE(f.fecha_emision, o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
       GROUP BY DATE_TRUNC(${config.trunc}, COALESCE(f.fecha_emision, o.fecha_cierre, o.fecha_ingreso))::DATE
     ),
-    perdidas_reales AS (
+    margenes_facturados AS (
       SELECT
-        p.periodo,
-        GREATEST(COALESCE(c.compras_inventario, 0) - COALESCE(i.ingresos, 0), 0) AS perdidas_reales,
-        CASE WHEN COALESCE(c.compras_inventario, 0) > COALESCE(i.ingresos, 0) THEN COALESCE(c.compras, 0) ELSE 0 END::INT AS eventos_perdida
-      FROM periodos p
-      LEFT JOIN ingresos i ON i.periodo = p.periodo
-      LEFT JOIN compras c ON c.periodo = p.periodo
+        DATE_TRUNC(${config.trunc}, f.fecha_emision)::DATE AS periodo,
+        COALESCE(SUM(GREATEST(COALESCE(costos.costo_repuestos, 0) - COALESCE(f.total, 0), 0)), 0) AS perdidas_margen,
+        COUNT(*) FILTER (WHERE COALESCE(costos.costo_repuestos, 0) > COALESCE(f.total, 0))::INT AS ordenes_con_perdida
+      FROM "Facturas" f
+      JOIN "Ordenes" o ON o.id_orden = f.orden_id
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(SUM(COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0)), 0) AS costo_repuestos
+        FROM "Ordenes_Repuestos" orp
+        LEFT JOIN "Repuestos" r ON r.id_repuesto = orp.repuesto_id
+        WHERE orp.orden_id = o.id_orden
+          AND orp.estado_aprobacion = 'APROBADO'
+      ) costos ON true
+      WHERE f.fecha_emision::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+      GROUP BY DATE_TRUNC(${config.trunc}, f.fecha_emision)::DATE
+    ),
+    irreparables_sin_factura AS (
+      SELECT
+        DATE_TRUNC(${config.trunc}, COALESCE(o.fecha_cierre, o.fecha_finalizacion, o.fecha_ingreso))::DATE AS periodo,
+        COALESCE(SUM(COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0)), 0) AS costo_irreparable,
+        COUNT(DISTINCT o.id_orden)::INT AS ordenes_irreparables
+      FROM "Ordenes" o
+      LEFT JOIN "Facturas" f ON f.orden_id = o.id_orden
+      JOIN "Ordenes_Repuestos" orp ON orp.orden_id = o.id_orden AND orp.estado_aprobacion = 'APROBADO'
+      LEFT JOIN "Repuestos" r ON r.id_repuesto = orp.repuesto_id
+      WHERE f.id_factura IS NULL
+        AND UPPER(COALESCE(o.estado, '')) = 'IRREPARABLE'
+        AND COALESCE(o.fecha_cierre, o.fecha_finalizacion, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+      GROUP BY DATE_TRUNC(${config.trunc}, COALESCE(o.fecha_cierre, o.fecha_finalizacion, o.fecha_ingreso))::DATE
     )
     SELECT
       ${granularidad}::TEXT AS granularidad,
@@ -91,9 +113,9 @@ const getPeriodQuery = (granularidad, fechaInicio, fechaFin) => {
       COALESCE(c.compras_inventario, 0) AS gastos,
       COALESCE(c.compras_inventario, 0) AS compras_inventario,
       COALESCE(co.costo_repuestos_usados, 0) AS costo_repuestos_usados,
-      COALESCE(pr.perdidas_reales, 0) AS perdidas_reales,
-      COALESCE(co.costo_repuestos_usados, 0) + COALESCE(pr.perdidas_reales, 0) AS perdidas_operativas,
-      COALESCE(i.ingresos, 0) - COALESCE(co.costo_repuestos_usados, 0) - COALESCE(pr.perdidas_reales, 0) AS ganancia_neta,
+      COALESCE(mf.perdidas_margen, 0) + COALESCE(ir.costo_irreparable, 0) AS perdidas_reales,
+      COALESCE(co.costo_repuestos_usados, 0) + COALESCE(ir.costo_irreparable, 0) AS perdidas_operativas,
+      COALESCE(i.ingresos, 0) - COALESCE(co.costo_repuestos_usados, 0) - COALESCE(ir.costo_irreparable, 0) AS ganancia_neta,
       COALESCE(i.ingresos, 0) - COALESCE(co.costo_repuestos_usados, 0) AS margen_servicio,
       CASE WHEN COALESCE(i.ingresos, 0) > 0
         THEN ROUND(((COALESCE(i.ingresos, 0) - COALESCE(co.costo_repuestos_usados, 0)) / COALESCE(i.ingresos, 0)) * 100, 2)
@@ -102,13 +124,14 @@ const getPeriodQuery = (granularidad, fechaInicio, fechaFin) => {
       COALESCE(i.facturas, 0)::INT AS facturas,
       COALESCE(c.compras, 0)::INT AS compras,
       COALESCE(co.ordenes_procesadas, 0)::INT AS ordenes_procesadas,
-      COALESCE(pr.eventos_perdida, 0)::INT AS eventos_perdida,
-      0::INT AS ordenes_irreparables
+      (COALESCE(mf.ordenes_con_perdida, 0) + COALESCE(ir.ordenes_irreparables, 0))::INT AS eventos_perdida,
+      COALESCE(ir.ordenes_irreparables, 0)::INT AS ordenes_irreparables
     FROM periodos p
     LEFT JOIN ingresos i ON i.periodo = p.periodo
     LEFT JOIN compras c ON c.periodo = p.periodo
     LEFT JOIN costos_ordenes co ON co.periodo = p.periodo
-    LEFT JOIN perdidas_reales pr ON pr.periodo = p.periodo
+    LEFT JOIN margenes_facturados mf ON mf.periodo = p.periodo
+    LEFT JOIN irreparables_sin_factura ir ON ir.periodo = p.periodo
     ORDER BY p.periodo ASC
   `;
 };
@@ -211,18 +234,6 @@ export const getGananciasAdmin = async (req, res) => {
           (SELECT COUNT(*) FROM "Repuestos" WHERE activo = true AND descontinuada = false AND stock_actual <= 0)::INT AS repuestos_sin_stock
       `),
       prisma.$queryRaw(Prisma.sql`
-        WITH resumen_compras AS (
-          SELECT
-            COALESCE(SUM(COALESCE(c.cantidad, 0) * COALESCE(c.costo_unitario, 0)), 0) AS compras_inventario,
-            COALESCE(MAX(c.fecha_obtencion), CAST(${fechaFin} AS DATE)::TIMESTAMP) AS fecha
-          FROM "Compras" c
-          WHERE c.fecha_obtencion::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
-        ),
-        resumen_ingresos AS (
-          SELECT COALESCE(SUM(COALESCE(f.total, 0)), 0) AS ingresos
-          FROM "Facturas" f
-          WHERE f.fecha_emision::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
-        )
         SELECT *
         FROM (
           SELECT 'Compra de inventario'::TEXT AS accion, 'Inventario capitalizado'::TEXT AS clasificacion, c.fecha_obtencion AS fecha, COALESCE(c.cantidad, 0) * COALESCE(c.costo_unitario, 0) AS monto
@@ -238,13 +249,29 @@ export const getGananciasAdmin = async (req, res) => {
             AND COALESCE(f.fecha_emision, o.fecha_cierre, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
           UNION ALL
           SELECT
-            'Deficit de ingresos del local'::TEXT AS accion,
-            'Perdida real de ingresos'::TEXT AS clasificacion,
-            rc.fecha AS fecha,
-            GREATEST(COALESCE(rc.compras_inventario, 0) - COALESCE(ri.ingresos, 0), 0) AS monto
-          FROM resumen_compras rc
-          CROSS JOIN resumen_ingresos ri
-          WHERE GREATEST(COALESCE(rc.compras_inventario, 0) - COALESCE(ri.ingresos, 0), 0) > 0
+            'Orden con margen negativo'::TEXT AS accion,
+            'Perdida real por servicio'::TEXT AS clasificacion,
+            f.fecha_emision AS fecha,
+            GREATEST(COALESCE(costos.costo_repuestos, 0) - COALESCE(f.total, 0), 0) AS monto
+          FROM "Facturas" f
+          JOIN "Ordenes" o ON o.id_orden = f.orden_id
+          LEFT JOIN LATERAL (
+            SELECT COALESCE(SUM(COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0)), 0) AS costo_repuestos
+            FROM "Ordenes_Repuestos" orp
+            LEFT JOIN "Repuestos" r ON r.id_repuesto = orp.repuesto_id
+            WHERE orp.orden_id = o.id_orden AND orp.estado_aprobacion = 'APROBADO'
+          ) costos ON true
+          WHERE f.fecha_emision::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+            AND COALESCE(costos.costo_repuestos, 0) > COALESCE(f.total, 0)
+          UNION ALL
+          SELECT 'Irreparable sin factura'::TEXT AS accion, 'Perdida real por cierre'::TEXT AS clasificacion, COALESCE(o.fecha_cierre, o.fecha_finalizacion, o.fecha_ingreso) AS fecha, COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0) AS monto
+          FROM "Ordenes" o
+          LEFT JOIN "Facturas" f ON f.orden_id = o.id_orden
+          JOIN "Ordenes_Repuestos" orp ON orp.orden_id = o.id_orden AND orp.estado_aprobacion = 'APROBADO'
+          LEFT JOIN "Repuestos" r ON r.id_repuesto = orp.repuesto_id
+          WHERE f.id_factura IS NULL
+            AND UPPER(COALESCE(o.estado, '')) = 'IRREPARABLE'
+            AND COALESCE(o.fecha_cierre, o.fecha_finalizacion, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
         ) perdidas
         ORDER BY fecha DESC NULLS LAST
         LIMIT 100
@@ -288,21 +315,6 @@ export const getGananciasAdmin = async (req, res) => {
         LIMIT 100
       `),
       prisma.$queryRaw(Prisma.sql`
-        WITH resumen_compras AS (
-          SELECT
-            COALESCE(SUM(COALESCE(c.cantidad, 0) * COALESCE(c.costo_unitario, 0)), 0) AS compras_inventario,
-            COUNT(*)::INT AS compras,
-            COALESCE(MAX(c.fecha_obtencion), CAST(${fechaFin} AS DATE)::TIMESTAMP) AS fecha
-          FROM "Compras" c
-          WHERE c.fecha_obtencion::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
-        ),
-        resumen_ingresos AS (
-          SELECT
-            COALESCE(SUM(COALESCE(f.total, 0)), 0) AS ingresos,
-            COUNT(*)::INT AS facturas
-          FROM "Facturas" f
-          WHERE f.fecha_emision::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
-        )
         SELECT *
         FROM (
           SELECT
@@ -329,21 +341,56 @@ export const getGananciasAdmin = async (req, res) => {
           UNION ALL
           SELECT
             'Perdida real'::TEXT AS tipo,
-            rc.fecha AS fecha,
-            CONCAT('Periodo ', CAST(${fechaInicio} AS DATE), ' a ', CAST(${fechaFin} AS DATE))::TEXT AS referencia,
-            '-'::TEXT AS cliente,
-            '-'::TEXT AS equipo,
-            '-'::TEXT AS tecnico,
-            'Deficit de ingresos del local'::TEXT AS concepto,
-            GREATEST(COALESCE(rc.compras_inventario, 0) - COALESCE(ri.ingresos, 0), 0) AS monto,
+            f.fecha_emision AS fecha,
+            CONCAT('Factura #', f.id_factura, ' / Orden #', o.id_orden)::TEXT AS referencia,
+            COALESCE(cl.nombre, 'Sin cliente')::TEXT AS cliente,
+            TRIM(CONCAT(COALESCE(e.tipo, 'Equipo'), ' ', COALESCE(e.marca, ''), ' ', COALESCE(e.modelo, '')))::TEXT AS equipo,
+            COALESCE(t.nombre, dt.nombre, 'Sin asignar')::TEXT AS tecnico,
+            'Orden facturada con margen negativo'::TEXT AS concepto,
+            GREATEST(COALESCE(costos.costo_repuestos, 0) - COALESCE(f.total, 0), 0) AS monto,
             CONCAT(
-              'Ingresos facturados: ', COALESCE(ri.ingresos, 0),
-              ' / Compras e inversion de inventario: ', COALESCE(rc.compras_inventario, 0),
-              '. Esta perdida no depende de ordenes irreparables; refleja ingreso del local por debajo de la inversion del periodo.'
+              'Total facturado: ', COALESCE(f.total, 0),
+              ' / Costo real de repuestos usados: ', COALESCE(costos.costo_repuestos, 0),
+              '. Esta perdida se reconoce porque el costo consumido supero lo cobrado al cliente.'
             )::TEXT AS razon
-          FROM resumen_compras rc
-          CROSS JOIN resumen_ingresos ri
-          WHERE GREATEST(COALESCE(rc.compras_inventario, 0) - COALESCE(ri.ingresos, 0), 0) > 0
+          FROM "Facturas" f
+          JOIN "Ordenes" o ON o.id_orden = f.orden_id
+          JOIN "Diagnosticos" d ON d.id_diagnostico = o.diagnostico_id
+          JOIN "Equipos" e ON e.id_equipo = d.equipo_id
+          JOIN "Clientes" cl ON cl.id_cliente = e.cliente_id
+          LEFT JOIN "Tecnicos" t ON t.id_tecnico = o.tecnico_id
+          LEFT JOIN "Tecnicos" dt ON dt.id_tecnico = d.tecnico_id
+          LEFT JOIN LATERAL (
+            SELECT COALESCE(SUM(COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0)), 0) AS costo_repuestos
+            FROM "Ordenes_Repuestos" orp
+            LEFT JOIN "Repuestos" r ON r.id_repuesto = orp.repuesto_id
+            WHERE orp.orden_id = o.id_orden AND orp.estado_aprobacion = 'APROBADO'
+          ) costos ON true
+          WHERE f.fecha_emision::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
+            AND COALESCE(costos.costo_repuestos, 0) > COALESCE(f.total, 0)
+          UNION ALL
+          SELECT
+            'Perdida real'::TEXT AS tipo,
+            COALESCE(o.fecha_cierre, o.fecha_finalizacion, o.fecha_ingreso) AS fecha,
+            CONCAT('Orden #', o.id_orden)::TEXT AS referencia,
+            COALESCE(cl.nombre, 'Sin cliente')::TEXT AS cliente,
+            TRIM(CONCAT(COALESCE(e.tipo, 'Equipo'), ' ', COALESCE(e.marca, ''), ' ', COALESCE(e.modelo, '')))::TEXT AS equipo,
+            COALESCE(t.nombre, dt.nombre, 'Sin asignar')::TEXT AS tecnico,
+            CONCAT(COALESCE(r.nombre, orp.pieza_solicitada, 'Repuesto'), ' x', COALESCE(orp.cantidad_usada, 1))::TEXT AS concepto,
+            COALESCE(orp.cantidad_usada, 1) * COALESCE(r.costo_individual, 0) AS monto,
+            'Costo de repuesto usado en una orden irreparable que aun no tiene factura asociada.'::TEXT AS razon
+          FROM "Ordenes" o
+          LEFT JOIN "Facturas" f ON f.orden_id = o.id_orden
+          JOIN "Diagnosticos" d ON d.id_diagnostico = o.diagnostico_id
+          JOIN "Equipos" e ON e.id_equipo = d.equipo_id
+          JOIN "Clientes" cl ON cl.id_cliente = e.cliente_id
+          JOIN "Ordenes_Repuestos" orp ON orp.orden_id = o.id_orden AND orp.estado_aprobacion = 'APROBADO'
+          LEFT JOIN "Tecnicos" t ON t.id_tecnico = o.tecnico_id
+          LEFT JOIN "Tecnicos" dt ON dt.id_tecnico = d.tecnico_id
+          LEFT JOIN "Repuestos" r ON r.id_repuesto = orp.repuesto_id
+          WHERE f.id_factura IS NULL
+            AND UPPER(COALESCE(o.estado, '')) = 'IRREPARABLE'
+            AND COALESCE(o.fecha_cierre, o.fecha_finalizacion, o.fecha_ingreso)::DATE BETWEEN CAST(${fechaInicio} AS DATE) AND CAST(${fechaFin} AS DATE)
         ) fuentes
         ORDER BY monto DESC, fecha DESC NULLS LAST
         LIMIT 100
@@ -396,7 +443,7 @@ export const getGananciasAdmin = async (req, res) => {
     const orderMargins = normalizeRows(ordenRows);
     const alertas = [
       totals.ganancia_neta < 0
-        ? { nivel: 'alto', titulo: 'Periodo con perdida neta', detalle: 'Los costos consumidos y perdidas reales superan los ingresos.' }
+        ? { nivel: 'alto', titulo: 'Periodo con perdida neta', detalle: 'Los costos consumidos superan los ingresos facturados.' }
         : null,
       totals.rentabilidad_porcentaje > 0 && totals.rentabilidad_porcentaje < 30
         ? { nivel: 'medio', titulo: 'Rentabilidad baja', detalle: 'El margen de servicios esta por debajo del 30%.' }
@@ -408,7 +455,7 @@ export const getGananciasAdmin = async (req, res) => {
         ? { nivel: 'medio', titulo: 'Inventario sin stock', detalle: `${activos.repuestos_sin_stock} repuestos activos estan sin unidades disponibles.` }
         : null,
       totals.perdidas_reales > 0
-        ? { nivel: 'alto', titulo: 'Perdida real de ingresos', detalle: 'Las compras/inversiones del periodo superan lo facturado por el local.' }
+        ? { nivel: 'alto', titulo: 'Perdidas reales detectadas', detalle: 'Hay ordenes con margen negativo o irreparables con costos sin recuperar.' }
         : null,
     ].filter(Boolean);
 
