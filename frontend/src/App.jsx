@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useContext } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef, useContext } from 'react';
 import { createBrowserRouter, RouterProvider, Outlet, Navigate, useLocation } from 'react-router-dom';
 import useResponsiveLayout from './features/responsive/useResponsiveLayout';
 
@@ -52,14 +52,38 @@ function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
   const isAdminRoute = location.pathname === '/' || location.pathname.startsWith('/admin');
+  const mainRef = useRef(null);
   const toggleSidebar = () => setSidebarOpen((s) => !s);
+
+  useEffect(() => {
+    if (!mainRef.current) return;
+    const container = mainRef.current;
+
+    const handleWheel = (event) => {
+      const target = event.target;
+      const scrollable = target.closest('.admin-scroll-wrapper');
+      if (!scrollable) return;
+
+      const canScroll = scrollable.scrollWidth > scrollable.clientWidth;
+      if (!canScroll) return;
+
+      const delta = event.deltaY || event.deltaX;
+      if (Math.abs(delta) < 1) return;
+
+      event.preventDefault();
+      scrollable.scrollLeft += delta;
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
 
   return (
     <div className="flex h-screen bg-[var(--bg)] text-[var(--text)]">
       <Sidebar open={sidebarOpen} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Navbar onToggleSidebar={toggleSidebar} />
-        <main className={`flex-1 overflow-auto ${isAdminRoute ? 'admin-main' : ''}`}>
+        <main ref={mainRef} className={`flex-1 overflow-auto ${isAdminRoute ? 'admin-main' : ''}`}>
           <div className={`mx-auto w-full ${isAdminRoute ? 'admin-content' : ''}`}>
             <PageHelp />
             <Outlet />

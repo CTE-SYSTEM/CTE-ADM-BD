@@ -54,3 +54,37 @@
   scrollbar-width: thin;
   scrollbar-color: #e2e8f0 transparent;
 }
+
+/* Scroll superior sincronizado para tablas admin */
+.admin-table-top-scrollbar {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 10px;
+  background: transparent;
+}
+
+.admin-table-top-scrollbar > div {
+  height: 1px;
+}
+
+.admin-scroll-wrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.admin-table-top-scrollbar::-webkit-scrollbar {
+  height: 8px;
+}
+
+.admin-table-top-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-table-top-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.admin-table-top-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

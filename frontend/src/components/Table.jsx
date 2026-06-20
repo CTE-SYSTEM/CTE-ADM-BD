@@ -1,10 +1,59 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 
 const defaultContentClassName = 'max-w-[220px] whitespace-normal break-words leading-relaxed';
 
 const Table = ({ columns, data, sortable = false, emptyMessage = 'No hay registros disponibles', emptyClassName = '' }) => {
   // Estado para controlar qué columna ordena y en qué sentido ('asc' o 'desc')
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const topScrollRef = useRef(null);
+  const tableWrapperRef = useRef(null);
+  const tableRef = useRef(null);
+  const [showTopScrollbar, setShowTopScrollbar] = useState(false);
+
+  useEffect(() => {
+    const topScroll = topScrollRef.current;
+    const tableWrapper = tableWrapperRef.current;
+    const table = tableRef.current;
+    if (!topScroll || !tableWrapper || !table) return;
+
+    const updateTopScroll = () => {
+      const needsScroll = tableWrapper.scrollWidth > tableWrapper.clientWidth;
+      setShowTopScrollbar(needsScroll);
+      topScroll.firstElementChild.style.width = `${tableWrapper.scrollWidth}px`;
+      if (needsScroll) {
+        topScroll.scrollLeft = tableWrapper.scrollLeft;
+      }
+    };
+
+    const syncFromTop = () => {
+      if (Math.abs(topScroll.scrollLeft - tableWrapper.scrollLeft) > 1) {
+        tableWrapper.scrollLeft = topScroll.scrollLeft;
+      }
+    };
+
+    const syncFromTable = () => {
+      if (Math.abs(topScroll.scrollLeft - tableWrapper.scrollLeft) > 1) {
+        topScroll.scrollLeft = tableWrapper.scrollLeft;
+      }
+    };
+
+    topScroll.addEventListener('scroll', syncFromTop, { passive: true });
+    tableWrapper.addEventListener('scroll', syncFromTable, { passive: true });
+
+    const resizeObserver = new ResizeObserver(updateTopScroll);
+    resizeObserver.observe(tableWrapper);
+    resizeObserver.observe(table);
+    updateTopScroll();
+
+    window.addEventListener('resize', updateTopScroll);
+
+    return () => {
+      topScroll.removeEventListener('scroll', syncFromTop);
+      tableWrapper.removeEventListener('scroll', syncFromTable);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateTopScroll);
+    };
+  }, [data, columns]);
 
   const normalizedData = Array.isArray(data) ? data : [];
   const hasData = normalizedData.length > 0;
@@ -80,56 +129,62 @@ const Table = ({ columns, data, sortable = false, emptyMessage = 'No hay registr
   }
 
   return (
-    <div className={`w-full min-w-0 overflow-auto rounded-xl border border-gray-200 bg-white shadow-sm custom-scrollbar ${emptyClassName}`.trim()}>
-      <table className="w-full min-w-max table-auto border-collapse">
-        <thead className="sticky top-0 z-10 bg-white">
-          <tr className="border-b border-gray-100 bg-gray-50/50">
-            {columns.map((c, index) => {
-              const accessorKey = c.accessor;
-              const isSorted = sortConfig.key === accessorKey;
-              
-              // Es interactiva si el componente tiene "sortable", si la columna tiene accessor y no es la de acciones
-              const isColumnSortable = sortable && !!accessorKey && accessorKey !== 'acciones';
+    <div className={`w-full min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ${emptyClassName}`.trim()}>
+      <div
+        ref={topScrollRef}
+        className={`admin-table-top-scrollbar custom-scrollbar ${showTopScrollbar ? '' : 'hidden'}`.trim()}
+      >
+        <div style={{ width: '1px', height: '1px' }} />
+      </div>
 
-              return (
-                <th 
-                  key={accessorKey || c.header || index} 
-                  onClick={() => isColumnSortable && handleSort(accessorKey)}
-                  className={`px-3 py-3 text-left text-[13px] font-semibold text-gray-400 uppercase tracking-tight whitespace-nowrap sm:px-6 sm:py-4 select-none ${
-                    isColumnSortable ? 'cursor-pointer hover:bg-gray-100/70 hover:text-gray-600 transition-colors' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <span>{c.header}</span>
-                    {/* El icono de filtro solo aparece si la columna permite ordenamiento */}
-                    {isColumnSortable && (
-                      <span className={`text-[10px] transition-colors ${isSorted ? 'text-indigo-600 font-bold' : 'text-gray-300'}`}>
-                        {isSorted ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕'}
-                      </span>
-                    )}
-                  </div>
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-50">
-          {processedData.map((row, i) => (
-            <tr key={i} className="hover:bg-gray-50/30 transition-all duration-200">
-              {columns.map((c, colIndex) => (
-                <td 
-                  key={c.accessor || c.header || colIndex} 
-                  className={`min-w-0 px-3 py-3 text-sm text-gray-600 align-top sm:px-5 sm:py-3.5 ${c.cellClassName || ''}`}
-                >
-                  <div className={c.contentClassName || defaultContentClassName}>
-                    {c.render ? c.render(row) : (row[c.accessor] !== undefined && row[c.accessor] !== null ? row[c.accessor] : '-')}
-                  </div>
-                </td>
-              ))}
+      <div ref={tableWrapperRef} className="w-full min-w-0 overflow-auto admin-scroll-wrapper custom-scrollbar">
+        <table ref={tableRef} className="w-full min-w-max table-auto border-collapse">
+          <thead className="sticky top-0 z-10 bg-white">
+            <tr className="border-b border-gray-100 bg-gray-50/50">
+              {columns.map((c, index) => {
+                const accessorKey = c.accessor;
+                const isSorted = sortConfig.key === accessorKey;
+                const isColumnSortable = sortable && !!accessorKey && accessorKey !== 'acciones';
+
+                return (
+                  <th
+                    key={accessorKey || c.header || index}
+                    onClick={() => isColumnSortable && handleSort(accessorKey)}
+                    className={`px-3 py-3 text-left text-[13px] font-semibold text-gray-400 uppercase tracking-tight whitespace-nowrap sm:px-6 sm:py-4 select-none ${
+                      isColumnSortable ? 'cursor-pointer hover:bg-gray-100/70 hover:text-gray-600 transition-colors' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>{c.header}</span>
+                      {isColumnSortable && (
+                        <span className={`text-[10px] transition-colors ${isSorted ? 'text-indigo-600 font-bold' : 'text-gray-300'}`}>
+                          {isSorted ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕'}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {processedData.map((row, i) => (
+              <tr key={i} className="hover:bg-gray-50/30 transition-all duration-200">
+                {columns.map((c, colIndex) => (
+                  <td
+                    key={c.accessor || c.header || colIndex}
+                    className={`min-w-0 px-3 py-3 text-sm text-gray-600 align-top sm:px-5 sm:py-3.5 ${c.cellClassName || ''}`}
+                  >
+                    <div className={c.contentClassName || defaultContentClassName}>
+                      {c.render ? c.render(row) : (row[c.accessor] !== undefined && row[c.accessor] !== null ? row[c.accessor] : '-')}
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
