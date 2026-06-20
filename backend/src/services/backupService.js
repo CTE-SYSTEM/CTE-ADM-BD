@@ -295,6 +295,21 @@ const runBackup = async () => {
         reportLines.push(`- Error aplicando retención: ${retErr.message}`);
       }
 
+      // Sincronizar a host remoto si está configurado
+      if (process.env.BACKUP_REMOTE_HOST) {
+        try {
+          const archivePath = path.join(BACKUP_ROOT, `cte_backup_${timestamp}.tar.gz`);
+          const encPath = `${archivePath}.enc`;
+          const fileToSync = (await fileExists(encPath)) ? encPath : archivePath;
+          if (await fileExists(fileToSync)) {
+            await syncBackupToRemote(fileToSync);
+            reportLines.push(`- Backup sincronizado a: ${process.env.BACKUP_REMOTE_HOST}:${process.env.BACKUP_REMOTE_PATH}`);
+          }
+        } catch (syncErr) {
+          reportLines.push(`- Error sincronizando backup remoto: ${syncErr.message}`);
+        }
+      }
+
     console.log('[BackupService] Backup mensual completado correctamente.');
     reportLines.forEach((line) => console.log(line));
 
@@ -421,6 +436,31 @@ export const getBackupFilePath = async (fileName) => {
 };
 
 export const getBackupSummaryWithRoot = async () => ({ root: BACKUP_DISPLAY_ROOT, months: await listBackupFiles(), rootFiles: await listRootFiles() });
+
+const syncBackupToRemote = async (localFilePath) => {
+  const remoteHost = process.env.BACKUP_REMOTE_HOST;
+  const remoteUser = process.env.BACKUP_REMOTE_USER;
+  const remotePath = process.env.BACKUP_REMOTE_PATH || '/backup/CTE-Backup';
+  const remoteKeyPath = process.env.BACKUP_REMOTE_KEY || '/root/.ssh/id_rsa';
+  
+  if (!remoteHost || !remoteUser) {
+    throw new Error('BACKUP_REMOTE_HOST y BACKUP_REMOTE_USER deben estar definidos');
+  }
+  
+  const fileName = path.basename(localFilePath);
+  const remoteFilePath = `${remoteUser}@${remoteHost}:${remotePath}/${fileName}`;
+  
+  try {
+    await execFileAsync('scp', [
+      '-i', remoteKeyPath,
+      '-o', 'StrictHostKeyChecking=no',
+      localFilePath,
+      remoteFilePath,
+    ]);
+  } catch (err) {
+    throw new Error(`scp sync failed: ${err.message}`);
+  }
+};
 
 export const createBackupNow = async () => {
   const result = await runBackup();
