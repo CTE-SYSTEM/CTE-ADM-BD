@@ -76,10 +76,9 @@ BEGIN
     END IF;
 
     v_target_repuesto_id := p_repuesto_id;
-    v_repuesto_sin_variante := v_base.proveedor_id IS NULL AND COALESCE(v_base.costo_individual, 0) = 0;
+    v_repuesto_sin_variante := v_base.proveedor_id IS NULL;
     v_misma_variante := COALESCE(v_base.proveedor_id, 0) = p_proveedor_id AND COALESCE(v_base.costo_individual, 0) = p_costo;
-    v_debe_crear_variante := NOT v_repuesto_sin_variante
-        AND ((v_base.proveedor_id IS NOT NULL OR COALESCE(v_base.costo_individual, 0) > 0) AND NOT v_misma_variante);
+    v_debe_crear_variante := NOT v_repuesto_sin_variante AND NOT v_misma_variante;
 
     IF v_debe_crear_variante THEN
         SELECT id_repuesto INTO v_variante_id

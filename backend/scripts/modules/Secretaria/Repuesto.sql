@@ -111,11 +111,11 @@ DECLARE
 BEGIN
     v_cat_id := upsert_categoria(p_cat_nombre, p_electro);
 
-    UPDATE "Repuestos"
+    UPDATE "Repuestos" r
     SET nombre = p_nombre,
         descripcion = p_desc,
         tipo_repuesto_id = v_cat_id,
-        proveedor_id = p_proveedor_id,
+        proveedor_id = COALESCE(p_proveedor_id, r.proveedor_id),
         costo_individual = p_costo,
         ganancia_cordobas = p_ganancia
     WHERE id_repuesto = p_id;
