@@ -5,7 +5,7 @@ import { diagnosticoService } from '../../services/JefeTecnico/DiagnosticoServic
 import { ordenesService } from '../../services/secretaria/ordenesService';
 import { repuestoService } from '../../services/secretaria/repuestosService';
 import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
-import { buildAsignacionColumns, buildCorreccionesColumns, buildIrreparablesColumns, buildRepuestosColumns } from '../../components/TecnicoJefe/columns';
+import { buildAsignacionColumns, buildCorreccionesColumns, buildRepuestosColumns } from '../../components/TecnicoJefe/columns';
 import { DashboardHeader } from '../../components/TecnicoJefe/components';
 import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_IRREPARABLES, TAB_ORDENES, TAB_REPUESTOS } from '../../utils/jefeTecnicoConstants';
 import {
@@ -492,16 +492,6 @@ const JefeDashboard = () => {
     },
   }), [savingId]);
 
-  const irreparablesColumns = useMemo(() => buildIrreparablesColumns({
-    savingId,
-    onDecisionIrreparable: handleDecisionIrreparable,
-    onViewDetalle: (row) => {
-      setSelectedItem(row);
-      setDetalles(null);
-      setShowModal(true);
-    },
-  }), [savingId]);
-
   const correccionesColumns = useMemo(() => buildCorreccionesColumns({
     onEdit: openEditModal,
   }), []);
@@ -513,16 +503,12 @@ const JefeDashboard = () => {
         ? ordenesAprobadas
         : activeTab === TAB_REPUESTOS
           ? repuestosPendientes
-          : activeTab === TAB_IRREPARABLES
-            ? irreparablesFiltrados
           : activeTab === TAB_CORRECCIONES
             ? correccionesFiltradas
             : alertasRetraso;
 
   const mainColumns = activeTab === TAB_REPUESTOS
     ? repuestosColumns
-    : activeTab === TAB_IRREPARABLES
-      ? irreparablesColumns
     : activeTab === TAB_CORRECCIONES
       ? correccionesColumns
       : asignacionColumns;
@@ -563,7 +549,6 @@ const JefeDashboard = () => {
           activeTab={activeTab}
           alertasRetraso={alertasRetraso}
           correccionesFiltradas={correccionesFiltradas}
-          irreparablesFiltrados={irreparablesFiltrados}
           onChange={setActiveTab}
         />
 

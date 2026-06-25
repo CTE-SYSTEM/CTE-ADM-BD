@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertTriangle, Bell, History, Package, Search, Settings, ShieldCheck, X } from 'lucide-react';
 import PageHelp from '../../PageHelp';
 import Table from '../../Table';
-import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_IRREPARABLES, TAB_ORDENES, TAB_REPUESTOS } from '../../../utils/jefeTecnicoConstants';
+import { TAB_ALERTAS, TAB_CORRECCIONES, TAB_DIAGNOSTICOS, TAB_ORDENES, TAB_REPUESTOS } from '../../../utils/jefeTecnicoConstants';
 import { StatCard, TabButton } from '../components';
 
 export const JefeTecnicoIntro = ({ showHelp }) => (
@@ -70,12 +70,11 @@ export const AsignacionesRecientes = ({ asignacionesRecientes, asignacionColumns
   );
 };
 
-export const JefeTecnicoTabs = ({ activeTab, alertasRetraso, correccionesFiltradas, irreparablesFiltrados, onChange }) => (
+export const JefeTecnicoTabs = ({ activeTab, alertasRetraso, correccionesFiltradas, onChange }) => (
   <div className="flex flex-wrap gap-3 mb-8">
     <TabButton active={activeTab === TAB_DIAGNOSTICOS} onClick={() => onChange(TAB_DIAGNOSTICOS)} icon={<Search size={16} />} label="Asignar Diagnosticos" />
     <TabButton active={activeTab === TAB_ORDENES} onClick={() => onChange(TAB_ORDENES)} icon={<Package size={16} />} label="Ordenes por aprobar" />
     <TabButton active={activeTab === TAB_REPUESTOS} onClick={() => onChange(TAB_REPUESTOS)} icon={<ShieldCheck size={16} />} label="Aprobacion de Repuestos" />
-    <TabButton active={activeTab === TAB_IRREPARABLES} onClick={() => onChange(TAB_IRREPARABLES)} icon={<AlertTriangle size={16} />} label={`Irreparables (${irreparablesFiltrados.length})`} />
     <TabButton active={activeTab === TAB_ALERTAS} onClick={() => onChange(TAB_ALERTAS)} icon={<Bell size={16} />} label={`Alertas (${alertasRetraso.length})`} />
     <TabButton active={activeTab === TAB_CORRECCIONES} onClick={() => onChange(TAB_CORRECCIONES)} icon={<Settings size={16} />} label={`Correcciones (${correccionesFiltradas.length})`} />
   </div>
@@ -127,11 +126,7 @@ export const JefeTecnicoMessages = ({
 );
 
 export const CorreccionesSearch = ({ activeTab, searchTerm, onSearch }) => {
-  if (activeTab !== TAB_CORRECCIONES && activeTab !== TAB_IRREPARABLES) return null;
-
-  const placeholder = activeTab === TAB_IRREPARABLES
-    ? 'Buscar irreparable por ID, tecnico, equipo o hallazgo...'
-    : 'Buscar correccion por ID, tipo, tecnico o equipo...';
+  if (activeTab !== TAB_CORRECCIONES) return null;
 
   return (
     <div className="mb-6 px-4">
@@ -139,7 +134,7 @@ export const CorreccionesSearch = ({ activeTab, searchTerm, onSearch }) => {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <input
           type="text"
-          placeholder={placeholder}
+          placeholder="Buscar correccion por ID, tipo, tecnico o equipo..."
           value={searchTerm}
           onChange={(e) => onSearch(e.target.value)}
           className="w-full pl-12 pr-4 py-3 border-2 border-slate-100 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all placeholder:font-medium shadow-sm"
