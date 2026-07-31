@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getCompras, createCompra, updateCompra } from '../../../controllers/Secretaria/ComprasControllers.js';
+import { getCompras, createCompra, updateCompra } from '../../../controllers/Secretaria/comprasController.js';
 import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
 import { PERMISSIONS } from '../../../utils/permissions.js';
 

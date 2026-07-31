@@ -4,7 +4,7 @@ import {
   deleteTipoRepuesto,
   getTiposRepuesto,
   updateTipoRepuesto,
-} from '../../../controllers/Secretaria/TipoRepuestoControllers.js';
+} from '../../../controllers/Secretaria/tipoRepuestoController.js';
 import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
 import { PERMISSIONS } from '../../../utils/permissions.js';
 

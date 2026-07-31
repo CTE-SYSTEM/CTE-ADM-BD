@@ -129,6 +129,41 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 2. Función para crear compra y devolver el registro relacionado
+-- Sobrecarga compatible con Prisma/Node: los parametros numericos llegan como BIGINT
+-- y las fechas JS como TIMESTAMPTZ. Delegamos en la funcion principal con casts.
+CREATE OR REPLACE FUNCTION crear_compra_con_variante_proc(
+    p_repuesto_id BIGINT,
+    p_proveedor_id BIGINT,
+    p_documento TEXT,
+    p_fecha TIMESTAMPTZ,
+    p_cantidad BIGINT,
+    p_costo NUMERIC,
+    p_metodo_pago TEXT
+) RETURNS TABLE (
+    id_compra INT,
+    documento TEXT,
+    fecha_obtencion TIMESTAMP,
+    cantidad INT,
+    costo_unitario DECIMAL,
+    metodo_pago TEXT,
+    proveedor JSONB,
+    repuesto JSONB
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT *
+    FROM crear_compra_con_variante_proc(
+        p_repuesto_id::INT,
+        p_proveedor_id::INT,
+        p_documento,
+        p_fecha::TIMESTAMP,
+        p_cantidad::INT,
+        p_costo,
+        p_metodo_pago
+    );
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION crear_compra_proc(
     p_repuesto_id INT,
     p_proveedor_id INT,

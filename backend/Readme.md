@@ -1,123 +1,214 @@
-# 🗄️ Gestión de la Base de Datos - Proyecto CTE
+# Backend CTE
 
-El sistema utiliza **PostgreSQL** como motor de base de datos principal, gestionado a través de **Prisma ORM**. Para facilitar la administración, se han integrado dos herramientas clave que permiten interactuar con los datos de forma visual.
+API del sistema CTE construida con Express, Prisma y PostgreSQL.
 
----
+## Estructura
 
-### 1. Prisma Studio (Explorador de Datos Rápido)
-Esta es la herramienta más ágil para visualizar, crear, editar o eliminar registros de las tablas mediante una interfaz tipo hoja de cálculo. 
+```txt
+backend/
+  src/
+    app/             Configuracion de Express y cliente Prisma.
+    config/          Variables de entorno y configuracion base.
+    controllers/     Controladores por modulo.
+    middlewares/     Seguridad, autenticacion y manejo de errores.
+    routes/          Rutas HTTP por modulo.
+    services/        Logica reutilizable y servicios del backend.
+    utils/           Permisos, roles y validaciones de dominio.
+    server.js        Punto de entrada real del backend.
 
-Como el proyecto corre bajo Docker, es necesario ejecutar el servicio dentro del contenedor del backend para que tenga acceso al esquema y a la red interna:
+  prisma/
+    schema.prisma    Modelo de datos Prisma.
+    Seed.js          Seed de datos.
 
-**Pasos para iniciar el explorador:**
+  scripts/
+    modules/         Funciones SQL separadas por modulo.
+    load_functions.sql
+    setup.sh
 
-1.  **Entrar a la terminal del contenedor:**
-    ```bash
-    docker exec -it backend_cte sh
-    ```
-
-2.  **Lanzar el servidor de Prisma Studio:**
-    ```bash
-    npx prisma studio --port 5555 --browser none --hostname 0.0.0.0
-    ```
-
-3.  **Acceso Web:** Abre tu navegador en: [http://localhost:5555](http://localhost:5555)
-
----
-
-### 2. pgAdmin 4 (Administración Profesional y Diagramas ER)
-Se utiliza para tareas de administración avanzada, mantenimiento de tablas y generación de diagramas entidad-relación (ERD).
-
-* **URL de acceso:** [http://localhost:8080](http://localhost:8080)
-* **Credenciales de acceso al panel:**
-    * **Usuario:** `sadiel@admin.com`
-    * **Contraseña:** `admin`
-
-**Configuración de la conexión al servidor de DB:**
-
-Al entrar por primera vez, debes registrar el servidor de la base de datos con los siguientes parámetros:
-
-| Campo | Valor |
-| :--- | :--- |
-| **Name (General)** | `CTE-DB` |
-| **Host name/address** | `db` |
-| **Port** | `5432` |
-| **Maintenance database** | `Centro_Tecnico_Electronico` |
-| **Username** | `User_admin` |
-| **Password** | `TuPasswordSeguro123!` |
-
-> [!TIP]
-> **Para ver el modelo de datos visual:** Haz clic derecho sobre la base de datos `Centro_Tecnico_Electronico` en el panel izquierdo y selecciona la opción **ERD Tool**. Esto generará automáticamente el diagrama con todas las relaciones y llaves foráneas.
-
-### 3. 👥 Carga de Usuarios y Credenciales
-
-El sistema viene con 4 usuarios por defecto listos para usar. Las credenciales están almacenadas en la base de datos con hashes seguros.
-
-**Después de iniciar Docker (`docker compose up -d`), carga los usuarios con:**
-
-```bash
-npm run db:seed
+  tests/
+    api/             Pruebas de API.
 ```
 
-O manualmente:
-```bash
-docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico < scripts/Seed_data.sql
+## Modulos Principales
+
+```txt
+controllers/
+  Secretaria/
+  Tecnico/
+  JefeTecnico/
+  admin_pro/
+  auth/
 ```
 
-**Usuarios disponibles:**
+```txt
+routes/modules/
+  secretaria/
+  Tecnico/
+  JefeTecnico/
+  admin_pro/
+```
 
-| Usuario | Rol | Contraseña |
-|---------|-----|-----------|
-| `admin_pro` | Administrador | `1234` |
-| `secretaria_ana` | Secretaria | `1234` |
-| `jefe_tecnico` | Técnico Jefe | `1234` |
-| `tecnico_juan` | Técnico | `1234` |
+## Donde Modificar
 
-**Verificar que los usuarios se crearon correctamente:**
+### Secretaria
+
+- Controladores: `src/controllers/Secretaria/`
+- Rutas: `src/routes/modules/secretaria/`
+- Servicios: `src/services/Secretaria/`
+- SQL: `scripts/modules/Secretaria/`
+
+### Tecnico
+
+- Controlador: `src/controllers/Tecnico/tecnicosController.js`
+- Rutas: `src/routes/modules/Tecnico/tecnicos.js`
+- Servicio: `src/services/Tecnico/tecnicoService.js`
+- SQL: `scripts/modules/Tecnico/`
+
+### Tecnico Jefe
+
+- Controlador: `src/controllers/JefeTecnico/DiagnosticoController.js`
+- Rutas: `src/routes/modules/JefeTecnico/Diagnostico.js`
+- SQL: `scripts/modules/JefeTecnico/`
+
+### Admin Pro
+
+- Controladores: `src/controllers/admin_pro/`
+- Rutas: `src/routes/modules/admin_pro/adminPro.js`
+- SQL: `scripts/modules/admin_pro/`
+
+## Como Agregar Un Endpoint
+
+1. Crea o modifica el controlador en `src/controllers/<Modulo>/`.
+2. Exporta la funcion del controlador.
+3. Agrega la ruta en `src/routes/modules/<modulo>/`.
+4. Registra la ruta en `src/app/app.js` solo si es un modulo nuevo.
+5. Si usa SQL, agrega la funcion en `scripts/modules/<Modulo>/` y revisa `scripts/load_functions.sql`.
+
+Ejemplo mental:
+
+```txt
+controllers/Secretaria/clientesController.js
+routes/modules/secretaria/Clientes.js
+app/app.js -> app.use('/api/clientes', clientesRoutes)
+```
+
+## Como Eliminar Una Funcion
+
+Antes de borrar una funcion:
+
+```bash
+rg "nombreFuncion" backend/src backend/scripts backend/tests
+```
+
+Luego:
+
+1. Quita la ruta HTTP que la usa.
+2. Quita imports.
+3. Quita la funcion del controlador.
+4. Si aplica, elimina SQL relacionado.
+5. Prueba importando la app.
+
+```bash
+node -e "import('./src/app/app.js').then(() => console.log('app import ok')).catch((err) => { console.error(err); process.exit(1); })"
+```
+
+## Base De Datos
+
+Prisma:
+
+```bash
+npm run db:generate
+npm run db:sync
+```
+
+Funciones SQL:
+
+```bash
+npm run db:functions
+```
+
+Dentro de Docker:
+
+```bash
+npm run db:functions:container
+```
+
+Verificaciones utiles:
 
 ```bash
 npm run db:check:users
+npm run db:check:clientes
+npm run db:check:tecnicos
 ```
 
-O manualmente:
+## Prisma Studio
+
+Con Docker:
+
 ```bash
-docker exec -i postgres_cte psql -U User_admin -d Centro_Tecnico_Electronico -c 'SELECT id_usuario, nombre_usuario, rol, activo FROM "Usuarios";'
+docker exec -it backend_cte sh
+npx prisma studio --port 5555 --browser none --hostname 0.0.0.0
 ```
 
-> [!IMPORTANT]
-> **Para producción:** Reemplaza estas contraseñas por contraseñas seguras en `scripts/crear_usuarios.sql` y regenera los hashes con `npm run db:generate-hashes`.
+Abrir:
 
----
+```txt
+http://localhost:5555
+```
 
-**Comandos útiles de base de datos:**
+## pgAdmin
 
-- Ver todos los usuarios: `npm run db:check:users`
-- Ver clientes: `npm run db:check:clientes`
-- Ver técnicos: `npm run db:check:tecnicos`
-- Generar hashes de contraseña: `npm run db:generate-hashes`
-- Cargar usuarios desde script: `npm run db:seed`
+URL:
 
-> [!NOTE]
-> Para más información sobre credenciales y configuración, ver [CREDENTIALS.md](../CREDENTIALS.md) en la raíz del proyecto.
+```txt
+http://localhost:8080
+```
 
-### 4. Nuevo agregado para usar el neon 
+Credenciales del panel:
 
-# crear y localizacion 
+```txt
+Usuario: sadiel@admin.com
+Contrasena: admin
+```
 
-luego de crear la cuenta de la localizacion enq ue servidor entonces usar el string de conneccion que ya esta en el
->.env
+Conexion a PostgreSQL dentro de Docker:
 
-y como ya esta el esquema entonces al hacer el db prisma push entoncess en el neon se crea la basede datos que haya en
-**El comando**
+| Campo | Valor |
+| --- | --- |
+| Host | `db` |
+| Port | `5432` |
+| Database | `Centro_Tecnico_Electronico` |
+| Username | `User_admin` |
+| Password | `TuPasswordSeguro123!` |
+
+## Railway / Produccion
+
+Variables importantes:
+
+- `DATABASE_URL`
+- `SQL_DATABASE_URL`
+- `JWT_SECRET`
+- `CORS_ORIGIN`
+- `FRONTEND_URL`
+- `NODE_ENV`
+
+Despues de desplegar o modificar SQL:
+
 ```bash
-npx prisma db push
+npm run db:generate
+npm run db:sync
+npm run db:functions
 ```
->schema.prisma
 
-# Cargar las funciones 
->como el sistema usa las funciones y el prisma paar obtner las cosas se deben de ejecuta para que el escript funcione
+## Notas De Orden
 
-**El comando**
-```bash
-Get-Content scripts/load_functions.sql | ForEach-Object { if ($_ -match '\\i\s+(.*)') { Get-Content $matches[1] } } | docker exec -i postgres_cte psql "TU_URL_DE_NEON"sh
-```
+No mover sin revisar:
+
+- `package.json`
+- `package-lock.json`
+- `.env`
+- `.env.example`
+- `Dockerfile`
+- `prisma/schema.prisma`
+
+Estos archivos estan donde las herramientas los esperan.

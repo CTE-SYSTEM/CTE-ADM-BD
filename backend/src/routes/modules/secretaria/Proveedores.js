@@ -5,7 +5,7 @@ import {
   createProveedor, 
   updateProveedor, 
   deleteProveedor 
-} from '../../../controllers/Secretaria/ProveedoresControllers.js';
+} from '../../../controllers/Secretaria/proveedoresController.js';
 import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
 import { PERMISSIONS } from '../../../utils/permissions.js';
 

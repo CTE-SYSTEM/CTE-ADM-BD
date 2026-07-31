@@ -7,7 +7,7 @@ import {
   getDiagnosticosListosParaOrden,
   getOrdenes,
   updateOrden,
-} from '../../../controllers/Secretaria/NuevaOrdenControllers.js';
+} from '../../../controllers/Secretaria/nuevaOrdenController.js';
 import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
 import { PERMISSIONS } from '../../../utils/permissions.js';
 

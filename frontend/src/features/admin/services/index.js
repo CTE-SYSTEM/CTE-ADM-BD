@@ -1,0 +1,10 @@
+export { dashboardService } from './dashboardService';
+export { usuariosService } from './usuariosService';
+export { equiposAdminService } from './equiposService';
+export { diagnosticosAdminService } from './diagnosticosService';
+export { ordenesAdminService } from './ordenesService';
+export { reportesAdminService } from './reportesService';
+export { garantiasAdminService } from './garantiasService';
+export { inventarioAdminService } from './inventarioService';
+export { gananciasAdminService } from './gananciasService';
+export { tecnicosAdminService } from './tecnicosService';

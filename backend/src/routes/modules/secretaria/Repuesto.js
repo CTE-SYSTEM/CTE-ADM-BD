@@ -5,7 +5,7 @@ import {
   createRepuesto, 
   updateRepuesto, 
   deleteRepuesto 
-} from '../../../controllers/Secretaria/RepuestoControllers.js';
+} from '../../../controllers/Secretaria/repuestoController.js';
 import authMiddleware, { requireRole } from '../../../middlewares/authMiddleware.js';
 
 const router = Router();

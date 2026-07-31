@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getFacturas, createFactura, getOrdenesParaFacturar } from '../../../controllers/Secretaria/FacturacionControllers.js';
+import { getFacturas, createFactura, getOrdenesParaFacturar } from '../../../controllers/Secretaria/facturacionController.js';
 import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
 import { PERMISSIONS } from '../../../utils/permissions.js';
 

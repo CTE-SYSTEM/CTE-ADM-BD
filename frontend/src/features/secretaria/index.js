@@ -1,0 +1,10 @@
+export { default as SecretariaDashboard } from './pages/SecretariaDashboard';
+export { default as ClientesSecretaria } from './pages/Clientes';
+export { default as EquiposSecretaria } from './pages/Equipos';
+export { default as ProveedoresSecretaria } from './pages/Proveedores';
+export { default as RepuestosSecretaria } from './pages/Repuestos';
+export { default as TiposRepuestoSecretaria } from './pages/TiposRepuesto';
+export { default as ComprasSecretaria } from './pages/Compras';
+export { default as FacturacionSecretaria } from './pages/Facturacion';
+export { default as DiagnosticoSecretaria } from './pages/Diagnostico';
+export { default as NuevaOrdenSecretaria } from './pages/NuevaOrden';

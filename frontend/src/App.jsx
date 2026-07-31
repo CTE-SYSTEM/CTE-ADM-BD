@@ -16,37 +16,37 @@ import './App.css';
 // Las páginas se cargan bajo demanda para no inflar el JavaScript inicial.
 const Login = lazy(() => import('./pages/Auth/Login'));
 
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
-const UsuariosAvanzado = lazy(() => import('./pages/admin/UsuariosAvanzado'));
-const EquiposAvanzado = lazy(() => import('./pages/admin/EquiposAvanzado'));
-const OrdenesAvanzado = lazy(() => import('./pages/admin/OrdenesAvanzado'));
-const InventarioAvanzado = lazy(() => import('./pages/admin/InventarioAvanzado'));
-const FacturasAvanzado = lazy(() => import('./pages/admin/FacturasAvanzado'));
-const GarantiasAvanzado = lazy(() => import('./pages/admin/GarantiasAvanzado'));
-const HistorialEquipo = lazy(() => import('./pages/admin/HistorialEquipo'));
-const HistorialRepuesto = lazy(() => import('./pages/admin/HistorialRepuesto'));
-const RepuestosAvanzado = lazy(() => import('./pages/admin/RepuestosAvanzado'));
-const ComprasAvanzado = lazy(() => import('./pages/admin/ComprasAvanzado'));
-const RendimientoTecnicos = lazy(() => import('./pages/admin/RendimientoTecnicos'));
-const OrdenesEstadoAvanzado = lazy(() => import('./pages/admin/OrdenesEstadoAvanzado'));
-const DiagnosticosEstadoAvanzado = lazy(() => import('./pages/admin/DiagnosticosEstadoAvanzado'));
-const ClientesAvanzado = lazy(() => import('./pages/admin/ClientesAvanzado'));
-const Ganancias = lazy(() => import('./pages/admin/Ganancias'));
+const AdminDashboard = lazy(() => import('./features/admin/pages/AdminDashboard'));
+const UsuariosAvanzado = lazy(() => import('./features/admin/pages/UsuariosAvanzado'));
+const EquiposAvanzado = lazy(() => import('./features/admin/pages/EquiposAvanzado'));
+const OrdenesAvanzado = lazy(() => import('./features/admin/pages/OrdenesAvanzado'));
+const InventarioAvanzado = lazy(() => import('./features/admin/pages/InventarioAvanzado'));
+const FacturasAvanzado = lazy(() => import('./features/admin/pages/FacturasAvanzado'));
+const GarantiasAvanzado = lazy(() => import('./features/admin/pages/GarantiasAvanzado'));
+const HistorialEquipo = lazy(() => import('./features/admin/pages/HistorialEquipo'));
+const HistorialRepuesto = lazy(() => import('./features/admin/pages/HistorialRepuesto'));
+const RepuestosAvanzado = lazy(() => import('./features/admin/pages/RepuestosAvanzado'));
+const ComprasAvanzado = lazy(() => import('./features/admin/pages/ComprasAvanzado'));
+const RendimientoTecnicos = lazy(() => import('./features/admin/pages/RendimientoTecnicos'));
+const OrdenesEstadoAvanzado = lazy(() => import('./features/admin/pages/OrdenesEstadoAvanzado'));
+const DiagnosticosEstadoAvanzado = lazy(() => import('./features/admin/pages/DiagnosticosEstadoAvanzado'));
+const ClientesAvanzado = lazy(() => import('./features/admin/pages/ClientesAvanzado'));
+const Ganancias = lazy(() => import('./features/admin/pages/Ganancias'));
 const FlujoAtencion = lazy(() => import('./pages/FlujoAtencion'));
 
-const SecretariaDashboard = lazy(() => import('./pages/Secretaria/SecretariaDashboard'));
-const ClientesSecretaria = lazy(() => import('./pages/Secretaria/Clientes'));
-const EquiposSecretaria = lazy(() => import('./pages/Secretaria/Equipos'));
-const ProveedoresSecretaria = lazy(() => import('./pages/Secretaria/Proveedores'));
-const RepuestosSecretaria = lazy(() => import('./pages/Secretaria/Repuestos'));
-const TiposRepuestoSecretaria = lazy(() => import('./pages/Secretaria/TiposRepuesto'));
-const ComprasSecretaria = lazy(() => import('./pages/Secretaria/Compras'));
-const FacturacionSecretaria = lazy(() => import('./pages/Secretaria/Facturacion'));
-const Diagnostico = lazy(() => import('./pages/Secretaria/Diagnostico'));
-const NuevaOrden = lazy(() => import('./pages/Secretaria/NuevaOrden'));
+const SecretariaDashboard = lazy(() => import('./features/secretaria/pages/SecretariaDashboard'));
+const ClientesSecretaria = lazy(() => import('./features/secretaria/pages/Clientes'));
+const EquiposSecretaria = lazy(() => import('./features/secretaria/pages/Equipos'));
+const ProveedoresSecretaria = lazy(() => import('./features/secretaria/pages/Proveedores'));
+const RepuestosSecretaria = lazy(() => import('./features/secretaria/pages/Repuestos'));
+const TiposRepuestoSecretaria = lazy(() => import('./features/secretaria/pages/TiposRepuesto'));
+const ComprasSecretaria = lazy(() => import('./features/secretaria/pages/Compras'));
+const FacturacionSecretaria = lazy(() => import('./features/secretaria/pages/Facturacion'));
+const Diagnostico = lazy(() => import('./features/secretaria/pages/Diagnostico'));
+const NuevaOrden = lazy(() => import('./features/secretaria/pages/NuevaOrden'));
 
-const TecnicoDashboard = lazy(() => import('./pages/Tecnico/TecnicoDashboard'));
-const JefeDashboard = lazy(() => import('./pages/TecnicoJefe/TecnicoJefeDashboard'));
+const TecnicoDashboard = lazy(() => import('./features/tecnico/pages/TecnicoDashboard'));
+const JefeDashboard = lazy(() => import('./features/tecnicoJefe/pages/TecnicoJefeDashboard'));
 
 function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);

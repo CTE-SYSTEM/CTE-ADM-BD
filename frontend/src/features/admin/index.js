@@ -1,0 +1,17 @@
+export { default as AdminDashboard } from './pages/AdminDashboard';
+export { default as UsuariosAvanzado } from './pages/UsuariosAvanzado';
+export { default as ClientesAvanzado } from './pages/ClientesAvanzado';
+export { default as EquiposAvanzado } from './pages/EquiposAvanzado';
+export { default as DiagnosticosEstadoAvanzado } from './pages/DiagnosticosEstadoAvanzado';
+export { default as RendimientoTecnicos } from './pages/RendimientoTecnicos';
+export { default as OrdenesAvanzado } from './pages/OrdenesAvanzado';
+export { default as OrdenesEstadoAvanzado } from './pages/OrdenesEstadoAvanzado';
+export { default as FacturasAvanzado } from './pages/FacturasAvanzado';
+export { default as GarantiasAvanzado } from './pages/GarantiasAvanzado';
+export { default as Inventario } from './pages/Inventario';
+export { default as InventarioAvanzado } from './pages/InventarioAvanzado';
+export { default as RepuestosAvanzado } from './pages/RepuestosAvanzado';
+export { default as ComprasAvanzado } from './pages/ComprasAvanzado';
+export { default as Ganancias } from './pages/Ganancias';
+export { default as HistorialEquipo } from './pages/HistorialEquipo';
+export { default as HistorialRepuesto } from './pages/HistorialRepuesto';

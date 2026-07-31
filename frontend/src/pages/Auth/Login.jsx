@@ -1,24 +1,35 @@
-import React, { useState, useContext, useRef } from 'react'; // Guardamos useRef para los enfoques
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle } from 'lucide-react'; 
+import { Loader2, AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react'; 
+
+// Importación directa del SVG
+import loadingSvg from '../../assets/images/svg/LoadingLogin.svg';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   
+  // Estado para la animación y la redirección
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [userRoleName, setUserRoleName] = useState('');
+
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // Referencias para controlar el foco de los inputs y el botón
   const usernameRef = useRef(null);
   const passwordRef = useRef(null);
   const submitRef = useRef(null);
 
+  useEffect(() => {
+    usernameRef.current?.focus();
+  }, []);
+
   const handleSubmit = async (e) => {
-    if (e) e.preventDefault(); // El parámetro 'e' ahora puede ser opcional si llamamos la función manualmente
+    if (e) e.preventDefault();
     setError(null);
 
     if (!username.trim() || !password.trim()) {
@@ -34,56 +45,64 @@ const Login = () => {
         throw new Error('Respuesta del servidor incompleta');
       }
       
+      let targetPath = '';
       switch (userData.rol) {
         case 'Administrador':
         case 'admin_pro':
-          navigate('/admin');
+          targetPath = '/admin';
           break;
         case 'Secretaria':
-          navigate('/secretaria');
+          targetPath = '/secretaria';
           break;
         case 'TecnicoJefe':
-          navigate('/tecnico-jefe'); 
+          targetPath = '/tecnico-jefe'; 
           break;
         case 'Tecnico':
-          navigate('/tecnico');
+          targetPath = '/tecnico';
           break;
         default:
           setError('Tu cuenta no tiene un rol asignado. Contacta soporte.');
-          break;
+          setLoading(false);
+          return;
       }
+
+      // 1. Activar la pantalla con la animación SVG
+      setUserRoleName(userData.rol);
+      setIsRedirecting(true);
+
+      // 2. Esperar exactamente 5000ms (5 segundos) para que termine la animación
+      setTimeout(() => {
+        navigate(targetPath);
+      }, 5000);
+
     } catch (err) {
       console.error("Fallo el inicio de sesión:", err);
       const mensajeError = err.response?.data?.message || 'Usuario o contraseña incorrectos';
       setError(mensajeError);
-    } finally {
       setLoading(false);
     }
   };
 
-  // Manejador de teclado para el campo de Usuario
   const handleUsernameKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === 'ArrowDown') {
-      e.preventDefault(); // Evita que el Enter intente enviar el formulario antes de tiempo
+      e.preventDefault();
       passwordRef.current?.focus();
     }
   };
 
-  // Manejador de teclado para el campo de Contraseña
   const handlePasswordKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleSubmit(); // Al presionar Enter en contraseña, ejecuta directamente el Login
+      submitRef.current?.click();
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      usernameRef.current?.focus(); // Sube al campo de usuario con la flecha de arriba
+      usernameRef.current?.focus();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      submitRef.current?.focus(); // Baja al botón de entrar con la flecha de abajo
+      submitRef.current?.click();
     }
   };
 
-  // Manejador de teclado para el Botón de Entrar (por si bajó con la flecha y quiere subir)
   const handleButtonKeyDown = (e) => {
     if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -91,81 +110,130 @@ const Login = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md"> 
-        <div className="bg-white p-8 rounded-lg shadow-lg border border-gray-200">
-          <div className="mb-6">
-            <div className="w-16 h-16 bg-blue-600 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-xl font-bold shadow-md">
-              CT
-            </div>
-            <h2 className="text-2xl font-semibold text-center text-gray-800">Iniciar sesión</h2>
-            <p className="text-sm text-gray-500 text-center mt-1">
-              Centro Técnico Electrónico
-            </p>
+  // --- PANTALLA DE CARGA (5 SEGUNDOS CON SVG AMPLIADO) ---
+  if (isRedirecting) {
+    return (
+      <div className="fixed inset-0 w-screen h-screen flex flex-col items-center justify-center bg-gray-50 z-50 font-sans transition-opacity duration-500 animate-in fade-in px-4">
+        <div className="flex flex-col items-center w-full max-w-lg text-center">
+          
+          {/* SVG ampliado a un tamaño visible y destacado */}
+          <div className="w-64 h-64 sm:w-80 sm:h-80 mb-6 flex items-center justify-center">
+            <img 
+              src={loadingSvg} 
+              alt="Cargando..." 
+              className="w-full h-full object-contain drop-shadow-md"
+            />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+          <h3 className="text-xl font-bold text-gray-900 tracking-tight">
+            Acceso concedido
+          </h3>
+          <p className="text-sm text-gray-500 mt-1.5">
+            Iniciando módulo de <span className="font-semibold text-blue-600">{userRoleName}</span>...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- FORMULARIO DE LOGIN NORMAL ---
+  return (
+    <div className="fixed inset-0 w-screen h-screen flex items-center justify-center bg-gray-50 px-4 overflow-hidden z-50 font-sans">
+      
+      <div className="w-full max-w-xs bg-white p-7 rounded-2xl shadow-xl border border-gray-100">
+        
+        <div className="mb-6 text-center">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-blue-50 text-blue-600 mb-3 border border-blue-100/50 shadow-sm">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+
+          <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+            Sistema de Gestión
+          </h2>
+          <p className="text-xs text-gray-500 font-normal leading-relaxed mt-1">
+            Control y seguimiento de servicios técnicos.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+              Usuario
+            </label>
+            <input 
+              ref={usernameRef}
+              type="text"
+              autoComplete="username"
+              disabled={loading}
+              value={username} 
+              onChange={(e) => setUsername(e.target.value)} 
+              onKeyDown={handleUsernameKeyDown}
+              placeholder="Nombre de usuario" 
+              className="w-full px-3.5 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-gray-800 placeholder-gray-300 disabled:bg-gray-50" 
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+              Contraseña
+            </label>
+            <div className="relative">
               <input 
-                ref={usernameRef} // Asignamos la referencia
-                type="text"
-                autoComplete="username"
-                disabled={loading}
-                value={username} 
-                onChange={(e) => setUsername(e.target.value)} 
-                onKeyDown={handleUsernameKeyDown} // Escuchamos las teclas
-                placeholder="Nombre de usuario" 
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 transition-all" 
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-              <input 
-                ref={passwordRef} // Asignamos la referencia
-                type="password" 
+                ref={passwordRef}
+                type={showPassword ? "text" : "password"} 
                 autoComplete="current-password"
                 disabled={loading}
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
-                onKeyDown={handlePasswordKeyDown} // Escuchamos las teclas
-                placeholder="●●●●●●" 
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 transition-all" 
+                onKeyDown={handlePasswordKeyDown}
+                placeholder="••••••••" 
+                className="w-full pl-3.5 pr-10 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-gray-800 placeholder-gray-300 disabled:bg-gray-50" 
               />
-            </div>
-            
-            {error && (
-              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-md border border-red-200 flex items-center gap-2 animate-in fade-in zoom-in duration-200">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="flex flex-col space-y-4 pt-2">
-              <button 
-                ref={submitRef} // Asignamos la referencia
-                type="submit" 
-                disabled={loading}
-                onKeyDown={handleButtonKeyDown} // Escuchamos si quiere regresar con flecha arriba
-                className="w-full py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Verificando...</span>
-                  </>
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
                 ) : (
-                  'Entrar al Sistema'
+                  <Eye className="w-4 h-4" />
                 )}
               </button>
             </div>
-          </form>
-        </div>
-        <p className="text-center text-gray-400 text-xs mt-6 uppercase tracking-widest">
-          &copy; {new Date().getFullYear()} CTE-ADM-BD System
-        </p>
+          </div>
+          
+          {error && (
+            <div className="bg-red-50 text-red-600 text-xs p-2.5 rounded-lg border border-red-100 flex items-center gap-2 animate-in fade-in duration-200">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <button 
+            ref={submitRef}
+            type="submit" 
+            disabled={loading}
+            onKeyDown={handleButtonKeyDown}
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-sm font-semibold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Verificando...</span>
+              </>
+            ) : (
+              'Ingresar al Sistema'
+            )}
+          </button>
+        </form>
       </div>
+
+      <p className="absolute bottom-6 text-center text-gray-400 text-[11px] uppercase tracking-widest font-medium">
+        &copy; {new Date().getFullYear()} CTE-ADM-BD SYSTEM
+      </p>
     </div>
   );
 };

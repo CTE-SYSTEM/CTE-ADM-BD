@@ -1,76 +1,123 @@
-# Guia rapida de setup
+# CTE-ADM-BD
 
-## Preparacion
+Sistema para administrar un Centro Tecnico Electronico. El proyecto esta separado en:
 
-En la carpeta `backend`, crea un archivo `.env` copiando el contenido de `.env.example`.
+- `frontend/`: aplicacion React + Vite.
+- `backend/`: API Express, Prisma y PostgreSQL.
+- `docker-compose.yml`: entorno local completo con base de datos, backend, frontend y pgAdmin.
 
-## Opcion recomendada: levantar todo con Docker
+## Inicio Rapido Local
 
-Instala las dependencias locales:
+Instalar dependencias:
 
 ```bash
 npm run install:all
 ```
 
-Levanta la aplicacion:
+Levantar todo con Docker:
 
 ```bash
 docker compose up --build
 ```
 
-Con ese comando, el contenedor del backend hace automaticamente:
-
-```bash
-npx prisma generate
-npx prisma db push
-npm run db:functions:container
-npm run db:seed:container
-npm run dev
-```
-
-Es decir, no tienes que correr aparte las funciones SQL. Docker crea/actualiza las tablas, carga las funciones de `backend/scripts/modules` y carga los usuarios/tecnicos iniciales.
-
-## Opcion manual para base de datos
-
-Si solo quieres levantar PostgreSQL y preparar la base manualmente:
-
-```bash
-npm run db:setup
-```
-
-Ese script levanta la base, aplica Prisma, carga las funciones SQL y ejecuta el seed.
-
-## Verificar datos
-
-```bash
-npm run db:check:users --prefix backend
-npm run db:check:tecnicos --prefix backend
-```
-
-Deberias ver usuarios activos como:
-
-- `admin_pro` (Administrador) - Contrasena: `1234`
-- `secretaria_ana` (Secretaria) - Contrasena: `1234`
-- `jefe_tecnico` (Tecnico Jefe) - Contrasena: `1234`
-- `tecnico_juan` (Tecnico) - Contrasena: `1234`
-- `marcos_fix` (Tecnico) - Contrasena: `1234`
-- `elena_tech` (Tecnico) - Contrasena: `1234`
-- `roberto_vga` (Tecnico) - Contrasena: `1234`
-
-## Acceder a la aplicacion
+Servicios locales:
 
 | Servicio | URL |
-|----------|-----|
+| --- | --- |
 | Frontend | http://localhost:5173 |
 | Backend API | http://localhost:5000 |
 | Prisma Studio | http://localhost:5555 |
 | pgAdmin | http://localhost:8080 |
 
-## Credenciales de base de datos
+Usuarios iniciales habituales:
 
-- Host: `localhost:5432`
-- Usuario: `User_admin`
-- Contrasena: `TuPasswordSeguro123!`
-- Base de datos: `Centro_Tecnico_Electronico`
+| Usuario | Rol | Contrasena |
+| --- | --- | --- |
+| `admin_pro` | Administrador | `1234` |
+| `secretaria_ana` | Secretaria | `1234` |
+| `jefe_tecnico` | Tecnico Jefe | `1234` |
+| `tecnico_juan` | Tecnico | `1234` |
 
- y esatmos usando reailway uuuuuuu
+## Estructura General
+
+```txt
+CTE-ADM-BD/
+  backend/              API, Prisma, SQL, servicios y pruebas.
+  frontend/             Aplicacion React organizada por features.
+  docker-compose.yml    Orquestacion local.
+  package.json          Scripts generales del workspace.
+```
+
+## Donde Modificar
+
+- Cambios visuales o pantallas: `frontend/src/features/`.
+- Cambios de API o reglas del servidor: `backend/src/`.
+- Cambios de base de datos o funciones SQL: `backend/prisma/` y `backend/scripts/`.
+- Cambios de Docker local: `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`.
+
+## Como Agregar Funciones Nuevas
+
+Frontend:
+
+1. Busca el modulo en `frontend/src/features`.
+2. Agrega la pagina, componente, hook o servicio dentro del modulo.
+3. Si es compartido por varios modulos, usa `frontend/src/components`, `frontend/src/hooks` o `frontend/src/services`.
+
+Backend:
+
+1. Agrega el controlador en `backend/src/controllers/<Modulo>`.
+2. Agrega o actualiza la ruta en `backend/src/routes/modules/<modulo>`.
+3. Si hay logica reutilizable, ponla en `backend/src/services`.
+4. Si requiere SQL, agrega el script en `backend/scripts/modules/<Modulo>`.
+
+## Como Eliminar Funciones
+
+Antes de borrar:
+
+1. Busca referencias con `rg "nombreFuncion"` o `rg "ruta/archivo"`.
+2. Revisa frontend, backend, rutas y scripts SQL.
+3. Elimina primero imports/rutas que la llamen.
+4. Ejecuta build o prueba de importacion.
+
+Comandos utiles:
+
+```bash
+npm run build --prefix frontend
+cd backend
+node -e "import('./src/app/app.js').then(() => console.log('app import ok')).catch((err) => { console.error(err); process.exit(1); })"
+```
+
+## Railway / Produccion
+
+Para Railway normalmente se despliega `backend/` y `frontend/` como servicios separados.
+
+Variables importantes del backend:
+
+- `DATABASE_URL`
+- `SQL_DATABASE_URL`
+- `JWT_SECRET`
+- `CORS_ORIGIN`
+- `FRONTEND_URL`
+- `NODE_ENV=production`
+
+Variables importantes del frontend:
+
+- `VITE_API_URL`
+
+Despues de cambiar funciones SQL, recarga:
+
+```bash
+npm run db:functions --prefix backend
+```
+
+## Notas Sobre Archivos Sueltos
+
+Muchos archivos deben quedarse en raiz por convencion:
+
+- `package.json`, `package-lock.json`
+- `.gitignore`, `.gitattributes`
+- `docker-compose.yml`
+- `backend/Dockerfile`, `frontend/Dockerfile`
+- `frontend/vite.config.js`, `frontend/eslint.config.js`, `frontend/tailwind.config.cjs`
+
+Moverlos es posible en algunos casos, pero obliga a cambiar scripts, Docker o herramientas.

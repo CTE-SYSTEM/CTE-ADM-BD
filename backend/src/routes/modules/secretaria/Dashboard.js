@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDashboardStats } from '../../../controllers/Secretaria/SecretariaControllers.js';
+import { getDashboardStats } from '../../../controllers/Secretaria/secretariaController.js';
 import authMiddleware, { requireRole } from '../../../middlewares/authMiddleware.js';
 
 const router = Router();

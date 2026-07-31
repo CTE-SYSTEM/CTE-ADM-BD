@@ -3,13 +3,13 @@ import express from 'express';
 const router = express.Router();
 
 // Importamos todas las funciones necesarias del controlador
-// Asegúrate de que los nombres coincidan con lo que hay en DiagnosticoControllers.js
+// Asegurate de que los nombres coincidan con lo que hay en diagnosticoController.js
 import { 
     createDiagnostico, 
     getDiagnosticos, 
     updateDiagnostico,
     updateEstadoDiagnostico
-} from '../../../controllers/Secretaria/DiagnosticoControllers.js';
+} from '../../../controllers/Secretaria/diagnosticoController.js';
 import authMiddleware, { requirePermission } from '../../../middlewares/authMiddleware.js';
 import { PERMISSIONS } from '../../../utils/permissions.js';
 
