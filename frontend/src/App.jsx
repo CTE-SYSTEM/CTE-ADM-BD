@@ -1,4 +1,5 @@
-import React, { Suspense, lazy, useState, useContext } from 'react';
+import React, { Suspense, lazy, useEffect, useState, useContext } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createBrowserRouter, RouterProvider, Outlet, Navigate, useLocation } from 'react-router-dom';
 import useResponsiveLayout from './features/responsive/useResponsiveLayout';
 
@@ -48,20 +49,63 @@ const NuevaOrden = lazy(() => import('./features/secretaria/pages/NuevaOrden'));
 const TecnicoDashboard = lazy(() => import('./features/tecnico/pages/TecnicoDashboard'));
 const JefeDashboard = lazy(() => import('./features/tecnicoJefe/pages/TecnicoJefeDashboard'));
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('sidebar-collapsed') === 'true';
+  });
   const location = useLocation();
   const isAdminRoute = location.pathname === '/' || location.pathname.startsWith('/admin');
+  const isSecretariaRoute = location.pathname.startsWith('/secretaria');
+
+  useEffect(() => {
+    window.localStorage.setItem('sidebar-collapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    document.documentElement.classList.add('app-shell-active');
+    document.body.classList.add('app-shell-active');
+
+    return () => {
+      document.documentElement.classList.remove('app-shell-active');
+      document.body.classList.remove('app-shell-active');
+    };
+  }, []);
+
   const toggleSidebar = () => setSidebarOpen((s) => !s);
+  const toggleSidebarCollapse = () => setSidebarCollapsed((collapsed) => !collapsed);
 
   return (
-    <div className="flex h-screen bg-[var(--bg)] text-[var(--text)]">
-      <Sidebar open={sidebarOpen} />
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div className={`app-shell bg-[var(--bg)] text-[var(--text)] ${sidebarCollapsed ? 'is-sidebar-collapsed' : ''}`}>
+      <Sidebar
+        open={sidebarOpen}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapse}
+        onClose={() => setSidebarOpen(false)}
+      />
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Cerrar menu"
+        />
+      )}
+      <div className="app-shell-main">
         <Navbar onToggleSidebar={toggleSidebar} />
-        <main className={`flex-1 overflow-auto ${isAdminRoute ? 'admin-main' : ''}`}>
-          <div className={`mx-auto w-full ${isAdminRoute ? 'admin-content' : ''}`}>
-            <PageHelp />
+        <main className={`app-main-scroll flex-1 overflow-auto ${isAdminRoute ? 'admin-main' : ''} ${isSecretariaRoute ? 'secretaria-main' : ''}`}>
+          <div className={`mx-auto w-full ${isAdminRoute ? 'admin-content' : ''} ${isSecretariaRoute ? 'secretaria-content' : ''}`}>
+            {!isSecretariaRoute && <PageHelp />}
             <Outlet />
           </div>
         </main>
@@ -83,7 +127,7 @@ function Page({ children }) {
 
   return (
     <Suspense fallback={<RouteFallback />}>
-      <div className={responsive.pageClassName}>{children}</div>
+      <div className={`${responsive.pageClassName} app-page`}>{children}</div>
     </Suspense>
   );
 }
@@ -158,9 +202,11 @@ const router = createBrowserRouter(
 
 function App() {
   return (
-    <PersonalizacionProvider>
-      <RouterProvider router={router} />
-    </PersonalizacionProvider>
+    <QueryClientProvider client={queryClient}>
+      <PersonalizacionProvider>
+        <RouterProvider router={router} />
+      </PersonalizacionProvider>
+    </QueryClientProvider>
   );
 }
 

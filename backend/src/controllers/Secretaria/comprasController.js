@@ -1,14 +1,35 @@
 import prisma from '../../app/prismaClient.js';
-import { Prisma } from '@prisma/client';
+import { buildPaginationMeta, parsePagination } from '../../utils/pagination.js';
 import { METODOS_PAGO, assertInList } from '../../utils/domainValidation.js';
 
 const normalizeText = (value = '') => String(value).trim().replace(/\s+/g, ' ');
 
 export const getCompras = async (req, res) => {
   try {
-    const compras = await prisma.$queryRaw(Prisma.sql`SELECT * FROM get_compras_completas()`);
+    const { page, pageSize, offset } = parsePagination(req.query);
+    const search = String(req.query.search || '').trim();
+    const where = search
+      ? {
+          OR: [
+            { documento: { contains: search, mode: 'insensitive' } },
+            { proveedor: { nombre: { contains: search, mode: 'insensitive' } } },
+            { repuesto: { nombre: { contains: search, mode: 'insensitive' } } },
+            { metodo_pago: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+    const [compras, countRows] = await Promise.all([
+      prisma.compras.findMany({
+        where,
+        include: { proveedor: true, repuesto: true },
+        orderBy: { id_compra: 'desc' },
+        skip: offset,
+        take: pageSize,
+      }),
+      prisma.compras.count({ where }),
+    ]);
 
-    res.json({ data: compras });
+    res.json({ data: compras, meta: buildPaginationMeta({ page, pageSize, total: countRows }) });
   } catch (error) {
     console.error('Error al obtener compras:', error);
     res.status(500).json({ error: 'Error al obtener compras', details: error.message });
@@ -54,17 +75,71 @@ export const createCompra = async (req, res) => {
       return res.status(400).json({ error: 'El metodo de pago es obligatorio' });
     }
 
-    const [compra] = await prisma.$queryRaw(Prisma.sql`
-      SELECT * FROM crear_compra_con_variante_proc(
-        ${repuestoId}::int,
-        ${proveedorId}::int,
-        ${normalizeText(documento) || null},
-        ${fecha || null}::timestamp,
-        ${cantidadNumber}::int,
-        ${costoNumber}::numeric,
-        ${assertInList(metodoPago, METODOS_PAGO, 'Metodo de pago')}
-      )
-    `);
+    const metodoPagoValidado = assertInList(metodoPago, METODOS_PAGO, 'Metodo de pago');
+    const compra = await prisma.$transaction(async (tx) => {
+      const base = await tx.repuestos.findFirst({
+        where: { id_repuesto: repuestoId, descontinuada: false },
+      });
+      if (!base) throw new Error('El repuesto seleccionado no existe o esta descontinuado');
+
+      const proveedor = await tx.proveedores.findFirst({
+        where: { id_proveedor: proveedorId, descontinuada: false },
+      });
+      if (!proveedor) throw new Error('El proveedor seleccionado no existe o esta descontinuado');
+
+      const sinVariante = base.proveedor_id === null && Number(base.costo_individual || 0) === 0;
+      const mismaVariante = base.proveedor_id === proveedorId && Number(base.costo_individual || 0) === costoNumber;
+      let targetRepuestoId = repuestoId;
+
+      if (!sinVariante && !mismaVariante) {
+        let variante = await tx.repuestos.findFirst({
+          where: {
+            descontinuada: false,
+            tipo_repuesto_id: base.tipo_repuesto_id,
+            nombre: { equals: base.nombre, mode: 'insensitive' },
+            descripcion: base.descripcion,
+            proveedor_id: proveedorId,
+            costo_individual: costoNumber,
+            ganancia_cordobas: base.ganancia_cordobas,
+          },
+        });
+        if (!variante) {
+          variante = await tx.repuestos.create({
+            data: {
+              tipo_repuesto_id: base.tipo_repuesto_id,
+              proveedor_id: proveedorId,
+              nombre: base.nombre,
+              descripcion: base.descripcion,
+              costo_individual: costoNumber,
+              porcentaje_de_ganacia: base.porcentaje_de_ganacia,
+              ganancia_cordobas: base.ganancia_cordobas,
+              activo: true,
+              descontinuada: false,
+            },
+          });
+        }
+        targetRepuestoId = variante.id_repuesto;
+      }
+
+      const compraCreada = await tx.compras.create({
+        data: {
+          repuesto_id: targetRepuestoId,
+          proveedor_id: proveedorId,
+          documento: normalizeText(documento) || null,
+          fecha_obtencion: fecha || new Date(),
+          cantidad: cantidadNumber,
+          costo_unitario: costoNumber,
+          metodo_pago: metodoPagoValidado,
+        },
+        include: { proveedor: true, repuesto: true },
+      });
+
+      await tx.repuestos.update({
+        where: { id_repuesto: targetRepuestoId },
+        data: { proveedor_id: proveedorId, costo_individual: costoNumber },
+      });
+      return compraCreada;
+    });
 
     res.status(201).json({ data: compra });
   } catch (error) {

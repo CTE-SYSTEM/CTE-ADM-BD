@@ -2,7 +2,14 @@ import React, { useState, useMemo } from 'react';
 
 const defaultContentClassName = 'max-w-[220px] whitespace-normal break-words leading-relaxed';
 
-const Table = ({ columns, data, sortable = false }) => {
+const Table = ({
+  columns,
+  data = [],
+  sortable = false,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false,
+}) => {
   // Estado para controlar qué columna ordena y en qué sentido ('asc' o 'desc')
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
@@ -64,8 +71,18 @@ const Table = ({ columns, data, sortable = false }) => {
     return sortableItems;
   }, [data, sortConfig, sortable]);
 
+  const handleScroll = (event) => {
+    if (!onLoadMore || !hasMore || isLoadingMore) return;
+    const element = event.currentTarget;
+    const nearBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 120;
+    if (nearBottom) onLoadMore();
+  };
+
   return (
-    <div className="w-full min-w-0 overflow-auto rounded-xl border border-gray-200 bg-white shadow-sm custom-scrollbar max-h-[calc(100vh-260px)]">
+    <div
+      className="table-shell w-full min-w-0 overflow-auto rounded-xl border border-gray-200 bg-white shadow-sm custom-scrollbar max-h-[calc(100dvh-12rem)]"
+      onScroll={handleScroll}
+    >
       <table className="w-full min-w-max table-auto border-collapse">
         <thead className="sticky top-0 z-10 bg-white">
           <tr className="border-b border-gray-100 bg-gray-50/50">
@@ -123,6 +140,11 @@ const Table = ({ columns, data, sortable = false }) => {
           )}
         </tbody>
       </table>
+      {onLoadMore && (isLoadingMore || hasMore) && (
+        <div className="border-t border-gray-100 px-4 py-2 text-center text-xs font-medium text-gray-400">
+          {isLoadingMore ? 'Cargando más registros...' : 'Desplázate para cargar 20 registros más'}
+        </div>
+      )}
     </div>
   );
 };

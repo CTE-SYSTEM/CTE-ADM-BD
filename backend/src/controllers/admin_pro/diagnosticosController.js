@@ -1,6 +1,13 @@
 import prisma from '../../app/prismaClient.js';
-import { Prisma } from '@prisma/client';
-import { DIAGNOSTICO_ESTADOS } from '../../utils/domainValidation.js';
+import { DIAGNOSTICO_ESTADOS, PRIORIDADES, assertInList, parseNonNegativeMoney, parsePositiveId } from '../../utils/domainValidation.js';
+
+const APROBACIONES_DIAGNOSTICO = ['Pendiente', 'Aprobado', 'Rechazado'];
+
+const normalizeAprobacion = (value) => {
+  const normalized = String(value).trim().toUpperCase();
+  const match = APROBACIONES_DIAGNOSTICO.find((item) => item.toUpperCase() === normalized);
+  return match || null;
+};
 
 export const getDiagnosticosAdmin = async (req, res) => {
   try {
@@ -158,26 +165,53 @@ export const updateDiagnosticoAdmin = async (req, res) => {
       Estado_aprobacion,
     } = req.body;
 
+    const diagnosticoId = parsePositiveId(id);
+    if (!diagnosticoId) return res.status(400).json({ error: 'ID de diagnóstico inválido' });
+
     const data = {};
-    if (tecnico_id !== undefined) data.tecnico_id = tecnico_id ? Number(tecnico_id) : null;
+    if (tecnico_id !== undefined) {
+      const tecnicoId = tecnico_id === null || tecnico_id === '' ? null : parsePositiveId(tecnico_id);
+      if (tecnico_id !== null && tecnico_id !== '' && !tecnicoId) {
+        return res.status(400).json({ error: 'ID de técnico inválido' });
+      }
+      if (tecnicoId) {
+        const tecnico = await prisma.tecnicos.findFirst({ where: { id_tecnico: tecnicoId, activo: true } });
+        if (!tecnico) return res.status(400).json({ error: 'El técnico no existe o está inactivo' });
+      }
+      data.tecnico_id = tecnicoId;
+    }
     if (falla_reportada !== undefined) data.falla_reportada = String(falla_reportada).trim() || null;
     if (diagnostico_real !== undefined) data.diagnostico_real = String(diagnostico_real).trim() || null;
-    if (presupuesto_estimado !== undefined) data.presupuesto_estimado = presupuesto_estimado === '' || presupuesto_estimado === null ? null : Number(presupuesto_estimado);
-    if (prioridad !== undefined) data.prioridad = String(prioridad).trim() || 'Normal';
+    if (presupuesto_estimado !== undefined) {
+      data.presupuesto_estimado = presupuesto_estimado === '' || presupuesto_estimado === null
+        ? null
+        : parseNonNegativeMoney(presupuesto_estimado, 'El presupuesto estimado');
+    }
+    if (prioridad !== undefined) {
+      data.prioridad = prioridad === null || prioridad === ''
+        ? 'Normal'
+        : assertInList(String(prioridad).trim(), PRIORIDADES, 'Prioridad');
+    }
     if (estado_del_diagnostico !== undefined) {
       if (!DIAGNOSTICO_ESTADOS.includes(estado_del_diagnostico)) {
         return res.status(400).json({ error: 'Estado de diagnostico invalido', estados_validos: DIAGNOSTICO_ESTADOS });
       }
       data.estado_del_diagnostico = estado_del_diagnostico;
     }
-    if (Estado_aprobacion !== undefined) data.Estado_aprobacion = String(Estado_aprobacion).trim() || 'Pendiente';
+    if (Estado_aprobacion !== undefined) {
+      const aprobacion = Estado_aprobacion === null || Estado_aprobacion === ''
+        ? 'Pendiente'
+        : normalizeAprobacion(Estado_aprobacion);
+      if (!aprobacion) return res.status(400).json({ error: 'Estado de aprobación inválido' });
+      data.Estado_aprobacion = aprobacion;
+    }
 
     if (Object.keys(data).length === 0) {
       return res.status(400).json({ error: 'No se proporcionaron campos para actualizar' });
     }
 
     const diagnostico = await prisma.diagnosticos.update({
-      where: { id_diagnostico: Number(id) },
+      where: { id_diagnostico: diagnosticoId },
       data,
       include: {
         equipo: { include: { cliente: true } },
@@ -188,6 +222,7 @@ export const updateDiagnosticoAdmin = async (req, res) => {
 
     res.json({ data: diagnostico });
   } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Diagnostico no encontrado' });
     }
@@ -207,15 +242,26 @@ export const updateDiagnosticoEstadoAdmin = async (req, res) => {
       });
     }
 
-    const [row] = await prisma.$queryRaw(Prisma.sql`
-      SELECT admin_pro.actualizar_estado_diagnostico(${Number(id)}, ${estado_del_diagnostico}) AS data
-    `);
-    const diagnostico = row?.data;
-
-    if (diagnostico?.error) return res.status(404).json({ error: diagnostico.error });
+    const diagnosticoId = parsePositiveId(id);
+    if (!diagnosticoId) return res.status(400).json({ error: 'ID de diagnóstico inválido' });
+    const diagnostico = await prisma.diagnosticos.update({
+      where: { id_diagnostico: diagnosticoId },
+      data: {
+        estado_del_diagnostico: assertInList(estado_del_diagnostico, DIAGNOSTICO_ESTADOS, 'Estado de diagnostico'),
+        fecha_completado: ['COMPLETADO', 'DIAGNOSTICADO'].includes(estado_del_diagnostico)
+          ? new Date()
+          : undefined,
+      },
+      include: {
+        equipo: { include: { cliente: true } },
+        tecnico: true,
+        ordenes: { include: { tecnico: true }, orderBy: { id_orden: 'desc' } },
+      },
+    });
 
     res.json({ data: diagnostico });
   } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Diagnóstico no encontrado' });
     }

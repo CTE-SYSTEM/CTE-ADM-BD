@@ -5,6 +5,7 @@ import { GuidedTour, tourHighlightClass } from '../components/shared/GuidedTour'
 import { createCompra, getCompras } from '../services/comprasService';
 import { getProveedores } from '../services/proveedoresService';
 import { getRepuestos } from '../services/repuestosService';
+import { useInfiniteSecretariaList } from '../hooks/useInfiniteSecretariaList';
 
 const normalizeText = (value = '') => String(value).replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
 const money = (value) => `C$ ${Number(value || 0).toFixed(2)}`;
@@ -152,7 +153,6 @@ const Select = ({ label, children, className = '', ...props }) => (
 );
 
 const Compras = () => {
-  const [compras, setCompras] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [repuestos, setRepuestos] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -161,13 +161,21 @@ const Compras = () => {
   const [error, setError] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+  const comprasQuery = useInfiniteSecretariaList({
+    queryKey: ['secretaria', 'compras'],
+    queryFn: getCompras,
+    search: searchTerm,
+  });
+  const compras = comprasQuery.rows;
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [resC, resP, resR] = await Promise.all([getCompras(), getProveedores(), getRepuestos()]);
-      setCompras(resC.data.data || []);
+      const [resP, resR] = await Promise.all([
+        getProveedores({ page: 1, pageSize: 100 }),
+        getRepuestos({ page: 1, pageSize: 100 }),
+      ]);
       setProveedores(resP.data.data || []);
       setRepuestos(resR.data.data || []);
     } catch (err) {
@@ -230,12 +238,7 @@ const Compras = () => {
     { header: 'Pago', accessor: 'metodo_pago', render: (row) => row.metodo_pago || '-' },
   ];
 
-  const filteredCompras = compras.filter((compra) => {
-    const term = searchTerm.toLowerCase();
-    return [compra.proveedor?.nombre, compra.repuesto?.nombre, compra.documento, compra.metodo_pago].some((value) =>
-      String(value || '').toLowerCase().includes(term)
-    );
-  });
+  const filteredCompras = compras;
 
   const handleSubmit = async (data) => {
     setLoading(true);
@@ -243,7 +246,7 @@ const Compras = () => {
     try {
       await createCompra(data);
       setShowForm(false);
-      await loadData();
+      await Promise.all([loadData(), comprasQuery.refetch()]);
     } catch (err) {
       setError(err?.response?.data?.error || 'No se pudo procesar la compra');
     } finally {
@@ -252,63 +255,99 @@ const Compras = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {showHelp && (
-        <GuidedTour
-          steps={tourSteps}
-          stepIndex={tourStep}
-          onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
-          onClose={closeTour}
-          onNext={handleTourNext}
-        />
-      )}
+  <div className="p-6 bg-gray-50 min-h-screen">
+    {showHelp && (
+      <GuidedTour
+        steps={tourSteps}
+        stepIndex={tourStep}
+        onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
+        onClose={closeTour}
+        onNext={handleTourNext}
+      />
+    )}
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Modulo de Compras</h2>
-          <p className="text-gray-500 text-sm">Registro de adquisicion de repuestos para inventario del CTE.</p>
-        </div>
-        <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
-          <button type="button" onClick={startTour} className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 py-2 text-gray-700 shadow-sm hover:bg-gray-50">
-            <HelpCircle className="w-4 h-4" /> Ayuda
-          </button>
-          <button onClick={() => setShowForm(!showForm)} className="flex items-center justify-center gap-2 px-5 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-all shadow-sm">
-            <Plus className="w-4 h-4" /> {showForm ? 'Cerrar Formulario' : 'Nueva Compra'}
-          </button>
-        </div>
+    {/* Encabezado Principal */}
+    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="text-left">
+        <h2 className="text-3xl font-black text-gray-800 tracking-tight">Módulo de Compras</h2>
+        <p className="text-sm font-medium text-gray-500 italic mt-0.5">Registro de adquisición de repuestos para inventario general.</p>
       </div>
 
-      {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</div>}
+      <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
+        <button
+          type="button"
+          onClick={startTour}
+          className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-xs transition-all"
+          title="Iniciar tutorial guiado"
+        >
+          <HelpCircle className="w-4 h-4 text-indigo-600" />
+          <span>Ayuda</span>
+        </button>
 
-      {showForm && (
-        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6 animate-in fade-in slide-in-from-top-4 duration-300">
-          <h3 className="text-lg font-semibold mb-4 text-gray-700">Registrar Entrada de Mercancia</h3>
-          <CompraForm onSubmit={handleSubmit} onCancel={() => setShowForm(false)} proveedores={proveedores} repuestos={repuestos} activeTourTarget={activeTourTarget} />
-        </div>
-      )}
-
-      <div data-tour-target="search" className={`flex flex-col sm:flex-row gap-4 mb-6 ${tourHighlightClass(activeTourTarget === 'search')}`}>
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por proveedor, repuesto, documento o pago..."
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-        </div>
-      </div>
-
-      <div data-tour-target="table" className={`bg-white rounded-xl shadow-sm border border-gray-100 ${tourHighlightClass(activeTourTarget === 'table')}`}>
-        {loading && !compras.length ? (
-          <div className="p-12 text-center text-gray-400">Actualizando registros...</div>
-        ) : (
-          <Table columns={columnas} data={filteredCompras} />
-        )}
+        <button
+          type="button"
+          onClick={() => setShowForm(!showForm)}
+          className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-md active:scale-95 transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          <span>{showForm ? 'Cerrar Formulario' : 'Nueva Compra'}</span>
+        </button>
       </div>
     </div>
-  );
+
+    {error && (
+      <div className="mb-6 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-semibold rounded-r-lg flex items-center gap-2 text-left">
+        <span>{error}</span>
+      </div>
+    )}
+
+    {/* Formulario Modal/Desplegable */}
+    {showForm && (
+      <div className="mb-8 bg-white rounded-2xl shadow-xl border border-indigo-100 p-6 animate-in fade-in zoom-in duration-200 text-left">
+        <h3 className="text-base font-bold mb-4 text-gray-800">Registrar Entrada de Mercancía</h3>
+        <CompraForm
+          onSubmit={handleSubmit}
+          onCancel={() => setShowForm(false)}
+          proveedores={proveedores}
+          repuestos={repuestos}
+          activeTourTarget={activeTourTarget}
+        />
+      </div>
+    )}
+
+    {/* Buscador */}
+    <div data-tour-target="search" className={`mb-6 ${tourHighlightClass(activeTourTarget === 'search')}`}>
+      <div className="relative max-w-xl">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Buscar por proveedor, repuesto, documento o pago..."
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition-all"
+        />
+      </div>
+    </div>
+
+    {/* Tabla */}
+    <div data-tour-target="table" className={`bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden ${tourHighlightClass(activeTourTarget === 'table')}`}>
+      {loading || (comprasQuery.isLoading && !compras.length) ? (
+        <div className="p-12 text-center text-xs font-bold text-indigo-600 flex justify-center items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Actualizando registros...</span>
+        </div>
+      ) : (
+        <Table
+          columns={columnas}
+          data={filteredCompras}
+          onLoadMore={() => comprasQuery.fetchNextPage()}
+          hasMore={comprasQuery.hasNextPage}
+          isLoadingMore={comprasQuery.isFetchingNextPage}
+        />
+      )}
+    </div>
+  </div>
+);
 };
 
 export default Compras;

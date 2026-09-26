@@ -23,7 +23,9 @@ services:
       target: dev
     image: cte-backend:dev
     container_name: backend_cte_setup
-    # Ejecuta nuestro nuevo script de control inteligente
+    profiles:
+      - setup
+    # Ejecuta las tareas pesadas solo cuando se solicita el perfil/setup.
     command: sh /app/scripts/setup.sh
     depends_on:
       db:
@@ -46,8 +48,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      db-setup:
-        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico?schema=public
       SQL_DATABASE_URL: postgresql://User_admin:TuPasswordSeguro123!@db:5432/Centro_Tecnico_Electronico

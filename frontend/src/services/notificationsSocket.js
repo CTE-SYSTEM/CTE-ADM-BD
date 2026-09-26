@@ -7,7 +7,7 @@ const getSocketUrl = () => {
 };
 
 export const createNotificationsSocket = () => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!token) return null;
 
   return io(getSocketUrl(), {

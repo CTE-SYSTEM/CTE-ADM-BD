@@ -106,10 +106,11 @@ a {
   z-index: 80;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  min-height: 42px;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
   max-width: calc(100vw - 32px);
-  padding: 0.65rem 0.85rem;
+  padding: 0;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface) 92%, transparent);
@@ -136,11 +137,6 @@ a {
   .personalizacion-toggle {
     right: 12px;
     bottom: 12px;
-    padding: 0.65rem;
-  }
-
-  .personalizacion-toggle span {
-    display: none;
   }
 }
 

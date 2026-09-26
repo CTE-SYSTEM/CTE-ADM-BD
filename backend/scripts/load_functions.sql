@@ -3,18 +3,11 @@
 
 \i scripts/modules/Seguridad.sql
 \i scripts/modules/Auditoria.sql
-\i scripts/modules/Secretaria/Clientes.sql
-\i scripts/modules/Secretaria/Equipo.sql
-\i scripts/modules/Secretaria/Diagnostico.sql
-\i scripts/modules/Secretaria/Compras.sql
 \i scripts/modules/Secretaria/Facturacion.sql
 \i scripts/modules/Secretaria/Dashboard.sql
-\i scripts/modules/Secretaria/Nuevaorden.sql
 \i scripts/modules/Secretaria/Garantias.sql
-\i scripts/modules/Secretaria/Proveedores.sql
-\i scripts/modules/Secretaria/Repuesto.sql
 \i scripts/modules/Secretaria/InventarioStock.sql
-\i scripts/modules/JefeTecnico/Diagnostico.sql
-\i scripts/modules/Tecnico/01_consultas.sql
-\i scripts/modules/Tecnico/02_acciones.sql
+\i scripts/modules/Secretaria/PaginacionIndices.sql
+\i scripts/modules/JefeTecnico/Indices.sql
 \i scripts/modules/admin_pro/AdminPro.sql
+\i scripts/modules/LegacyCleanup.sql

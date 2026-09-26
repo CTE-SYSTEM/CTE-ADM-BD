@@ -13,6 +13,7 @@ const CONTAINER_BACKUP_ROOT = path.join(path.sep, 'backup', 'CTE-Backup');
 const BACKUP_ROOT = process.env.BACKUP_ROOT || CONTAINER_BACKUP_ROOT;
 const BACKUP_DISPLAY_ROOT = process.env.BACKUP_DISPLAY_ROOT || BACKUP_ROOT;
 const PRODUCT_BACKUP_NAME = 'productos';
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
 const formatDate = (date) => {
   const year = date.getFullYear();
@@ -20,7 +21,8 @@ const formatDate = (date) => {
   const day = String(date.getDate()).padStart(2, '0');
   const hour = String(date.getHours()).padStart(2, '0');
   const minute = String(date.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}_${hour}-${minute}`;
+  const second = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day}_${hour}-${minute}-${second}`;
 };
 
 const getBackupMonthFolder = (date = new Date()) => {
@@ -266,12 +268,26 @@ export const createBackupNow = async () => {
   return { root: BACKUP_DISPLAY_ROOT, months: await listBackupFiles(), latestBackup: result };
 };
 
+const scheduleLongTimeout = (callback, delayMs) => {
+  const safeDelay = Math.min(Math.max(delayMs, 0), MAX_TIMEOUT_MS);
+
+  setTimeout(() => {
+    const remainingMs = delayMs - safeDelay;
+    if (remainingMs > 0) {
+      scheduleLongTimeout(callback, remainingMs);
+      return;
+    }
+
+    callback();
+  }, safeDelay);
+};
+
 const scheduleNextBackup = () => {
   const now = new Date();
   const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 2, 0, 0, 0);
   const delayMs = nextMonth.getTime() - now.getTime();
 
-  setTimeout(async () => {
+  scheduleLongTimeout(async () => {
     try {
       await runBackup();
     } catch (error) {

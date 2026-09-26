@@ -21,7 +21,7 @@ backend/
     Seed.js          Seed de datos.
 
   scripts/
-    modules/         Funciones SQL separadas por modulo.
+    modules/         Restricciones, triggers, vistas y reportes SQL.
     load_functions.sql
     setup.sh
 
@@ -82,7 +82,11 @@ routes/modules/
 2. Exporta la funcion del controlador.
 3. Agrega la ruta en `src/routes/modules/<modulo>/`.
 4. Registra la ruta en `src/app/app.js` solo si es un modulo nuevo.
-5. Si usa SQL, agrega la funcion en `scripts/modules/<Modulo>/` y revisa `scripts/load_functions.sql`.
+5. Mantén el CRUD y las reglas de negocio en Prisma. Usa `scripts/modules/<Modulo>/` únicamente para CHECK, índices, triggers, auditoría, vistas y reportes complejos; después revisa `scripts/load_functions.sql`.
+
+## Datos iniciales
+
+La semilla se ejecuta con `npm run db:seed` y es idempotente. Crea usuarios, técnicos, clientes, equipos, proveedores, inventario y diagnósticos de prueba desde `prisma/Seed.js`; ya no se cargan archivos SQL de datos.
 
 Ejemplo mental:
 

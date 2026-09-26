@@ -14,7 +14,7 @@ export const createDiagnostico = async (diagnosticoData) => {
   return api.post('/secretaria/diagnostico/create', payload);
 };
 
-export const getDiagnosticos = () => api.get('/secretaria/diagnostico');
+export const getDiagnosticos = (params = {}) => api.get('/secretaria/diagnostico', { params });
 
 export const updateDiagnostico = (id, diagnosticoData) => {
   const payload = {

@@ -48,6 +48,9 @@ export const DiagnosticosTable = ({
   onFilterChange,
   onSearchChange,
   searchTerm,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
 }) => (
   <section data-tour-target="table" className={`space-y-4 ${tourHighlightClass(activeTourTarget === 'table')}`}>
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -81,7 +84,14 @@ export const DiagnosticosTable = ({
     </div>
 
     <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-      <div className="max-h-[70vh] overflow-auto custom-scrollbar">
+      <div
+        className="secretaria-table-shell max-h-[70vh] overflow-auto custom-scrollbar"
+        onScroll={(event) => {
+          if (!onLoadMore || !hasMore || isLoadingMore) return;
+          const element = event.currentTarget;
+          if (element.scrollTop + element.clientHeight >= element.scrollHeight - 120) onLoadMore();
+        }}
+      >
         <table className="min-w-max w-full text-sm text-left text-gray-500">
           <thead className="sticky top-0 z-10 text-xs text-gray-700 uppercase bg-gray-50 border-b">
             <tr>
@@ -108,6 +118,11 @@ export const DiagnosticosTable = ({
             )}
           </tbody>
         </table>
+        {(isLoadingMore || hasMore) && (
+          <div className="border-t border-gray-100 px-4 py-2 text-center text-xs font-medium text-gray-400">
+            {isLoadingMore ? 'Cargando más registros...' : 'Desplázate para cargar 20 registros más'}
+          </div>
+        )}
       </div>
     </div>
   </section>

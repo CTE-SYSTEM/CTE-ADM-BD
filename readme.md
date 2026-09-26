@@ -14,10 +14,22 @@ Instalar dependencias:
 npm run install:all
 ```
 
-Levantar todo con Docker:
+Primera vez, o despues de cambiar Prisma/SQL/funciones:
+
+```bash
+npm run docker:init
+```
+
+Levantar contenedores en el uso diario:
 
 ```bash
 docker compose up --build
+```
+
+El comando diario no ejecuta `db-setup`; solo levanta los servicios. Si necesitas volver a sincronizar esquema, funciones y semilla inicial cuando aplique, ejecuta:
+
+```bash
+npm run docker:setup
 ```
 
 Servicios locales:

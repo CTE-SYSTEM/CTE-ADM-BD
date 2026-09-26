@@ -1,49 +1,100 @@
-// backend/src/controllers/Secretaria/repuestoController.js
 import prisma from '../../app/prismaClient.js';
-import { Prisma } from '@prisma/client';
+import { buildPaginationMeta, parsePagination } from '../../utils/pagination.js';
 
-const normalizeNumber = (value) => Number(value) || 0;
-const normalizeText = (value = '') => String(value).trim().replace(/\s+/g, ' ');
-const normalizeRole = (role) =>
-  String(role || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[\s_-]/g, '')
-    .toLowerCase();
-
+const normalizeNumber = (value) => {
+  if (value === undefined || value === null || value === '') return 0;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) throw new Error('Los valores monetarios deben ser numeros mayores o iguales a cero');
+  return Math.round(number * 100) / 100;
+};
+const normalizeText = (value = '') => String(value ?? '').trim().replace(/\s+/g, ' ');
+const normalizeNullableText = (value = '') => normalizeText(value) || null;
+const normalizeRole = (role) => String(role || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s_-]/g, '').toLowerCase();
 const canViewStock = (user) => {
   const role = normalizeRole(user?.rol);
   return role === 'adminpro' || role === 'administrador' || user?.username === 'admin_pro';
 };
-
 const hideStock = (repuesto) => {
+  if (!repuesto) return repuesto;
   const { stock_actual, ...safeRepuesto } = repuesto;
   return safeRepuesto;
 };
 
 const normalizeRepuestoInput = (body) => ({
-    nombre: normalizeText(body.nombre),
-    descripcion: normalizeText(body.descripcion),
-    categoria_nombre: normalizeText(body.categoria_nombre || body.categoria?.nombre_tipo),
-    electronico: normalizeText(body.electronico || body.categoria?.electronico),
-    ...(Object.prototype.hasOwnProperty.call(body, 'proveedor_id')
-      ? { proveedor_id: body.proveedor_id ? Number(body.proveedor_id) : null }
-      : {}),
-    costo_individual: normalizeNumber(body.costo_individual),
-    ganancia_cordobas: normalizeNumber(body.ganancia_cordobas),
+  nombre: normalizeText(body.nombre),
+  descripcion: normalizeNullableText(body.descripcion),
+  categoria_nombre: normalizeText(body.categoria_nombre || body.categoria?.nombre_tipo),
+  electronico: normalizeNullableText(body.electronico || body.categoria?.electronico),
+  proveedor_id: Object.prototype.hasOwnProperty.call(body, 'proveedor_id')
+    ? (body.proveedor_id ? Number(body.proveedor_id) : null)
+    : undefined,
+  costo_individual: normalizeNumber(body.costo_individual),
+  ganancia_cordobas: normalizeNumber(body.ganancia_cordobas),
+});
+
+const repuestoInclude = { categoria: true, proveedor: true };
+const shapeRepuesto = (repuesto) => ({
+  ...repuesto,
+  costo_individual: repuesto.costo_individual === null ? null : Number(repuesto.costo_individual),
+  porcentaje_de_ganacia: repuesto.porcentaje_de_ganacia === null ? null : Number(repuesto.porcentaje_de_ganacia),
+  ganancia_cordobas: repuesto.ganancia_cordobas === null ? null : Number(repuesto.ganancia_cordobas),
+});
+
+const upsertCategoria = async (tx, nombre, electronico) => {
+  const existente = await tx.categorias_Repuestos.findFirst({
+    where: { nombre_tipo: { equals: nombre, mode: 'insensitive' } },
   });
+  if (existente) {
+    return tx.categorias_Repuestos.update({
+      where: { id_tipo_repuesto: existente.id_tipo_repuesto },
+      data: { electronico },
+    });
+  }
+  return tx.categorias_Repuestos.create({ data: { nombre_tipo: nombre, electronico } });
+};
+
+const validateProveedor = async (tx, proveedorId) => {
+  if (proveedorId === undefined || proveedorId === null) return null;
+  if (!Number.isInteger(proveedorId) || proveedorId <= 0) throw new Error('El proveedor es inválido');
+  const proveedor = await tx.proveedores.findFirst({ where: { id_proveedor: proveedorId, descontinuada: false } });
+  if (!proveedor) throw new Error('El proveedor no existe o esta descontinuado');
+  return proveedorId;
+};
+
+const repuestoWhere = (search, soloDisponibles) => ({
+  descontinuada: false,
+  ...(soloDisponibles ? { stock_actual: { gt: 0 } } : {}),
+  ...(search
+    ? {
+        OR: [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { descripcion: { contains: search, mode: 'insensitive' } },
+          { categoria: { nombre_tipo: { contains: search, mode: 'insensitive' } } },
+          { categoria: { electronico: { contains: search, mode: 'insensitive' } } },
+          { proveedor: { nombre: { contains: search, mode: 'insensitive' } } },
+        ],
+      }
+    : {}),
+});
 
 export const getRepuestos = async (req, res) => {
   try {
+    const { page, pageSize, offset } = parsePagination(req.query);
     const soloDisponibles = ['1', 'true', 'si', 'yes'].includes(String(req.query.disponibles || '').toLowerCase());
-    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_repuestos_detalle()`);
-    const repuestos = rows
-      .map((row) => row.data)
-      .filter((repuesto) => !soloDisponibles || Number(repuesto.stock_actual || 0) > 0);
-    res.json({ success: true, data: canViewStock(req.user) ? repuestos : repuestos.map(hideStock) });
+    const search = String(req.query.search || '').trim();
+    const where = repuestoWhere(search, soloDisponibles);
+    const [rows, total] = await Promise.all([
+      prisma.repuestos.findMany({ where, include: repuestoInclude, orderBy: { id_repuesto: 'desc' }, skip: offset, take: pageSize }),
+      prisma.repuestos.count({ where }),
+    ]);
+    const repuestos = rows.map(shapeRepuesto);
+    res.json({
+      success: true,
+      data: canViewStock(req.user) ? repuestos : repuestos.map(hideStock),
+      meta: buildPaginationMeta({ page, pageSize, total }),
+    });
   } catch (error) {
     console.error('Error en getRepuestos:', error.message);
-    console.error('Stack:', error.stack);
     res.status(500).json({ success: false, message: 'Error al obtener repuestos', details: error.message });
   }
 };
@@ -51,79 +102,82 @@ export const getRepuestos = async (req, res) => {
 export const createRepuesto = async (req, res) => {
   try {
     const data = normalizeRepuestoInput(req.body);
+    if (!data.nombre) return res.status(400).json({ success: false, error: 'El nombre del repuesto es obligatorio' });
+    if (!data.categoria_nombre) return res.status(400).json({ success: false, error: 'La categoria del repuesto es obligatoria' });
 
-    if (!data.categoria_nombre) {
-      return res.status(400).json({ success: false, error: 'La categoria del repuesto es obligatoria' });
-    }
-
-    const [row] = await prisma.$queryRaw(Prisma.sql`
-      SELECT data FROM crear_repuesto_proc(
-        ${data.nombre},
-        ${data.descripcion || null},
-        ${data.categoria_nombre},
-        ${data.electronico || null},
-        ${data.proveedor_id || null},
-        ${data.costo_individual},
-        ${data.ganancia_cordobas}
-      )
-    `);
-    const repuesto = row?.data;
-
-    res.status(201).json({ success: true, data: canViewStock(req.user) ? repuesto : hideStock(repuesto) });
+    const repuesto = await prisma.$transaction(async (tx) => {
+      const categoria = await upsertCategoria(tx, data.categoria_nombre, data.electronico);
+      const proveedorId = await validateProveedor(tx, data.proveedor_id);
+      return tx.repuestos.create({
+        data: {
+          nombre: data.nombre,
+          descripcion: data.descripcion,
+          tipo_repuesto_id: categoria.id_tipo_repuesto,
+          proveedor_id: proveedorId,
+          costo_individual: data.costo_individual,
+          ganancia_cordobas: data.ganancia_cordobas,
+          stock_actual: 0,
+          activo: true,
+          descontinuada: false,
+        },
+        include: repuestoInclude,
+      });
+    });
+    const shaped = shapeRepuesto(repuesto);
+    res.status(201).json({ success: true, data: canViewStock(req.user) ? shaped : hideStock(shaped) });
   } catch (error) {
     console.error('Error en createRepuesto:', error.message);
-    console.error('Stack:', error.stack);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(400).json({ success: false, error: error.message });
   }
 };
 
 export const updateRepuesto = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = Number(req.params.id);
     const data = normalizeRepuestoInput(req.body);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ success: false, error: 'ID de repuesto inválido' });
+    if (!data.nombre) return res.status(400).json({ success: false, error: 'El nombre del repuesto es obligatorio' });
+    if (!data.categoria_nombre) return res.status(400).json({ success: false, error: 'La categoria del repuesto es obligatoria' });
 
-    if (!data.categoria_nombre) {
-      return res.status(400).json({ success: false, error: 'La categoria del repuesto es obligatoria' });
-    }
-
-    const [row] = await prisma.$queryRaw(Prisma.sql`
-      SELECT data FROM actualizar_repuesto_proc(
-        ${Number(id)},
-        ${data.nombre},
-        ${data.descripcion || null},
-        ${data.categoria_nombre},
-        ${data.electronico || null},
-        ${data.proveedor_id || null},
-        ${data.costo_individual},
-        ${data.ganancia_cordobas}
-      )
-    `);
-    const repuesto = row?.data;
-
+    const repuesto = await prisma.$transaction(async (tx) => {
+      const actual = await tx.repuestos.findFirst({ where: { id_repuesto: id, descontinuada: false } });
+      if (!actual) return null;
+      const categoria = await upsertCategoria(tx, data.categoria_nombre, data.electronico);
+      const proveedorId = await validateProveedor(tx, data.proveedor_id === undefined ? actual.proveedor_id : data.proveedor_id);
+      return tx.repuestos.update({
+        where: { id_repuesto: id },
+        data: {
+          nombre: data.nombre,
+          descripcion: data.descripcion,
+          tipo_repuesto_id: categoria.id_tipo_repuesto,
+          proveedor_id: proveedorId,
+          costo_individual: data.costo_individual,
+          ganancia_cordobas: data.ganancia_cordobas,
+        },
+        include: repuestoInclude,
+      });
+    });
     if (!repuesto) return res.status(404).json({ success: false, error: 'Repuesto no encontrado' });
-
-    res.json({ success: true, data: canViewStock(req.user) ? repuesto : hideStock(repuesto) });
+    const shaped = shapeRepuesto(repuesto);
+    res.json({ success: true, data: canViewStock(req.user) ? shaped : hideStock(shaped) });
   } catch (error) {
     console.error('Error en updateRepuesto:', error.message);
-    console.error('Stack:', error.stack);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, error: 'Repuesto no encontrado' });
-    }
-    res.status(500).json({ success: false, error: error.message });
+    res.status(400).json({ success: false, error: error.message });
   }
 };
 
 export const deleteRepuesto = async (req, res) => {
   try {
-    const { id } = req.params;
-    await prisma.$executeRaw(Prisma.sql`SELECT descontinuar_repuesto_proc(${Number(id)})`);
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ success: false, error: 'ID de repuesto inválido' });
+    const result = await prisma.repuestos.updateMany({
+      where: { id_repuesto: id, descontinuada: false },
+      data: { descontinuada: true, activo: false },
+    });
+    if (!result.count) return res.status(404).json({ success: false, error: 'Repuesto no encontrado' });
     res.json({ success: true, message: 'Repuesto marcado como descontinuado' });
   } catch (error) {
     console.error('Error en deleteRepuesto:', error.message);
-    console.error('Stack:', error.stack);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, error: 'Repuesto no encontrado' });
-    }
     res.status(500).json({ success: false, error: 'Error al procesar la solicitud', details: error.message });
   }
 };

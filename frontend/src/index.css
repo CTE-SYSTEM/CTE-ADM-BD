@@ -211,17 +211,20 @@ code {
 .text-muted { color: var(--text); }
 .table-fixed th { background: transparent; }
 
-/* Admin Pro layout normalisation */
-.admin-main {
+/* Admin Pro / Secretaria layout normalisation */
+.admin-main,
+.secretaria-main {
   padding: 14px;
   background: #f8fafc;
 }
 
-.admin-content {
+.admin-content,
+.secretaria-content {
   max-width: 1600px;
 }
 
-.admin-content > div {
+.admin-content > div,
+.secretaria-content > div {
   width: 100%;
   max-width: 100%;
   padding: 0 !important;
@@ -229,35 +232,46 @@ code {
 
 .admin-main *,
 .admin-main *::before,
-.admin-main *::after {
+.admin-main *::after,
+.secretaria-main *,
+.secretaria-main *::before,
+.secretaria-main *::after {
   box-sizing: border-box;
 }
 
 .admin-main h1,
 .admin-main h2,
 .admin-main h3,
-.admin-main h4 {
+.admin-main h4,
+.secretaria-main h1,
+.secretaria-main h2,
+.secretaria-main h3,
+.secretaria-main h4 {
   margin: 0;
   letter-spacing: 0;
   line-height: 1.2;
 }
 
-.admin-main h1 {
+.admin-main h1,
+.secretaria-main h1 {
   font-size: clamp(1.6rem, 1.1rem + 1vw, 2.15rem);
   font-weight: 800;
 }
 
-.admin-main h2 {
+.admin-main h2,
+.secretaria-main h2 {
   font-size: clamp(1.25rem, 1rem + 0.45vw, 1.55rem);
   font-weight: 800;
 }
 
-.admin-main h3 {
+.admin-main h3,
+.secretaria-main h3 {
   font-size: 1rem;
   font-weight: 700;
 }
 
-.admin-main p {
+.admin-main p,
+.secretaria-main p {
   line-height: 1.55;
 }
 
@@ -268,18 +282,31 @@ code {
 .admin-main label,
 .admin-main input,
 .admin-main select,
-.admin-main textarea {
+.admin-main textarea,
+.secretaria-main .grid,
+.secretaria-main .flex,
+.secretaria-main section,
+.secretaria-main form,
+.secretaria-main label,
+.secretaria-main input,
+.secretaria-main select,
+.secretaria-main textarea {
   min-width: 0;
 }
 
 .admin-main input,
 .admin-main select,
-.admin-main textarea {
+.admin-main textarea,
+.secretaria-main input,
+.secretaria-main select,
+.secretaria-main textarea {
   max-width: 100%;
 }
 
 .admin-main button,
-.admin-main a[href] {
+.admin-main a[href],
+.secretaria-main button,
+.secretaria-main a[href] {
   max-width: 100%;
   min-width: 0;
   white-space: normal;
@@ -289,47 +316,459 @@ code {
 
 .admin-main button,
 .admin-main [role='button'],
-.admin-main a[href^='/admin'] {
+.admin-main a[href^='/admin'],
+.secretaria-main button,
+.secretaria-main [role='button'],
+.secretaria-main a[href^='/secretaria'] {
   border-radius: 0.625rem !important;
 }
 
 .admin-main [class*='rounded-3xl'],
-.admin-main [class*='rounded-2xl'] {
+.admin-main [class*='rounded-2xl'],
+.secretaria-main [class*='rounded-3xl'],
+.secretaria-main [class*='rounded-2xl'] {
   border-radius: 0.875rem !important;
 }
 
 .admin-main [class^='p-6'],
-.admin-main [class*=' p-6'] {
+.admin-main [class*=' p-6'],
+.secretaria-main [class^='p-6'],
+.secretaria-main [class*=' p-6'] {
   padding: 1rem !important;
 }
 
-.admin-main [class*='space-y-6'] > :not([hidden]) ~ :not([hidden]) {
+.admin-main [class*='space-y-6'] > :not([hidden]) ~ :not([hidden]),
+.secretaria-main [class*='space-y-6'] > :not([hidden]) ~ :not([hidden]) {
   margin-top: 1rem !important;
 }
 
-.admin-main .custom-scrollbar {
+.admin-main .custom-scrollbar,
+.secretaria-main .custom-scrollbar {
   max-width: 100%;
 }
 
+/* Las tablas de Secretaría reservan espacio para no provocar un scroll global mínimo. */
+.secretaria-main .table-shell {
+  max-height: calc(100dvh - 17rem);
+  overflow: auto;
+}
+
+.secretaria-main .secretaria-table-shell {
+  max-height: calc(100dvh - 17rem);
+}
+
+.secretaria-main .table-shell > table {
+  min-width: 100%;
+}
+
+.secretaria-main .table-shell th {
+  padding-top: 0.625rem !important;
+  padding-bottom: 0.625rem !important;
+}
+
+.secretaria-main .table-shell td {
+  padding-top: 0.625rem !important;
+  padding-bottom: 0.625rem !important;
+}
+
 @media (min-width: 768px) {
-  .admin-main {
+  .admin-main,
+  .secretaria-main {
     padding: 18px;
   }
 
   .admin-main [class^='p-6'],
-  .admin-main [class*=' p-6'] {
+  .admin-main [class*=' p-6'],
+  .secretaria-main [class^='p-6'],
+  .secretaria-main [class*=' p-6'] {
     padding: 1.25rem !important;
   }
 }
 
 @media (max-width: 640px) {
-  .admin-main {
+  .admin-main,
+  .secretaria-main {
     padding: 10px;
   }
 
   .admin-main button,
-  .admin-main a[href^='/admin'] {
+  .admin-main a[href^='/admin'],
+  .secretaria-main button,
+  .secretaria-main a[href^='/secretaria'] {
     width: 100%;
+  }
+}
+
+/*
+ * Sistema visual del area operativa.
+ * Estas reglas mantienen una sola escala y evitan que cada pagina cree su
+ * propio viewport, lo que era la causa de los saltos de ancho y doble scroll.
+ */
+:root {
+  color-scheme: light;
+  --bg: #f4f7fb;
+  --surface: #ffffff;
+  --card-bg: #ffffff;
+  --text: #526174;
+  --text-h: #172033;
+  --border: #e2e8f0;
+  --primary-500: #4f46e5;
+  --primary-600: #4338ca;
+  --accent: #4f46e5;
+  --accent-bg: #eef2ff;
+  --accent-border: #c7d2fe;
+  --muted-2: #94a3b8;
+  --sans: Inter, 'Segoe UI', Roboto, Arial, sans-serif;
+  --heading: var(--sans);
+  --sidebar-width: clamp(14rem, 18vw, 17rem);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font: 100%/1.5 var(--sans);
+  letter-spacing: normal;
+  background: var(--bg);
+}
+
+body {
+  min-width: 20rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+}
+
+html.app-shell-active,
+body.app-shell-active {
+  height: 100%;
+  overflow: hidden;
+}
+
+body.app-shell-active #root {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  --sidebar-current-width: var(--sidebar-width);
+  display: flex;
+  height: 100svh;
+  min-height: 100svh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.app-shell.is-sidebar-collapsed {
+  --sidebar-current-width: 4.75rem;
+}
+
+.app-shell-main {
+  display: flex;
+  flex: 0 0 calc(100% - var(--sidebar-current-width));
+  min-width: 0;
+  width: calc(100% - var(--sidebar-current-width));
+  height: 100svh;
+  min-height: 100svh;
+  margin-left: var(--sidebar-current-width);
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 220ms ease, margin-left 220ms ease;
+}
+
+.app-main-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.app-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex: 0 0 var(--sidebar-current-width);
+  width: var(--sidebar-current-width);
+  height: 100svh;
+  min-height: 100svh;
+  max-height: 100svh;
+  overflow: hidden;
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  background: linear-gradient(180deg, #101a31 0%, #0b1324 100%);
+  transition: width 220ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.app-sidebar .sidebar-header,
+.app-sidebar .sidebar-footer {
+  flex: 0 0 auto;
+}
+
+.app-sidebar.is-collapsed .sidebar-brand-copy,
+.app-sidebar.is-collapsed .sidebar-user-panel,
+.app-sidebar.is-collapsed .sidebar-footer,
+.app-sidebar.is-collapsed .sidebar-collapse-toggle span,
+.app-sidebar.is-collapsed .nav-link > span {
+  display: none;
+}
+
+.app-sidebar.is-collapsed .sidebar-header {
+  align-items: center;
+  padding-inline: 0.5rem;
+}
+
+.app-sidebar.is-collapsed .sidebar-brand-row {
+  justify-content: center;
+}
+
+.app-sidebar.is-collapsed .sidebar-collapse-toggle {
+  width: 2.25rem;
+  padding-inline: 0;
+}
+
+.app-sidebar.is-collapsed .nav-link {
+  justify-content: center;
+  padding-inline: 0.5rem;
+}
+
+.app-sidebar > nav {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.app-sidebar .nav-link {
+  min-height: 2.75rem;
+  border: 1px solid transparent;
+}
+
+.app-sidebar .nav-link.active {
+  border-color: rgba(165, 180, 252, 0.14);
+}
+
+.app-navbar {
+  position: sticky;
+  top: 0;
+  height: auto;
+  z-index: 20;
+  min-height: 4.25rem;
+  flex: 0 0 auto;
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(0.75rem);
+}
+
+.secretaria-main {
+  padding: clamp(0.75rem, 1.5vw, 1.5rem);
+  background: var(--bg);
+}
+
+.secretaria-content {
+  width: min(100%, 96rem);
+  max-width: 96rem;
+  margin-inline: auto;
+}
+
+.secretaria-content > .app-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.secretaria-content > .app-page > .min-h-screen {
+  min-height: auto;
+  margin: 0;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.secretaria-main h1,
+.secretaria-main h2,
+.secretaria-main h3,
+.secretaria-main h4 {
+  color: var(--text-h);
+  font-family: var(--heading);
+}
+
+.secretaria-main h1 {
+  font-size: clamp(1.5rem, 1.15rem + 1.15vw, 2.25rem);
+  line-height: 1.15;
+}
+
+.secretaria-main h2 {
+  font-size: clamp(1.15rem, 1rem + 0.55vw, 1.5rem);
+}
+
+.secretaria-main input,
+.secretaria-main select,
+.secretaria-main textarea {
+  min-height: 2.625rem;
+  border-color: #d8e0eb;
+  font-size: 0.875rem;
+}
+
+.secretaria-main input:focus,
+.secretaria-main select:focus,
+.secretaria-main textarea:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 0.1875rem rgba(99, 102, 241, 0.12);
+  outline: none;
+}
+
+.secretaria-main table {
+  font-size: clamp(0.75rem, 0.7rem + 0.12vw, 0.875rem);
+}
+
+.secretaria-main .custom-scrollbar,
+.secretaria-main .overflow-x-auto {
+  max-width: 100%;
+  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-width: thin;
+}
+
+.secretaria-main .custom-scrollbar::-webkit-scrollbar,
+.secretaria-main .overflow-x-auto::-webkit-scrollbar {
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+.secretaria-main .custom-scrollbar::-webkit-scrollbar-thumb,
+.secretaria-main .overflow-x-auto::-webkit-scrollbar-thumb {
+  border: 0.125rem solid transparent;
+  border-radius: 999px;
+  background: #cbd5e1;
+  background-clip: padding-box;
+}
+
+.secretaria-main [class*='shadow-'] {
+  box-shadow: 0 0.75rem 2rem rgba(15, 23, 42, 0.06);
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 63.999rem) {
+  .app-shell,
+  .app-shell.is-sidebar-collapsed {
+    --sidebar-current-width: 0px;
+  }
+
+  .app-shell-main {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(86vw, 17rem);
+    height: 100svh;
+    min-height: 100svh;
+    transform: translateX(-105%);
+    transition: transform 180ms ease, box-shadow 180ms ease, width 180ms ease;
+  }
+
+  .app-sidebar.is-collapsed {
+    width: min(86vw, 17rem);
+  }
+
+  .app-sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: 1rem 0 3rem rgba(15, 23, 42, 0.22);
+  }
+
+  .app-sidebar.is-collapsed .sidebar-header {
+    align-items: center;
+    padding-inline: 1rem;
+  }
+
+  .app-sidebar.is-collapsed .sidebar-brand-row {
+    justify-content: center;
+  }
+
+  .app-sidebar.is-collapsed .sidebar-brand-copy,
+  .app-sidebar.is-collapsed .sidebar-user-panel,
+  .app-sidebar.is-collapsed .sidebar-footer,
+  .app-sidebar.is-collapsed .sidebar-collapse-toggle span,
+  .app-sidebar.is-collapsed .nav-link > span {
+    display: block;
+  }
+
+  .app-sidebar.is-collapsed .sidebar-collapse-toggle {
+    width: 100%;
+    padding-inline: 0.5rem;
+  }
+
+  .app-sidebar.is-collapsed .nav-link {
+    justify-content: flex-start;
+    padding-inline: 0.75rem;
+  }
+
+  .sidebar-collapse-toggle {
+    display: none;
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(15, 23, 42, 0.42);
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 40rem) {
+  .app-navbar {
+    min-height: 3.75rem;
+    padding-inline: 0.75rem;
+  }
+
+  .secretaria-main {
+    padding: 0.75rem;
+  }
+
+  .secretaria-main button:not([class*='w-full']) {
+    width: auto;
+  }
+
+  .secretaria-main button[class*='w-full'] {
+    width: 100%;
+  }
+
+  .secretaria-main a[href^='/secretaria']:not([class*='w-full']) {
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 

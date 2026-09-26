@@ -1,12 +1,43 @@
 // backend/src/controllers/Secretaria/clientesController.js
 import prisma from '../../app/prismaClient.js';
-import { Prisma } from '@prisma/client';
+import { buildPaginationMeta, parsePagination } from '../../utils/pagination.js';
+
+const normalizeText = (value) => {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized || null;
+};
+
+const clienteSearchWhere = (search) => {
+  if (!search) return {};
+
+  return {
+    OR: [
+      { nombre: { contains: search, mode: 'insensitive' } },
+      { telefono: { contains: search, mode: 'insensitive' } },
+      { correo: { contains: search, mode: 'insensitive' } },
+      { contacto_secundario: { contains: search, mode: 'insensitive' } },
+    ],
+  };
+};
 
 /** Obtener todos los clientes activos */
 export const getClientes = async (req, res) => {
   try {
-    const clientes = await prisma.$queryRaw(Prisma.sql`SELECT * FROM get_clientes_activos()`);
-    res.json({ data: clientes });
+    const { page, pageSize, offset } = parsePagination(req.query);
+    const search = String(req.query.search || '').trim();
+    const where = { activo: true, ...clienteSearchWhere(search) };
+    const [clientes, countRows] = await Promise.all([
+      prisma.clientes.findMany({
+        where,
+        orderBy: { id_cliente: 'desc' },
+        skip: offset,
+        take: pageSize,
+      }),
+      prisma.clientes.count({ where }),
+    ]);
+
+    res.json({ data: clientes, meta: buildPaginationMeta({ page, pageSize, total: countRows }) });
   } catch (error) {
     console.error('❌ Error en getClientes:', error.message);
     console.error('Stack:', error.stack);
@@ -17,17 +48,27 @@ export const getClientes = async (req, res) => {
 /** Crear un nuevo cliente */
 export const createCliente = async (req, res) => {
   try {
-    const { nombre, telefono, direccion, correo, contacto_secundario } = req.body;
-    if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
-    if (!telefono) return res.status(400).json({ error: 'El teléfono es obligatorio' });
+    const nombreNormalizado = normalizeText(req.body.nombre);
+    const telefonoNormalizado = normalizeText(req.body.telefono);
+    if (!nombreNormalizado) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    if (!telefonoNormalizado) return res.status(400).json({ error: 'El teléfono es obligatorio' });
 
-    const [resultado] = await prisma.$queryRaw(Prisma.sql`
-      SELECT * FROM crear_cliente_proc(${nombre}, ${telefono || null}, ${direccion || null}, ${correo || null}, ${contacto_secundario || null})
-    `);
+    const resultado = await prisma.clientes.create({
+      data: {
+        nombre: nombreNormalizado,
+        telefono: telefonoNormalizado,
+        direccion: normalizeText(req.body.direccion),
+        correo: normalizeText(req.body.correo),
+        contacto_secundario: normalizeText(req.body.contacto_secundario),
+      },
+    });
     res.status(201).json({ data: resultado });
   } catch (error) {
     console.error('❌ Error en createCliente:', error.message);
     console.error('Stack:', error.stack);
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'El teléfono ya está registrado para otro cliente' });
+    }
     res.status(500).json({ error: 'Error al registrar el cliente', details: error.message });
   }
 };
@@ -35,19 +76,35 @@ export const createCliente = async (req, res) => {
 /** Actualizar un cliente existente */
 export const updateCliente = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { nombre, telefono, direccion, correo, contacto_secundario } = req.body;
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'ID de cliente inválido' });
 
-    const [resultado] = await prisma.$queryRaw(Prisma.sql`
-      SELECT * FROM actualizar_cliente_proc(${Number(id)}, ${nombre}, ${telefono || null}, ${direccion || null}, ${correo || null}, ${contacto_secundario || null})
-    `);
+    const nombreNormalizado = normalizeText(req.body.nombre);
+    const telefonoNormalizado = normalizeText(req.body.telefono);
+    if (!nombreNormalizado) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    if (!telefonoNormalizado) return res.status(400).json({ error: 'El teléfono es obligatorio' });
 
-    if (!resultado) return res.status(404).json({ error: 'Cliente no encontrado' });
+    const existente = await prisma.clientes.findFirst({ where: { id_cliente: id, activo: true } });
+    if (!existente) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+    const resultado = await prisma.clientes.update({
+      where: { id_cliente: id },
+      data: {
+        nombre: nombreNormalizado,
+        telefono: telefonoNormalizado,
+        direccion: normalizeText(req.body.direccion),
+        correo: normalizeText(req.body.correo),
+        contacto_secundario: normalizeText(req.body.contacto_secundario),
+      },
+    });
 
     res.json({ data: resultado });
   } catch (error) {
     console.error('❌ Error en updateCliente:', error.message);
     console.error('Stack:', error.stack);
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'El teléfono ya está registrado para otro cliente' });
+    }
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Cliente no encontrado' });
     }
@@ -58,8 +115,14 @@ export const updateCliente = async (req, res) => {
 /** Borrado lógico (Desactivar) */
 export const deleteCliente = async (req, res) => {
   try {
-    const { id } = req.params;
-    await prisma.$executeRaw(Prisma.sql`SELECT desactivar_cliente_proc(${Number(id)})`);
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'ID de cliente inválido' });
+
+    const resultado = await prisma.clientes.updateMany({
+      where: { id_cliente: id, activo: true },
+      data: { activo: false },
+    });
+    if (resultado.count === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
     
     res.status(204).send();
   } catch (error) {

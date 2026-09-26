@@ -1,7 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, Loader2, Search, CheckCircle, XCircle, User, Monitor, HelpCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { NotificationTray } from '../../../components/NotificationTray';
-import { useRealtimeNotifications } from '../../../hooks/useRealtimeNotifications';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Loader2, Search, CheckCircle, XCircle, User, Monitor, HelpCircle, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { GuidedTour, tourHighlightClass } from '../components/shared/GuidedTour';
 import { createOrden, getDiagnosticosListosParaOrden } from '../services/ordenesService';
 import { updateEstadoDiagnostico } from '../services/diagnosticoService';
@@ -21,14 +19,12 @@ const NuevaOrden = () => {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState(null);
-  const [message, setMessage] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const [requierePiezasPorDiagnostico, setRequierePiezasPorDiagnostico] = useState({});
   const [expandedId, setExpandedId] = useState(null);
 
-  const loadDiagnosticos = async () => {
+  const loadDiagnosticos = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -54,34 +50,21 @@ const NuevaOrden = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadDiagnosticos(); }, []);
+  useEffect(() => { loadDiagnosticos(); }, [loadDiagnosticos]);
 
   useEffect(() => {
-    if (!message) return undefined;
-    const timer = window.setTimeout(() => setMessage(null), 5000);
-    return () => window.clearTimeout(timer);
-  }, [message]);
-
-  const {
-    notifications,
-    connected: socketConnected,
-    clearNotifications,
-  } = useRealtimeNotifications({
-    onNotification: (notification) => {
-      setShowNotifications(true);
-      if (notification?.type === 'orden_creada_secretaria') {
-        setMessage(notification.message || 'Orden generada correctamente');
-      }
-    },
-    onRefresh: (notification) => {
-      if (!notification || notification.type === 'orden_creada_secretaria' || notification.type === 'diagnostico_completado') {
+    const handleSecretariaNotification = (event) => {
+      const type = event.detail?.type;
+      if (type === 'diagnostico_completado' || type === 'orden_creada_secretaria') {
         loadDiagnosticos();
       }
-    },
-    refreshIntervalMs: 0,
-  });
+    };
+
+    window.addEventListener('secretaria:notificacion', handleSecretariaNotification);
+    return () => window.removeEventListener('secretaria:notificacion', handleSecretariaNotification);
+  }, [loadDiagnosticos]);
 
   const activeTourTarget = showHelp ? tourSteps[tourStep].target : '';
 
@@ -208,208 +191,199 @@ const NuevaOrden = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {showHelp && (
-        <GuidedTour
-          steps={tourSteps}
-          stepIndex={tourStep}
-          onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
-          onClose={closeTour}
-          onNext={handleTourNext}
-        />
-      )}
+  <div className="p-4 bg-gray-50 min-h-screen space-y-4">
+    {showHelp && (
+      <GuidedTour
+        steps={tourSteps}
+        stepIndex={tourStep}
+        onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
+        onClose={closeTour}
+        onNext={handleTourNext}
+      />
+    )}
 
-      <div data-tour-target="header" className={`mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${tourHighlightClass(activeTourTarget === 'header')}`}>
-        <div className="text-left">
-          <h2 className="text-2xl font-bold text-gray-800">Generar Órdenes</h2>
-          <p className="text-gray-500 font-medium">Diagnósticos completados esperando respuesta del cliente.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowNotifications((value) => !value)}
-              className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm hover:border-indigo-200 hover:text-indigo-600"
-              title={socketConnected ? 'Notificaciones conectadas' : 'Notificaciones desconectadas'}
-            >
-              <Bell className="h-5 w-5" />
-              {notifications.length > 0 && (
-                <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-black text-white">
-                  {notifications.length}
-                </span>
-              )}
-              <span className={`absolute bottom-1 right-1 h-2 w-2 rounded-full ${socketConnected ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-            </button>
-            {showNotifications && (
-              <NotificationTray
-                notifications={notifications}
-                connected={socketConnected}
-                onClear={() => {
-                  clearNotifications();
-                  setShowNotifications(false);
-                }}
-                onClose={() => setShowNotifications(false)}
-              />
+    {/* Encabezado Principal */}
+     <div data-tour-target="header" className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${tourHighlightClass(activeTourTarget === 'header')}`}>
+      <div className="text-left">
+        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Generar Órdenes</h2>
+        <p className="text-xs text-gray-500 font-medium mt-0.5">Diagnósticos completados esperando respuesta del cliente.</p>
+      </div>
+
+       <div className="flex items-center gap-2">
+         <button
+          type="button"
+          onClick={startTour}
+          className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition-all"
+          title="Iniciar tutorial guiado"
+        >
+          <HelpCircle className="w-4 h-4 text-indigo-600" />
+          <span>Ayuda</span>
+        </button>
+      </div>
+    </div>
+
+    {error && (
+      <div className="p-2.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold border border-red-200 text-left">
+        {error}
+      </div>
+    )}
+
+    {/* Buscador */}
+    <div data-tour-target="search" className={`${tourHighlightClass(activeTourTarget === 'search')}`}>
+      <div className="relative max-w-xl">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Buscar cliente, equipo o diagnóstico..."
+          className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-xs outline-none transition-all"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      </div>
+    </div>
+
+    {/* Contenido Principal */}
+    {loading ? (
+      <div className="flex justify-center p-12">
+        <Loader2 className="animate-spin w-8 h-8 text-indigo-600" />
+      </div>
+    ) : (
+      <div data-tour-target="cards" className={`grid grid-cols-1 gap-3 text-left ${tourHighlightClass(activeTourTarget === 'cards')}`}>
+        {diagnosticosFiltrados.length === 0 ? (
+          <div className="bg-white rounded-lg border-2 border-dashed border-gray-200 p-8 text-center">
+            <p className="text-xs font-bold text-gray-500">No hay diagnósticos pendientes de aprobación por el cliente.</p>
+            {summary && (
+              <p className="mx-auto mt-2 max-w-2xl text-[11px] font-medium leading-relaxed text-gray-400">
+                Listos para nueva orden: {summary.listosParaOrden || 0}. En revisión o pendientes: {summary.enRevision || 0}.
+              </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={startTour}
-            className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 py-2 text-gray-700 shadow-sm hover:bg-gray-50 font-semibold"
-            title="Iniciar tutorial guiado"
-          >
-            <HelpCircle className="w-4 h-4" /> Ayuda
-          </button>
-        </div>
-      </div>
+        ) : (
+          diagnosticosFiltrados.map((diag) => {
+            const canApprove = Boolean(diag.equipo?.cliente?.id_cliente && diag.equipo?.id_equipo && diag.diagnostico_real && Number(diag.presupuesto_estimado || 0) > 0);
+            const isExpanded = expandedId === diag.id_diagnostico;
+            const textoInforme = diag.diagnostico_real || 'Sin informe detallado';
+            const limiteCaracteres = 90;
+            const esLargo = textoInforme.length > limiteCaracteres;
 
-      {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 text-left">{error}</div>}
-      {message && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 text-left">{message}</div>}
-
-      <div data-tour-target="search" className={`mb-6 ${tourHighlightClass(activeTourTarget === 'search')}`}>
-        <div className="relative max-w-xl">
-          <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar cliente, equipo o diagnóstico..."
-            className="w-full pl-10 pr-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white text-sm outline-none"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center p-20"><Loader2 className="animate-spin w-10 h-10 text-indigo-600" /></div>
-      ) : (
-        <div data-tour-target="cards" className={`grid grid-cols-1 gap-4 text-left ${tourHighlightClass(activeTourTarget === 'cards')}`}>
-          {diagnosticosFiltrados.length === 0 ? (
-            <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 px-6 py-16 text-center">
-              <p className="text-base font-bold text-gray-500">No hay diagnósticos pendientes de aprobación por el cliente.</p>
-              {summary && (
-                <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-6 text-gray-400">
-                  Listos para nueva orden: {summary.listosParaOrden || 0}. En revisión o pendientes: {summary.enRevision || 0}.
-                </p>
-              )}
-            </div>
-          ) : (
-            diagnosticosFiltrados.map((diag) => {
-              const canApprove = Boolean(diag.equipo?.cliente?.id_cliente && diag.equipo?.id_equipo && diag.diagnostico_real && Number(diag.presupuesto_estimado || 0) > 0);
-              
-              const isExpanded = expandedId === diag.id_diagnostico;
-              const textoInforme = diag.diagnostico_real || 'Sin informe detallado';
-              const limiteCaracteres = 90;
-              // REPARADO: Línea restablecida correctamente
-              const esLargo = textoInforme.length > limiteCaracteres;
-
-              return (
-                <div key={diag.id_diagnostico} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4 overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="flex gap-4 items-start w-full min-w-0">
-                    <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600 shrink-0">
-                      <Monitor className="w-6 h-6" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-gray-800 break-words text-lg">{diag.equipo?.marca} {diag.equipo?.modelo}</h3>
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mt-1">
-                        <span className="flex items-center gap-1 min-w-0"><User className="w-4 h-4 shrink-0 text-gray-400" /> <span className="truncate font-semibold text-gray-600">{diag.equipo?.cliente?.nombre}</span></span>
-                        
-                        <span className={`px-2 py-0.5 rounded text-xs font-black whitespace-nowrap ${Number(diag.presupuesto_estimado || 0) > 0 ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700'}`}>
-                          Presupuesto: {formatPresupuesto(diag.presupuesto_estimado)}
+            return (
+              <div key={diag.id_diagnostico} className="bg-white p-3.5 rounded-lg shadow-xs border border-gray-200 flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-3 overflow-hidden hover:shadow-sm transition-shadow">
+                <div className="flex gap-3 items-start w-full min-w-0">
+                  <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600 shrink-0 mt-0.5">
+                    <Monitor className="w-5 h-5" />
+                  </div>
+                  
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-gray-900 break-words text-sm">{diag.equipo?.marca} {diag.equipo?.modelo}</h3>
+                    
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-500 mt-0.5">
+                      <span className="flex items-center gap-1 min-w-0">
+                        <User className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                        <span className="truncate font-medium text-gray-700">{diag.equipo?.cliente?.nombre}</span>
+                      </span>
+                      
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${Number(diag.presupuesto_estimado || 0) > 0 ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700'}`}>
+                        Presupuesto: {formatPresupuesto(diag.presupuesto_estimado)}
+                      </span>
+                      
+                      {!canApprove && (
+                        <span className="bg-amber-50 text-amber-700 border border-amber-100 px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">
+                          Requiere revisión
                         </span>
-                        
-                        {!canApprove && (
-                          <span className="bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">
-                            Requiere revisión
-                          </span>
-                        )}
+                      )}
+                    </div>
+                    
+                    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Detalles del diagnóstico</span>
+                        <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-bold uppercase text-slate-500 border border-slate-100">
+                          {getRequierePiezas(diag.id_diagnostico) ? 'Con repuestos' : 'Sin repuestos'}
+                        </span>
                       </div>
                       
-                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-xs font-black uppercase tracking-wide text-slate-500">Detalles del diagnóstico</span>
-                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase text-slate-500">
-                            {getRequierePiezas(diag.id_diagnostico) ? 'Con repuestos' : 'Sin repuestos'}
-                          </span>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-md bg-white p-2 border border-slate-100">
+                          <span className="block text-[9px] font-bold uppercase text-slate-400">Falla reportada</span>
+                          <p className="mt-0.5 text-xs leading-normal text-slate-700">{diag.falla_reportada || 'Sin detalle de falla'}</p>
                         </div>
-                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-lg bg-white p-3">
-                            <span className="block text-[9px] font-black uppercase text-slate-400">Falla reportada</span>
-                            <p className="mt-1 text-xs leading-5 text-slate-700">{diag.falla_reportada || 'Sin detalle de falla'}</p>
-                          </div>
-                          <div className="rounded-lg bg-white p-3">
-                            <span className="block text-[9px] font-black uppercase text-slate-400">Diagnóstico técnico</span>
-                            <p className="mt-1 text-xs leading-5 text-slate-700">
-                              {isExpanded || !esLargo
-                                ? textoInforme
-                                : `${textoInforme.substring(0, limiteCaracteres)}...`
-                              }
-                            </p>
-                            {esLargo && (
-                              <button
-                                type="button"
-                                onClick={() => toggleExpand(diag.id_diagnostico)}
-                                className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 focus:outline-none transition-colors"
-                              >
-                                {isExpanded ? (
-                                  <>
-                                    <span>Ver menos</span>
-                                    <ChevronUp className="w-3.5 h-3.5" />
-                                  </>
-                                ) : (
-                                  <>
-                                    <span>Ver diagnóstico completo</span>
-                                    <ChevronDown className="w-3.5 h-3.5" />
-                                  </>
-                                )}
-                              </button>
-                            )}
-                          </div>
+                        
+                        <div className="rounded-md bg-white p-2 border border-slate-100">
+                          <span className="block text-[9px] font-bold uppercase text-slate-400">Diagnóstico técnico</span>
+                          <p className="mt-0.5 text-xs leading-normal text-slate-700">
+                            {isExpanded || !esLargo
+                              ? textoInforme
+                              : `${textoInforme.substring(0, limiteCaracteres)}...`
+                            }
+                          </p>
+                          {esLargo && (
+                            <button
+                              type="button"
+                              onClick={() => toggleExpand(diag.id_diagnostico)}
+                              className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 focus:outline-none transition-colors"
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <span>Ver menos</span>
+                                  <ChevronUp className="w-3 h-3" />
+                                </>
+                              ) : (
+                                <>
+                                  <span>Ver diagnóstico completo</span>
+                                  <ChevronDown className="w-3 h-3" />
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
-                        <div className="mt-3 rounded-lg border border-dashed border-indigo-200 bg-white p-3">
-                          <label className="flex cursor-pointer items-start gap-3">
-                            <input
-                              type="checkbox"
-                              className="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              checked={!getRequierePiezas(diag.id_diagnostico)}
-                              onChange={(event) => setRequierePiezas(diag.id_diagnostico, !event.target.checked)}
-                            />
-                            <span>
-                              <span className="block text-sm font-bold text-gray-800">Orden sin repuestos</span>
-                              <span className="block text-xs font-medium leading-5 text-gray-500">
-                                Úsalo solo si este servicio se factura únicamente por mano de obra.
-                              </span>
+                      </div>
+
+                      <div className="mt-2 rounded-md border border-dashed border-indigo-200 bg-white p-2">
+                        <label className="flex cursor-pointer items-start gap-2">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            checked={!getRequierePiezas(diag.id_diagnostico)}
+                            onChange={(event) => setRequierePiezas(diag.id_diagnostico, !event.target.checked)}
+                          />
+                          <span>
+                            <span className="block text-xs font-bold text-gray-800">Orden sin repuestos</span>
+                            <span className="block text-[10px] font-medium leading-tight text-gray-500">
+                              Úsalo solo si este servicio se factura únicamente por mano de obra.
                             </span>
-                          </label>
-                        </div>
+                          </span>
+                        </label>
                       </div>
                     </div>
                   </div>
-
-                  <div data-tour-target="actions" className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto shrink-0 ${tourHighlightClass(activeTourTarget === 'actions')}`}>
-                    <button
-                      onClick={() => handleRechazar(diag.id_diagnostico)}
-                      className="flex items-center justify-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-semibold text-sm whitespace-nowrap"
-                    >
-                      <XCircle className="w-4 h-4" /> Rechazar
-                    </button>
-                    <button
-                      onClick={() => handleAprobar(diag)}
-                      disabled={!canApprove}
-                      className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm rounded-xl hover:bg-indigo-700 shadow-md transition-all font-bold whitespace-nowrap disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
-                      title={canApprove ? 'Crear orden' : 'Complete informe y presupuesto antes de aprobar'}
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      {getRequierePiezas(diag.id_diagnostico) ? 'Aprobar y Crear Orden' : 'Aprobar y Crear Orden sin repuestos'}
-                    </button>
-                  </div>
                 </div>
-              );
-            })
-          )}
-        </div>
-      )}
-    </div>
-  );
+
+                {/* Acciones */}
+                <div data-tour-target="actions" className={`flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full xl:w-auto shrink-0 ${tourHighlightClass(activeTourTarget === 'actions')}`}>
+                  <button
+                    onClick={() => handleRechazar(diag.id_diagnostico)}
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-semibold text-xs whitespace-nowrap"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Rechazar</span>
+                  </button>
+                  <button
+                    onClick={() => handleAprobar(diag)}
+                    disabled={!canApprove}
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 shadow-xs transition-all font-semibold whitespace-nowrap disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+                    title={canApprove ? 'Crear orden' : 'Complete informe y presupuesto antes de aprobar'}
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>{getRequierePiezas(diag.id_diagnostico) ? 'Aprobar y Crear Orden' : 'Aprobar (Sin repuestos)'}</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    )}
+  </div>
+);
 };
 
 export default NuevaOrden;

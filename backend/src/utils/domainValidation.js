@@ -20,7 +20,9 @@ export const parseNonNegativeMoney = (value, fieldName) => {
   if (value === undefined || value === null || value === '') return 0;
   const numberValue = Number(value);
   if (!Number.isFinite(numberValue) || numberValue < 0) {
-    throw new Error(`${fieldName} debe ser un numero mayor o igual a cero`);
+    const error = new Error(`${fieldName} debe ser un numero mayor o igual a cero`);
+    error.statusCode = 400;
+    throw error;
   }
   return Math.round(numberValue * 100) / 100;
 };
@@ -28,7 +30,9 @@ export const parseNonNegativeMoney = (value, fieldName) => {
 export const assertInList = (value, allowed, fieldName) => {
   if (value === undefined || value === null || value === '') return null;
   if (!allowed.includes(value)) {
-    throw new Error(`${fieldName} no es valido`);
+    const error = new Error(`${fieldName} no es valido`);
+    error.statusCode = 400;
+    throw error;
   }
   return value;
 };

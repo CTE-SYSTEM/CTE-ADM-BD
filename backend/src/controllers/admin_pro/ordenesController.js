@@ -1,5 +1,5 @@
 import prisma from '../../app/prismaClient.js';
-import { Prisma } from '@prisma/client';
+import { ORDEN_ESTADOS, RESULTADOS_ORDEN, assertInList, parsePositiveId } from '../../utils/domainValidation.js';
 
 // 3. Monitoreo de órdenes y facturas
 export const getOrdenesAvanzado = async (req, res) => {
@@ -36,11 +36,17 @@ export const updateOrdenAdmin = async (req, res) => {
     const { estado, tecnico_id, resultado_final, observacion_final } = req.body;
 
     const data = {};
-    if (estado !== undefined) data.estado = String(estado);
-    if (tecnico_id !== undefined) data.tecnico_id = tecnico_id ? Number(tecnico_id) : null;
-    if (resultado_final !== undefined) data.resultado_final = resultado_final;
-    if (observacion_final !== undefined) data.observacion_final = observacion_final;
-    if (String(estado).toUpperCase() === 'FINALIZADO') {
+    if (estado !== undefined) data.estado = assertInList(String(estado).toUpperCase(), ORDEN_ESTADOS, 'Estado de la orden');
+    if (tecnico_id !== undefined) {
+      const tecnicoId = tecnico_id === null || tecnico_id === '' ? null : parsePositiveId(tecnico_id);
+      if (tecnico_id !== null && tecnico_id !== '' && !tecnicoId) {
+        return res.status(400).json({ error: 'ID de técnico inválido' });
+      }
+      data.tecnico_id = tecnicoId;
+    }
+    if (resultado_final !== undefined) data.resultado_final = assertInList(String(resultado_final).toUpperCase(), RESULTADOS_ORDEN, 'Resultado final');
+    if (observacion_final !== undefined) data.observacion_final = String(observacion_final).trim() || null;
+    if (data.estado === 'FINALIZADO') {
       data.fecha_cierre = new Date();
     }
 
@@ -48,22 +54,24 @@ export const updateOrdenAdmin = async (req, res) => {
       return res.status(400).json({ error: 'No se proporcionaron campos para actualizar' });
     }
 
-    const [row] = await prisma.$queryRaw(Prisma.sql`
-      SELECT admin_pro.actualizar_orden(
-        ${Number(id)},
-        ${data.estado ?? null},
-        ${Object.prototype.hasOwnProperty.call(data, 'tecnico_id') ? data.tecnico_id : null},
-        ${Object.prototype.hasOwnProperty.call(data, 'tecnico_id')},
-        ${data.resultado_final ?? null},
-        ${data.observacion_final ?? null}
-      ) AS data
-    `);
-    const orden = row?.data;
-
-    if (orden?.error) return res.status(404).json({ error: orden.error });
+    const ordenId = parsePositiveId(id);
+    if (!ordenId) return res.status(400).json({ error: 'ID de orden inválido' });
+    if (Object.prototype.hasOwnProperty.call(data, 'tecnico_id') && data.tecnico_id) {
+      const tecnico = await prisma.tecnicos.findFirst({ where: { id_tecnico: data.tecnico_id, activo: true } });
+      if (!tecnico) return res.status(400).json({ error: 'El técnico no existe o está inactivo' });
+    }
+    const orden = await prisma.ordenes.update({
+      where: { id_orden: ordenId },
+      data,
+      include: {
+        tecnico: true,
+        diagnostico: { include: { equipo: { include: { cliente: true } }, tecnico: true } },
+      },
+    });
 
     res.json({ data: orden });
   } catch (error) {
+    if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Orden no encontrada' });
     }

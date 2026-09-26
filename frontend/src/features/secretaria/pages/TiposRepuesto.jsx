@@ -8,6 +8,7 @@ import {
   getTiposRepuesto,
   updateTipoRepuesto,
 } from '../services/tiposRepuestoService';
+import { useInfiniteSecretariaList } from '../hooks/useInfiniteSecretariaList';
 
 const emptyTipo = {
   nombre_tipo: '',
@@ -38,6 +39,13 @@ const TipoRepuestoForm = ({
     nombre_tipo: initialData?.nombre_tipo || '',
     electronico: initialData?.electronico || '',
   });
+
+  useEffect(() => {
+    setFormData({
+      nombre_tipo: initialData?.nombre_tipo || '',
+      electronico: initialData?.electronico || '',
+    });
+  }, [initialData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -115,7 +123,6 @@ const Field = ({ label, className = '', ...props }) => (
 );
 
 const TiposRepuesto = () => {
-  const [tipos, setTipos] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingTipo, setEditingTipo] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -124,22 +131,13 @@ const TiposRepuesto = () => {
   const [showHelp, setShowHelp] = useState(false);
   const [tourStep, setTourStep] = useState(0);
 
-  const loadTipos = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await getTiposRepuesto();
-      setTipos(response.data.data || []);
-    } catch {
-      setError('No se pudieron cargar los tipos de repuesto');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTipos();
-  }, []);
+  const tiposQuery = useInfiniteSecretariaList({
+    queryKey: ['secretaria', 'tipos-repuesto'],
+    queryFn: getTiposRepuesto,
+    search: searchTerm,
+  });
+  const tipos = tiposQuery.rows;
+  const loadTipos = () => tiposQuery.refetch();
 
   const activeTourTarget = showHelp ? tourSteps[tourStep].target : '';
 
@@ -214,10 +212,7 @@ const TiposRepuesto = () => {
     }
   };
 
-  const filteredTipos = tipos.filter((tipo) => {
-    const term = searchTerm.trim().toLowerCase();
-    return [tipo.nombre_tipo, tipo.electronico].some((value) => String(value || '').toLowerCase().includes(term));
-  });
+  const filteredTipos = tipos;
 
   const columnas = [
     { header: 'ID', accessor: 'id_tipo_repuesto', contentClassName: 'whitespace-nowrap leading-relaxed' },
@@ -240,10 +235,10 @@ const TiposRepuesto = () => {
       render: (row) => (
         <div className="flex gap-2">
           <div data-tour-target="actions" className={`flex gap-2 ${tourHighlightClass(activeTourTarget === 'actions')}`}>
-            <button onClick={() => { setEditingTipo(row); setShowForm(true); }} className="rounded p-1 text-blue-600 hover:bg-blue-50 transition-colors" title="Editar">
+            <button type="button" onClick={() => { setEditingTipo(row); setShowForm(true); }} className="rounded p-1 text-blue-600 hover:bg-blue-50 transition-colors" title="Editar" aria-label={`Editar tipo ${row.id_tipo_repuesto}`}>
               <Edit className="h-4 w-4" />
             </button>
-            <button onClick={() => handleDelete(row.id_tipo_repuesto)} className="rounded p-1 text-red-600 hover:bg-red-50 transition-colors" title="Eliminar">
+            <button type="button" onClick={() => handleDelete(row.id_tipo_repuesto)} className="rounded p-1 text-red-600 hover:bg-red-50 transition-colors" title="Eliminar" aria-label={`Eliminar tipo ${row.id_tipo_repuesto}`}>
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
@@ -253,76 +248,105 @@ const TiposRepuesto = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 text-left">
-      {showHelp && (
-        <GuidedTour
-          steps={tourSteps}
-          stepIndex={tourStep}
-          onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
-          onClose={closeTour}
-          onNext={handleTourNext}
-        />
-      )}
+  <div className="min-h-screen bg-gray-50 p-6 text-left">
+    {showHelp && (
+      <GuidedTour
+        steps={tourSteps}
+        stepIndex={tourStep}
+        onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
+        onClose={closeTour}
+        onNext={handleTourNext}
+      />
+    )}
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="mb-1 text-2xl font-bold text-gray-800">Tipos de Repuesto</h2>
-          <p className="text-gray-500">Clasifica repuestos y relaciona cada tipo con el electrónico correspondiente.</p>
-        </div>
-        <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
-          <button type="button" onClick={startTour} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all" title="Iniciar tutorial guiado">
-            <HelpCircle className="h-4 w-4" /> Ayuda
-          </button>
-          <button onClick={() => { setEditingTipo(null); setShowForm(true); }} className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm transition-all">
-            <Plus className="h-4 w-4" /> Nuevo Tipo
-          </button>
-        </div>
+    {/* Encabezado Principal */}
+    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h2 className="text-3xl font-black text-gray-800 tracking-tight">Tipos de Repuesto</h2>
+        <p className="text-sm font-medium text-gray-500 italic mt-0.5">Clasifica repuestos y relaciona cada tipo con el electrónico correspondiente.</p>
       </div>
 
-      {error && <div className="mb-4 rounded-lg bg-red-100 p-3 text-sm font-medium text-red-700">{error}</div>}
+      <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
+        <button
+          type="button"
+          onClick={startTour}
+          className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-xs transition-all"
+          title="Iniciar tutorial guiado"
+        >
+          <HelpCircle className="w-4 h-4 text-indigo-600" />
+          <span>Ayuda</span>
+        </button>
 
-      {showForm && (
-        <div className="mb-6 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-gray-800">{editingTipo ? 'Editar Tipo de Repuesto' : 'Nuevo Tipo de Repuesto'}</h3>
-          <TipoRepuestoForm
-            initialData={editingTipo}
-            onCancel={() => { setShowForm(false); setEditingTipo(null); }}
-            onSubmit={handleSubmit}
-            activeTourTarget={activeTourTarget}
-            
-            /* CORRECCIÓN: Ahora pasamos ambas colecciones únicas sin duplicados */
-            sugerenciasTipos={[
-              ...new Set(tipos.map((t) => t.nombre_tipo).filter(Boolean)),
-            ]}
-            sugerenciasElectronicos={[
-              ...new Set(tipos.map((t) => t.electronico).filter(Boolean)),
-            ]}
-          />
-        </div>
-      )}
-
-      <div data-tour-target="search" className={`mb-6 ${tourHighlightClass(activeTourTarget === 'search')}`}>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por tipo o electrónico (Ej: Laptop, Batería, Teléfono)..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-4 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-      </div>
-
-      <div data-tour-target="table" className={`rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden ${tourHighlightClass(activeTourTarget === 'table')}`}>
-        {loading ? (
-          <div className="p-8 text-center text-gray-500 font-medium">Cargando categorías...</div>
-        ) : (
-          <Table columns={columnas} data={filteredTipos} />
-        )}
+        <button
+          type="button"
+          onClick={() => { setEditingTipo(null); setShowForm(true); }}
+          className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-md active:scale-95 transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Nuevo Tipo</span>
+        </button>
       </div>
     </div>
-  );
+
+    {error && (
+      <div className="mb-6 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-semibold rounded-r-lg flex items-center gap-2">
+        <span>{error}</span>
+      </div>
+    )}
+
+    {/* Formulario Modal/Desplegable */}
+    {showForm && (
+      <div className="mb-8 rounded-2xl border border-indigo-100 bg-white p-6 shadow-xl animate-in fade-in zoom-in duration-200">
+        <h3 className="mb-4 text-base font-bold text-gray-800">
+          {editingTipo ? 'Editar Tipo de Repuesto' : 'Nuevo Tipo de Repuesto'}
+        </h3>
+        <TipoRepuestoForm
+          initialData={editingTipo}
+          onCancel={() => { setShowForm(false); setEditingTipo(null); }}
+          onSubmit={handleSubmit}
+          activeTourTarget={activeTourTarget}
+          sugerenciasTipos={[
+            ...new Set(tipos.map((t) => t.nombre_tipo).filter(Boolean)),
+          ]}
+          sugerenciasElectronicos={[
+            ...new Set(tipos.map((t) => t.electronico).filter(Boolean)),
+          ]}
+        />
+      </div>
+    )}
+
+    {/* Buscador */}
+    <div data-tour-target="search" className={`mb-6 ${tourHighlightClass(activeTourTarget === 'search')}`}>
+      <div className="relative max-w-xl">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Buscar por tipo o electrónico (Ej: Laptop, Batería, Teléfono)..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition-all"
+        />
+      </div>
+    </div>
+
+    {/* Tabla */}
+    <div data-tour-target="table" className={`rounded-2xl border border-gray-100 bg-white shadow-xs overflow-hidden ${tourHighlightClass(activeTourTarget === 'table')}`}>
+      {loading || tiposQuery.isLoading ? (
+        <div className="p-12 text-center text-xs font-bold text-indigo-600 flex justify-center items-center gap-2">
+          <span>Cargando categorías...</span>
+        </div>
+      ) : (
+        <Table
+          columns={columnas}
+          data={filteredTipos}
+          onLoadMore={() => tiposQuery.fetchNextPage()}
+          hasMore={tiposQuery.hasNextPage}
+          isLoadingMore={tiposQuery.isFetchingNextPage}
+        />
+      )}
+    </div>
+  </div>
+);
 };
 
 export default TiposRepuesto;

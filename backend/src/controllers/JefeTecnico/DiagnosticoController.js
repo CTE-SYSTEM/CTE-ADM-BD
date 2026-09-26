@@ -1,6 +1,5 @@
 // backend/src/controllers/JefeTecnico/DiagnosticoController.js
 import prisma from '../../app/prismaClient.js';
-import { Prisma } from '@prisma/client';
 import { notifyJefeTecnico, notifyTecnico } from '../../services/notifications.js';
 import {
   PRIORIDADES,
@@ -175,13 +174,16 @@ export const corregirDiagnosticoJefeTecnico = async (req, res) => {
   try {
     const { tecnico_id, prioridad } = req.body;
     const tecnicoId = tecnico_id === '' || tecnico_id === null ? null : parsePositiveId(tecnico_id);
+    const diagnosticoId = parsePositiveId(req.params.id);
+
+    if (!diagnosticoId) return res.status(400).json({ error: 'El diagnostico seleccionado no es valido' });
 
     if (tecnico_id && !tecnicoId) {
       return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
     }
 
     const diagnosticoActual = await prisma.diagnosticos.findUnique({
-      where: { id_diagnostico: Number(req.params.id) },
+      where: { id_diagnostico: diagnosticoId },
       select: { tecnico_id: true },
     });
 
@@ -195,19 +197,16 @@ export const corregirDiagnosticoJefeTecnico = async (req, res) => {
       if (!tecnico) return res.status(404).json({ error: 'Tecnico no encontrado o inactivo' });
     }
 
-    await prisma.$executeRaw(Prisma.sql`
-      SELECT corregir_diagnostico_jefe_proc(
-        ${Number(req.params.id)},
-        ${tecnicoId},
-        ${tecnico_id !== undefined},
-        ${prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : null},
-        ${null},
-        ${null}
-      )
-    `);
+    const data = {};
+    if (tecnico_id !== undefined) {
+      data.tecnico_id = tecnicoId;
+      data.fecha_asignacion = tecnicoId ? new Date() : null;
+    }
+    if (prioridad !== undefined) data.prioridad = assertInList(prioridad, PRIORIDADES, 'Prioridad');
 
-    const diagnostico = await prisma.diagnosticos.findUnique({
-      where: { id_diagnostico: Number(req.params.id) },
+    const diagnostico = await prisma.diagnosticos.update({
+      where: { id_diagnostico: diagnosticoId },
+      data,
       include: diagnosticoInclude,
     });
 
@@ -233,13 +232,16 @@ export const corregirOrdenJefeTecnico = async (req, res) => {
   try {
     const { tecnico_id, prioridad } = req.body;
     const tecnicoId = tecnico_id === '' || tecnico_id === null ? null : parsePositiveId(tecnico_id);
+    const ordenId = parsePositiveId(req.params.id);
+
+    if (!ordenId) return res.status(400).json({ error: 'La orden seleccionada no es valida' });
 
     if (tecnico_id && !tecnicoId) {
       return res.status(400).json({ error: 'El tecnico seleccionado no es valido' });
     }
 
     const ordenActual = await prisma.ordenes.findUnique({
-      where: { id_orden: Number(req.params.id) },
+      where: { id_orden: ordenId },
       select: { tecnico_id: true },
     });
 
@@ -253,18 +255,16 @@ export const corregirOrdenJefeTecnico = async (req, res) => {
       if (!tecnico) return res.status(404).json({ error: 'Tecnico no encontrado o inactivo' });
     }
 
-    await prisma.$executeRaw(Prisma.sql`
-      SELECT corregir_orden_jefe_proc(
-        ${Number(req.params.id)},
-        ${tecnicoId},
-        ${tecnico_id !== undefined},
-        ${prioridad ? assertInList(prioridad, PRIORIDADES, 'Prioridad') : null},
-        ${null}
-      )
-    `);
+    const data = {};
+    if (tecnico_id !== undefined) {
+      data.tecnico_id = tecnicoId;
+      data.fecha_asignacion = tecnicoId ? new Date() : null;
+    }
+    if (prioridad !== undefined) data.prioridad = assertInList(prioridad, PRIORIDADES, 'Prioridad');
 
-    const orden = await prisma.ordenes.findUnique({
-      where: { id_orden: Number(req.params.id) },
+    const orden = await prisma.ordenes.update({
+      where: { id_orden: ordenId },
+      data,
       include: ordenInclude,
     });
 
@@ -416,20 +416,26 @@ export const corregirRepuestoJefeTecnico = async (req, res) => {
       await assertStockDisponible(repuestoFinal, cantidadFinal);
     }
 
-    await prisma.$executeRaw(Prisma.sql`
-      SELECT corregir_repuesto_jefe_proc(
-        ${Number(req.params.id)},
-        ${repuestoId},
-        ${repuesto_id !== undefined},
-        ${pieza_solicitada === undefined ? null : String(pieza_solicitada || '').trim()},
-        ${pieza_solicitada !== undefined},
-        ${cantidad || null},
-        ${estado_aprobacion ? estadoFinal : null}
-      )
-    `);
+    if (repuesto_id !== undefined && repuestoId) {
+      const repuesto = await prisma.repuestos.findFirst({ where: { id_repuesto: repuestoId, descontinuada: false } });
+      if (!repuesto) return res.status(400).json({ error: 'El repuesto seleccionado no existe o esta descontinuado' });
+    }
 
-    const solicitud = await prisma.ordenes_Repuestos.findUnique({
+    const data = {};
+    if (repuesto_id !== undefined) data.repuesto_id = repuestoId;
+    if (pieza_solicitada !== undefined) data.pieza_solicitada = String(pieza_solicitada || '').trim() || null;
+    if (cantidad !== undefined) data.cantidad_usada = cantidad;
+    if (estado_aprobacion !== undefined) {
+      data.estado_aprobacion = estadoFinal;
+      if (estadoFinal === 'APROBADO') {
+        data.estado_entrega = 'ENTREGADO';
+        data.fecha_entrega = new Date();
+      }
+    }
+
+    const solicitud = await prisma.ordenes_Repuestos.update({
       where: { id_detalle_repuesto: Number(req.params.id) },
+      data,
       include: repuestoSolicitudInclude,
     });
 
@@ -608,8 +614,11 @@ export const asignarTecnicoAOrden = async (req, res) => {
 
 export const getRepuestosPendientesAprobacion = async (req, res) => {
   try {
-    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_repuestos_pendientes_aprobacion()`);
-    const solicitudes = rows.map((row) => row.data);
+    const solicitudes = await prisma.ordenes_Repuestos.findMany({
+      where: { estado_aprobacion: 'PENDIENTE' },
+      include: repuestoSolicitudInclude,
+      orderBy: { orden: { fecha_ingreso: 'asc' } },
+    });
     res.json({ data: solicitudes });
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener solicitudes', details: error.message });

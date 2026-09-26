@@ -12,7 +12,9 @@ const authMiddleware = async (req, res, next) => {
   const token = auth.split(' ')[1];
   try {
     const payload = jwt.verify(token, env.jwtSecret);
-    const user = await prisma.usuarios.findUnique({ where: { id_usuario: payload.id } });
+    const user = await prisma.usuarios.findFirst({
+      where: { id_usuario: payload.id, activo: true },
+    });
     if (!user) return res.status(401).json({ error: 'Usuario no encontrado' });
     req.user = { id: user.id_usuario, username: user.nombre_usuario, rol: user.rol };
     next();

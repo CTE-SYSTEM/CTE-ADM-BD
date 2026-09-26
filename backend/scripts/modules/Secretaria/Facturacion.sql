@@ -162,23 +162,3 @@ WHERE f.id_factura IS NULL
     upper(COALESCE(o.estado, '')) = 'IRREPARABLE'
     OR COALESCE(repuestos.pendientes_count, 0) = 0
   );
-
-CREATE OR REPLACE FUNCTION get_facturas_secretaria()
-RETURNS TABLE (data JSONB) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT f.data
-  FROM secretaria_facturas_detalle f
-  ORDER BY f.id_factura DESC;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION get_ordenes_facturables_secretaria()
-RETURNS TABLE (data JSONB) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT o.data
-  FROM secretaria_ordenes_facturables o
-  ORDER BY o.id_orden DESC;
-END;
-$$ LANGUAGE plpgsql;

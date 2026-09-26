@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Edit3, Loader2, Monitor, Phone, User, XCircle } from 'lucide-react';
+import { Edit3, Loader2, Monitor, Phone, User, XCircle } from 'lucide-react';
 import Autocomplete from '../shared/Autocomplete';
 import { tourHighlightClass } from './constants';
 
@@ -18,8 +18,8 @@ const Check = ({ label, ...props }) => (
   </label>
 );
 
-const SectionHeader = ({ currentId, isEditing, isFormOpen, onCancelEdit, onToggle }) => (
-  <div className="flex items-center justify-between cursor-pointer group select-none" onClick={onToggle}>
+const SectionHeader = ({ currentId, isEditing, onCancelEdit }) => (
+  <div className="flex items-center justify-between">
     <div className="flex items-center gap-4">
       <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
         {isEditing ? (
@@ -30,21 +30,13 @@ const SectionHeader = ({ currentId, isEditing, isFormOpen, onCancelEdit, onToggl
           'Datos del Ingreso'
         )}
       </h3>
-      {isEditing && (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onCancelEdit();
-          }}
-          className="text-red-500 flex items-center gap-1 text-sm font-bold hover:bg-red-50 px-2 py-1 rounded transition-colors"
-        >
-          <XCircle className="w-4 h-4" /> Cancelar
-        </button>
-      )}
-    </div>
-    <div className="p-1 rounded-full text-indigo-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-      {isFormOpen ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
+      <button
+        type="button"
+        onClick={onCancelEdit}
+        className="text-red-500 flex items-center gap-1 text-sm font-bold hover:bg-red-50 px-2 py-1 rounded transition-colors"
+      >
+        <XCircle className="w-4 h-4" /> Cancelar
+      </button>
     </div>
   </div>
 );
@@ -58,25 +50,20 @@ export const DiagnosticoForm = ({
   formData,
   formRef,
   isEditing,
-  isFormOpen,
   loading,
   onCancelEdit,
   onChange,
   onSubmit,
-  onToggle,
   clientes,
 }) => (
   <section ref={formRef} className="bg-white rounded-xl shadow-md border border-indigo-50 p-6 scroll-mt-6 transition-all duration-300">
     <SectionHeader
       currentId={currentId}
       isEditing={isEditing}
-      isFormOpen={isFormOpen}
       onCancelEdit={onCancelEdit}
-      onToggle={onToggle}
     />
 
-    {isFormOpen && (
-      <form onSubmit={onSubmit} className="space-y-6 mt-6 animate-in slide-in-from-top-2 fade-in duration-200">
+    <form onSubmit={onSubmit} className="space-y-6 mt-6 animate-in slide-in-from-top-2 fade-in duration-200">
         <div data-tour-target="owner" className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${tourHighlightClass(activeTourTarget === 'owner')}`}>
           <Autocomplete
             label="Cliente (Dueno)"
@@ -174,7 +161,6 @@ export const DiagnosticoForm = ({
             {isEditing ? 'Guardar Cambios' : 'Generar Diagnostico de Ingreso'}
           </button>
         </div>
-      </form>
-    )}
+    </form>
   </section>
 );

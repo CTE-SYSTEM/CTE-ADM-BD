@@ -1,9 +1,9 @@
-import React, { useState, useContext, useRef, useEffect } from 'react';
+﻿import React, { useState, useContext, useRef, useEffect } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react'; 
 
-// Importación directa del SVG
+// Importacion directa del SVG
 import loadingSvg from '../../assets/images/svg/LoadingLogin.svg';
 
 const Login = () => {
@@ -13,7 +13,7 @@ const Login = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   
-  // Estado para la animación y la redirección
+  // Estado para la animacion y la redireccion
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [userRoleName, setUserRoleName] = useState('');
 
@@ -33,7 +33,7 @@ const Login = () => {
     setError(null);
 
     if (!username.trim() || !password.trim()) {
-      return setError('Ingresa usuario y contraseña');
+      return setError('Ingresa usuario y contrasena');
     }
 
     setLoading(true);
@@ -66,18 +66,18 @@ const Login = () => {
           return;
       }
 
-      // 1. Activar la pantalla con la animación SVG
+      // 1. Activar la pantalla con la animacion SVG
       setUserRoleName(userData.rol);
       setIsRedirecting(true);
 
-      // 2. Esperar exactamente 5000ms (5 segundos) para que termine la animación
+      // 2. Esperar exactamente 5000ms (5 segundos) para que termine la animacion
       setTimeout(() => {
         navigate(targetPath);
       }, 5000);
 
     } catch (err) {
-      console.error("Fallo el inicio de sesión:", err);
-      const mensajeError = err.response?.data?.message || 'Usuario o contraseña incorrectos';
+      console.error("Fallo el inicio de sesion:", err);
+      const mensajeError = err.response?.data?.message || 'Usuario o contrasena incorrectos';
       setError(mensajeError);
       setLoading(false);
     }
@@ -116,7 +116,7 @@ const Login = () => {
       <div className="fixed inset-0 w-screen h-screen flex flex-col items-center justify-center bg-gray-50 z-50 font-sans transition-opacity duration-500 animate-in fade-in px-4">
         <div className="flex flex-col items-center w-full max-w-lg text-center">
           
-          {/* SVG ampliado a un tamaño visible y destacado */}
+          {/* SVG ampliado a un tamano visible y destacado */}
           <div className="w-64 h-64 sm:w-80 sm:h-80 mb-6 flex items-center justify-center">
             <img 
               src={loadingSvg} 
@@ -129,7 +129,7 @@ const Login = () => {
             Acceso concedido
           </h3>
           <p className="text-sm text-gray-500 mt-1.5">
-            Iniciando módulo de <span className="font-semibold text-blue-600">{userRoleName}</span>...
+            Iniciando modulo de <span className="font-semibold text-blue-600">{userRoleName}</span>...
           </p>
         </div>
       </div>
@@ -148,10 +148,10 @@ const Login = () => {
           </div>
 
           <h2 className="text-xl font-bold text-gray-900 tracking-tight">
-            Sistema de Gestión
+            Sistema de Gestion
           </h2>
           <p className="text-xs text-gray-500 font-normal leading-relaxed mt-1">
-            Control y seguimiento de servicios técnicos.
+            Control y seguimiento de servicios tecnicos.
           </p>
         </div>
 
@@ -175,7 +175,7 @@ const Login = () => {
 
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
-              Contraseña
+              Contrasena
             </label>
             <div className="relative">
               <input 
@@ -186,7 +186,7 @@ const Login = () => {
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
                 onKeyDown={handlePasswordKeyDown}
-                placeholder="••••••••" 
+                placeholder="********" 
                 className="w-full pl-3.5 pr-10 py-2 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-gray-800 placeholder-gray-300 disabled:bg-gray-50" 
               />
               <button
@@ -194,7 +194,7 @@ const Login = () => {
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex={-1}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
-                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                aria-label={showPassword ? "Ocultar contrasena" : "Mostrar contrasena"}
               >
                 {showPassword ? (
                   <EyeOff className="w-4 h-4" />
@@ -232,10 +232,11 @@ const Login = () => {
       </div>
 
       <p className="absolute bottom-6 text-center text-gray-400 text-[11px] uppercase tracking-widest font-medium">
-        &copy; {new Date().getFullYear()} CTE-ADM-BD SYSTEM
+        &copy; {new Date().getFullYear()} SISTEMA DE GESTION
       </p>
     </div>
   );
 };
 
 export default Login;
+

@@ -1,13 +1,10 @@
 import React from 'react';
-import logoCte from '../assets/Logo CTE.png';
+import { Boxes } from 'lucide-react';
 
-const BrandLogo = ({ className = '', imageClassName = '', alt = 'Logo CTE' }) => (
-  <div className={`overflow-hidden rounded-2xl bg-white ${className}`}>
-    <img
-      src={logoCte}
-      alt={alt}
-      className={`h-full w-full object-contain ${imageClassName}`}
-    />
+const BrandLogo = ({ className = '', iconClassName = '' }) => (
+  <div className={`flex items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white ${className}`}>
+    <Boxes className={`h-7 w-7 ${iconClassName}`} aria-hidden="true" />
+    <span className="sr-only">Sistema de gestion</span>
   </div>
 );
 

@@ -56,13 +56,3 @@ SELECT
   ) AS data
 FROM "Garantias" g
 JOIN secretaria_facturas_detalle f ON f.id_factura = g.factura_id;
-
-CREATE OR REPLACE FUNCTION get_garantias_secretaria()
-RETURNS TABLE (data JSONB) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT g.data
-  FROM secretaria_garantias_detalle g
-  ORDER BY g.fecha_vencimiento ASC NULLS LAST, g.id_garantia DESC;
-END;
-$$ LANGUAGE plpgsql;

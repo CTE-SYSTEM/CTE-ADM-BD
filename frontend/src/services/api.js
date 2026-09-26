@@ -11,7 +11,7 @@ const pendingGets = new Map();
 
 const buildRequestKey = (url, config = {}) => {
   const params = config.params ? JSON.stringify(config.params) : '';
-  const token = localStorage.getItem('token') || '';
+  const token = sessionStorage.getItem('token') || '';
   return `${token}:${url}?${params}`;
 };
 
@@ -24,7 +24,7 @@ const clearGetCache = () => {
 };
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
@@ -39,8 +39,8 @@ api.interceptors.response.use(
     const url = error.config?.url || '';
 
     if (status === 401 && !url.includes('/auth/login')) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('cte_user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('cte_user');
       clearGetCache();
       window.dispatchEvent(new Event('auth:unauthorized'));
     }

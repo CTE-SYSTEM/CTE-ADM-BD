@@ -1,4 +1,4 @@
-import { notifyJefeTecnico } from '../../services/notifications.js';
+import { notifyJefeTecnico, notifyRole } from '../../services/notifications.js';
 import {
   actualizarEstadoOrden as actualizarEstadoOrdenService,
   completarDiagnostico,
@@ -74,6 +74,14 @@ export const actualizarDiagnosticoAsignado = async (req, res) => {
       type: 'diagnostico_completado',
       title: 'Diagnostico completado',
       message: `Diagnostico #${req.params.id} quedo listo para revision/aprobacion`,
+      severity: 'success',
+      entity: { kind: 'diagnostico', id: Number(req.params.id) },
+    });
+
+    notifyRole('Secretaria', {
+      type: 'diagnostico_completado',
+      title: 'Diagnóstico listo para nueva orden',
+      message: `El diagnóstico #${req.params.id} ya está listo para crear una orden`,
       severity: 'success',
       entity: { kind: 'diagnostico', id: Number(req.params.id) },
     });

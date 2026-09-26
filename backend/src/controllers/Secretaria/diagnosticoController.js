@@ -5,8 +5,8 @@ import { notifyJefeTecnico, notifyTecnico } from '../../services/notifications.j
 
 export const getDiagnosticos = async (req, res) => {
   try {
-    const diagnosticos = await diagnosticoService.listarDiagnosticos();
-    res.json({ data: diagnosticos });
+    const result = await diagnosticoService.listarDiagnosticos(req.query);
+    res.json(result);
   } catch (error) {
     console.error('Error en getDiagnosticos:', error.message);
     console.error('Stack:', error.stack);

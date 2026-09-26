@@ -1,6 +1,6 @@
 import api from '../../../services/api';
 
-export const getRepuestos = () => api.get('/repuestos');
+export const getRepuestos = (params = {}) => api.get('/repuestos', { params });
 export const createRepuesto = (data) => api.post('/repuestos', data);
 export const updateRepuesto = (id, data) => api.put(`/repuestos/${id}`, data);
 export const deleteRepuesto = (id) => api.delete(`/repuestos/${id}`);

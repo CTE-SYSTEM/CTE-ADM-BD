@@ -13,7 +13,7 @@ function PersonalizacionToggle({ isDarkMode, onToggle }) {
       title={isDarkMode ? 'Modo normal' : 'Modo oscuro'}
     >
       <Icon className="h-5 w-5" aria-hidden="true" />
-      <span>{isDarkMode ? 'Normal' : 'Oscuro'}</span>
+      <span className="sr-only">{isDarkMode ? 'Normal' : 'Oscuro'}</span>
     </button>
   );
 }

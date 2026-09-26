@@ -1,11 +1,11 @@
 import prisma from '../../app/prismaClient.js';
-import { Prisma } from '@prisma/client';
 import {
   METODOS_PAGO,
   assertInList,
   parseNonNegativeMoney,
   parsePositiveId,
 } from '../../utils/domainValidation.js';
+import { buildPaginationMeta, parsePagination } from '../../utils/pagination.js';
 
 const facturaInclude = {
   garantias: true,
@@ -70,12 +70,43 @@ const tieneRepuestosSinAprobar = (orden) =>
 const tieneRepuestosSinRegistrar = (orden) =>
   (orden.repuestos_usados || []).some((detalle) => !detalle.repuesto_id);
 
+const decimalToNumber = (value) => (value === null || value === undefined ? value : Number(value));
+
+const facturaSearchWhere = (search) => (search
+  ? {
+      OR: [
+        ...(Number.isInteger(Number(search)) ? [{ id_factura: Number(search) }] : []),
+        { metodo_pago: { contains: search, mode: 'insensitive' } },
+        { orden: { diagnostico: { equipo: { cliente: { nombre: { contains: search, mode: 'insensitive' } } } } } },
+      ],
+    }
+  : {});
+
 export const getFacturas = async (req, res) => {
   try {
-    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_facturas_secretaria()`);
-    const facturas = rows.map((row) => row.data);
+    const { page, pageSize, offset } = parsePagination(req.query);
+    const search = String(req.query.search || '').trim();
+    const where = facturaSearchWhere(search);
+    const [facturasRows, total] = await Promise.all([
+      prisma.facturas.findMany({
+        where,
+        include: facturaInclude,
+        orderBy: { id_factura: 'desc' },
+        skip: offset,
+        take: pageSize,
+      }),
+      prisma.facturas.count({ where }),
+    ]);
+    const facturas = facturasRows.map((factura) => ({
+      ...factura,
+      monto_repuestos: decimalToNumber(factura.monto_repuestos),
+      mano_obra: decimalToNumber(factura.mano_obra),
+      subtotal: decimalToNumber(factura.subtotal),
+      impuestos: decimalToNumber(factura.impuestos),
+      total: decimalToNumber(factura.total),
+    }));
 
-    res.json({ data: facturas });
+    res.json({ data: facturas, meta: buildPaginationMeta({ page, pageSize, total }) });
   } catch (error) {
     console.error('Error al obtener facturas:', error);
     res.status(500).json({ error: 'Error al obtener facturas', details: error.message });
@@ -182,8 +213,48 @@ export const createFactura = async (req, res) => {
 
 export const getOrdenesParaFacturar = async (req, res) => {
   try {
-    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_ordenes_facturables_secretaria()`);
-    const ordenesDisponibles = rows.map((row) => row.data);
+    const ordenes = await prisma.ordenes.findMany({
+      where: {
+        facturas: { none: {} },
+        OR: [
+          { estado: 'IRREPARABLE' },
+          {
+            estado: 'FINALIZADO',
+            repuestos_usados: {
+              none: {
+                OR: [
+                  { estado_aprobacion: { not: 'APROBADO' } },
+                  { repuesto_id: null },
+                ],
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        diagnostico: { include: { equipo: { include: { cliente: true } } } },
+        tecnico: true,
+        repuestos_usados: { include: { repuesto: { select: repuestoSafeSelect } } },
+      },
+      orderBy: { id_orden: 'desc' },
+    });
+
+    const ordenesDisponibles = ordenes.map((orden) => {
+      const repuestosFacturacion = (orden.repuestos_usados || []).map((detalle) => {
+        const precioUnitario = Math.round(calcularPrecioVentaRepuesto(detalle.repuesto) * 100) / 100;
+        return {
+          ...detalle,
+          precio_unitario: precioUnitario,
+          total: Math.round(Number(detalle.cantidad_usada || 0) * precioUnitario * 100) / 100,
+        };
+      });
+      return {
+        ...orden,
+        facturas: [],
+        monto_repuestos_calculado: orden.estado === 'IRREPARABLE' ? 0 : calcularMontoRepuestos(orden.repuestos_usados),
+        repuestos_facturacion: repuestosFacturacion,
+      };
+    });
 
     res.json({
       data: ordenesDisponibles,

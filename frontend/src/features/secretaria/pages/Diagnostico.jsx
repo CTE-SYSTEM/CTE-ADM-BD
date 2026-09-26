@@ -1,15 +1,16 @@
 // frontend/src/features/secretaria/pages/Diagnostico.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, HelpCircle, LayoutList } from 'lucide-react';
+import { AlertCircle, CheckCircle2, HelpCircle, LayoutList, Plus } from 'lucide-react';
 import { DiagnosticoForm } from '../components/Diagnostico/DiagnosticoForm';
 import { DiagnosticosTable } from '../components/Diagnostico/DiagnosticosTable';
 import { GuidedTour, initialFormState, tourHighlightClass, tourSteps } from '../components/Diagnostico/constants';
-import { filterDiagnosticos, normalizeDiagnosticos, sortClientesByName } from '../components/Diagnostico/helpers';
+import { normalizeDiagnosticos, sortClientesByName } from '../components/Diagnostico/helpers';
 import { EstadoBadge, PrioridadBadge } from '../components/Diagnostico/badges';
 import { getClientes } from '../services/clientesService';
 import { getEquipos } from '../services/equiposService';
 import { createDiagnostico, getDiagnosticos, updateDiagnostico } from '../services/diagnosticoService';
+import { useInfiniteSecretariaList } from '../hooks/useInfiniteSecretariaList';
 
 export { EstadoBadge, PrioridadBadge };
 
@@ -18,7 +19,6 @@ const Diagnostico = () => {
   const formRef = useRef(null);
   const [clientes, setClientes] = useState([]);
   const [equipos, setEquipos] = useState([]);
-  const [diagnosticos, setDiagnosticos] = useState([]);
   const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -29,23 +29,33 @@ const Diagnostico = () => {
   const [currentId, setCurrentId] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [tourStep, setTourStep] = useState(0);
-  const [isFormOpen, setIsFormOpen] = useState(true);
+  // Mantener el formulario oculto al entrar; se abre automáticamente
+  // cuando la navegación trae un cliente o equipo preseleccionado.
+  const [isFormOpen, setIsFormOpen] = useState(Boolean(location.state?.clienteId || location.state?.equipoId));
 
   const preselectedClienteId = location.state?.clienteId ? String(location.state.clienteId) : '';
   const preselectedEquipoId = location.state?.equipoId ? String(location.state.equipoId) : '';
   const activeTourTarget = showHelp ? tourSteps[tourStep].target : '';
+  const diagnosticosQuery = useInfiniteSecretariaList({
+    queryKey: ['secretaria', 'diagnosticos'],
+    queryFn: getDiagnosticos,
+    search: searchTerm,
+    extraParams: { filterTecnico },
+  });
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [resC, resE, resD] = await Promise.all([getClientes(), getEquipos(), getDiagnosticos()]);
+      const [resC, resE] = await Promise.all([
+        getClientes({ page: 1, pageSize: 100 }),
+        getEquipos({ page: 1, pageSize: 100 }),
+      ]);
       const clientesData = sortClientesByName(resC.data.data || []);
       const equiposData = resE.data.data || [];
 
       setClientes(clientesData);
       setEquipos(equiposData);
-      setDiagnosticos(normalizeDiagnosticos(resD.data.data || [], equiposData, clientesData));
     } catch {
       setError('Error al sincronizar datos con el servidor');
     } finally {
@@ -84,10 +94,11 @@ const Diagnostico = () => {
   const clienteSeleccionado = clientes.find((cliente) => String(cliente.id_cliente) === String(formData.cliente_id));
   const equiposDelCliente = formData.cliente_id ? equipos.filter((equipo) => Number(equipo.cliente_id) === Number(formData.cliente_id)) : [];
   const equipoSeleccionado = equipos.find((equipo) => String(equipo.id_equipo) === String(formData.equipo_id));
-  const filteredDiagnosticos = useMemo(
-    () => filterDiagnosticos(diagnosticos, searchTerm, filterTecnico),
-    [diagnosticos, filterTecnico, searchTerm],
+  const diagnosticos = useMemo(
+    () => normalizeDiagnosticos(diagnosticosQuery.rows, equipos, clientes),
+    [diagnosticosQuery.rows, equipos, clientes],
   );
+  const filteredDiagnosticos = diagnosticos;
 
   const closeTour = () => {
     setShowHelp(false);
@@ -97,6 +108,17 @@ const Diagnostico = () => {
   const startTour = () => {
     setTourStep(0);
     setShowHelp(true);
+    setIsFormOpen(true);
+  };
+
+  const openNewForm = () => {
+    setIsEditing(false);
+    setCurrentId(null);
+    setFormData({
+      ...initialFormState,
+      cliente_id: preselectedClienteId,
+      equipo_id: preselectedEquipoId,
+    });
     setIsFormOpen(true);
   };
 
@@ -113,6 +135,7 @@ const Diagnostico = () => {
     setIsEditing(false);
     setCurrentId(null);
     setFormData(initialFormState);
+    setIsFormOpen(false);
   };
 
   const handleEdit = (diag) => {
@@ -159,7 +182,7 @@ const Diagnostico = () => {
       }
 
       cancelEdit();
-      await loadData();
+      await Promise.all([loadData(), diagnosticosQuery.refetch()]);
     } catch (err) {
       setError(err?.response?.data?.error || 'Ocurrio un error al procesar la solicitud');
     } finally {
@@ -168,40 +191,60 @@ const Diagnostico = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen space-y-8">
-      {showHelp && (
-        <GuidedTour
-          stepIndex={tourStep}
-          onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
-          onClose={closeTour}
-          onNext={() => (tourStep === tourSteps.length - 1 ? closeTour() : setTourStep((step) => step + 1))}
-        />
-      )}
+  <div className="p-4 bg-gray-50 min-h-screen space-y-4">
+    {showHelp && (
+      <GuidedTour
+        stepIndex={tourStep}
+        onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
+        onClose={closeTour}
+        onNext={() => (tourStep === tourSteps.length - 1 ? closeTour() : setTourStep((step) => step + 1))}
+      />
+    )}
 
-      <div data-tour-target="header" className={`flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between ${tourHighlightClass(activeTourTarget === 'header')}`}>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Diagnostico de Ingreso</h2>
-          <p className="text-gray-500 font-medium">Gestion de recepcion y revision tecnica inicial.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={startTour} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 shadow-sm hover:bg-gray-50" title="Iniciar tutorial guiado">
-            <HelpCircle className="w-4 h-4" /> Ayuda
-          </button>
-          <LayoutList className="w-8 h-8 text-indigo-200" />
-        </div>
+    {/* Encabezado Principal */}
+    <div data-tour-target="header" className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${tourHighlightClass(activeTourTarget === 'header')}`}>
+      <div className="text-left">
+        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Diagnóstico de Ingreso</h2>
+        <p className="text-xs text-gray-500 font-medium mt-0.5">Gestión de recepción y revisión técnica inicial.</p>
       </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={startTour}
+          className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition-all"
+          title="Iniciar tutorial guiado"
+        >
+          <HelpCircle className="w-4 h-4 text-indigo-600" />
+          <span>Ayuda</span>
+        </button>
+        <button
+          type="button"
+          onClick={openNewForm}
+          className="flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition-all hover:bg-indigo-700"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Nuevo diagnóstico</span>
+        </button>
+        <LayoutList className="w-6 h-6 text-indigo-300" />
+      </div>
+    </div>
 
-      {error && (
-        <div className="p-3 bg-red-100 text-red-700 rounded-lg flex items-center gap-2 font-medium border border-red-200">
-          <AlertCircle className="w-5 h-5" /> {error}
-        </div>
-      )}
-      {message && (
-        <div className="p-3 bg-emerald-100 text-emerald-700 rounded-lg flex items-center gap-2 font-medium animate-in fade-in slide-in-from-top-2">
-          <CheckCircle2 className="w-5 h-5" /> {message}
-        </div>
-      )}
+    {error && (
+      <div className="p-2.5 bg-red-100 text-red-700 rounded-lg flex items-center gap-2 text-xs font-semibold border border-red-200 text-left">
+        <AlertCircle className="w-4 h-4 shrink-0" />
+        <span>{error}</span>
+      </div>
+    )}
 
+    {message && (
+      <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-lg flex items-center gap-2 text-xs font-semibold animate-in fade-in slide-in-from-top-2 text-left">
+        <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <span>{message}</span>
+      </div>
+    )}
+
+    {/* Formulario de Diagnóstico */}
+    {isFormOpen && (
       <DiagnosticoForm
         activeTourTarget={activeTourTarget}
         clienteSeleccionado={clienteSeleccionado}
@@ -212,26 +255,29 @@ const Diagnostico = () => {
         formData={formData}
         formRef={formRef}
         isEditing={isEditing}
-        isFormOpen={isFormOpen}
-        loading={loading}
+        loading={loading || diagnosticosQuery.isLoading}
         onCancelEdit={cancelEdit}
         onChange={handleChange}
         onSubmit={handleSubmit}
-        onToggle={() => setIsFormOpen((open) => !open)}
       />
+    )}
 
-      <DiagnosticosTable
-        activeTourTarget={activeTourTarget}
-        diagnosticos={filteredDiagnosticos}
-        filterTecnico={filterTecnico}
-        loading={loading}
-        onEdit={handleEdit}
-        onFilterChange={setFilterTecnico}
-        onSearchChange={setSearchTerm}
-        searchTerm={searchTerm}
-      />
-    </div>
-  );
+    {/* Tabla de Diagnósticos */}
+    <DiagnosticosTable
+      activeTourTarget={activeTourTarget}
+      diagnosticos={filteredDiagnosticos}
+      filterTecnico={filterTecnico}
+      loading={loading}
+      onEdit={handleEdit}
+      onFilterChange={setFilterTecnico}
+      onSearchChange={setSearchTerm}
+      searchTerm={searchTerm}
+      onLoadMore={() => diagnosticosQuery.fetchNextPage()}
+      hasMore={diagnosticosQuery.hasNextPage}
+      isLoadingMore={diagnosticosQuery.isFetchingNextPage}
+    />
+  </div>
+);
 };
 
 export default Diagnostico;

@@ -1,5 +1,4 @@
 import prisma from '../../app/prismaClient.js';
-import { Prisma } from '@prisma/client';
 
 // 2. Monitoreo de repuestos con historial y proveedor
 export const getRepuestosAvanzado = async (req, res) => {
@@ -33,20 +32,19 @@ export const updateRepuestoAdmin = async (req, res) => {
       return res.status(400).json({ error: 'No se proporcionaron campos para actualizar' });
     }
 
-    const [row] = await prisma.$queryRaw(Prisma.sql`
-      SELECT admin_pro.actualizar_repuesto(
-        ${Number(id)},
-        ${data.nombre ?? null},
-        ${data.descripcion ?? null},
-        ${data.costo_individual ?? null},
-        ${data.porcentaje_de_ganacia ?? null},
-        ${Object.prototype.hasOwnProperty.call(data, 'activo') ? data.activo : null},
-        ${Object.prototype.hasOwnProperty.call(data, 'descontinuada') ? data.descontinuada : null}
-      ) AS data
-    `);
-    const repuesto = row?.data;
-
-    if (repuesto?.error) return res.status(404).json({ error: repuesto.error });
+    const repuestoId = Number(id);
+    if (!Number.isInteger(repuestoId) || repuestoId <= 0) return res.status(400).json({ error: 'ID de repuesto inválido' });
+    if (data.costo_individual !== undefined && (!Number.isFinite(data.costo_individual) || data.costo_individual < 0)) {
+      return res.status(400).json({ error: 'El costo individual debe ser mayor o igual a cero' });
+    }
+    if (data.porcentaje_de_ganacia !== undefined && (!Number.isFinite(data.porcentaje_de_ganacia) || data.porcentaje_de_ganacia < 0)) {
+      return res.status(400).json({ error: 'El porcentaje de ganancia debe ser mayor o igual a cero' });
+    }
+    const repuesto = await prisma.repuestos.update({
+      where: { id_repuesto: repuestoId },
+      data,
+      include: { categoria: true, proveedor: true },
+    });
 
     res.json({ data: repuesto });
   } catch (error) {

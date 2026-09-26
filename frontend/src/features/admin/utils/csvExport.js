@@ -99,14 +99,14 @@ const drawHeader = (doc, title, rows, columns) => {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.text('CTE', 16.2, 18);
+  doc.text('SG', 16.6, 18);
 
   doc.setFontSize(16);
   doc.text(title, 32, 15);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(203, 213, 225);
-  doc.text('Centro Tecnico Electronico - Admin Pro', 32, 21);
+  doc.text('Sistema de gestion - Admin Pro', 32, 21);
   doc.text(`Generado: ${generatedAt}`, 32, 26);
 
   doc.setFillColor(248, 250, 252);
@@ -150,7 +150,7 @@ const drawFooter = (doc) => {
     doc.line(14, pageHeight - 15, pageWidth - 14, pageHeight - 15);
     doc.setTextColor(100, 116, 139);
     doc.setFontSize(8);
-    doc.text('CTE Admin Pro', 14, pageHeight - 9);
+    doc.text('Sistema de gestion', 14, pageHeight - 9);
     doc.text(`Pagina ${page} de ${pageCount}`, pageWidth - 14, pageHeight - 9, { align: 'right' });
   }
 };

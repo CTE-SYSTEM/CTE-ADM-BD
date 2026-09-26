@@ -1,14 +1,57 @@
 // backend/src/controllers/Secretaria/garantiasController.js
 import prisma from '../../app/prismaClient.js';
-import { Prisma } from '@prisma/client';
 import { normalizeOptionalText, parsePositiveId } from '../../utils/domainValidation.js';
+import { buildPaginationMeta, parsePagination } from '../../utils/pagination.js';
 
 export const getGarantias = async (req, res) => {
   try {
-    const rows = await prisma.$queryRaw(Prisma.sql`SELECT data FROM get_garantias_secretaria()`);
-    const garantias = rows.map((row) => row.data);
+    const { page, pageSize, offset } = parsePagination(req.query);
+    const search = String(req.query.search || '').trim();
+    const where = search
+      ? {
+          OR: [
+            ...(Number.isInteger(Number(search)) ? [{ id_garantia: Number(search) }] : []),
+            { condiciones: { contains: search, mode: 'insensitive' } },
+            { factura: { metodo_pago: { contains: search, mode: 'insensitive' } } },
+            { factura: { orden: { diagnostico: { equipo: { cliente: { nombre: { contains: search, mode: 'insensitive' } } } } } } },
+          ],
+        }
+      : {};
+    const [garantiasRows, total] = await Promise.all([
+      prisma.garantias.findMany({
+        where,
+        include: {
+          factura: {
+            include: {
+              orden: {
+                include: {
+                  diagnostico: { include: { equipo: { include: { cliente: true } } } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: [{ fecha_vencimiento: 'asc' }, { id_garantia: 'desc' }],
+        skip: offset,
+        take: pageSize,
+      }),
+      prisma.garantias.count({ where }),
+    ]);
+    const garantias = garantiasRows.map((garantia) => ({
+      ...garantia,
+      factura: garantia.factura
+        ? {
+            ...garantia.factura,
+            monto_repuestos: garantia.factura.monto_repuestos === null ? null : Number(garantia.factura.monto_repuestos),
+            mano_obra: garantia.factura.mano_obra === null ? null : Number(garantia.factura.mano_obra),
+            subtotal: garantia.factura.subtotal === null ? null : Number(garantia.factura.subtotal),
+            impuestos: garantia.factura.impuestos === null ? null : Number(garantia.factura.impuestos),
+            total: garantia.factura.total === null ? null : Number(garantia.factura.total),
+          }
+        : null,
+    }));
 
-    res.json({ data: garantias });
+    res.json({ data: garantias, meta: buildPaginationMeta({ page, pageSize, total }) });
   } catch (error) {
     console.error('Error al obtener garantias:', error);
     res.status(500).json({ error: 'Error al obtener el historial de garantias' });

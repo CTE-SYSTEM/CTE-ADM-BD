@@ -1,9 +1,10 @@
 // frontend/src/features/secretaria/pages/Facturacion.jsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Eye, Printer, Save, Search } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Eye, Printer, Save, Search } from 'lucide-react';
 import Table from '../../../components/Table';
 import { createFactura, getFacturas, getOrdenesParaFacturar } from '../services/facturasService';
 import { getGarantias } from '../services/garantiasService';
+import { useInfiniteSecretariaList } from '../hooks/useInfiniteSecretariaList';
 
 const money = (value) => `C$ ${Number(value || 0).toFixed(2)}`;
 const IVA_RATE = 0.15;
@@ -60,7 +61,7 @@ const buildTicketHtml = (factura, { autoPrint = false } = {}) => {
     <html>
       <head>
         <meta charset="utf-8" />
-        <title>Ticket CTE #${factura.id_factura}</title>
+        <title>Ticket #${factura.id_factura}</title>
         <style>
           body { font-family: Consolas, monospace; margin: 0; padding: 12px; color: #111; }
           .ticket { width: 280px; margin: 0 auto; }
@@ -75,7 +76,7 @@ const buildTicketHtml = (factura, { autoPrint = false } = {}) => {
       <body>
         <div class="ticket">
           <div class="center">
-            <strong>CENTRO TECNICO ELECTRONICO</strong><br />
+            <strong>SISTEMA DE GESTION</strong><br />
             <span class="small">Servicio tecnico y repuestos</span><br />
             <span class="small">Managua, Nicaragua</span>
           </div>
@@ -110,7 +111,7 @@ const buildTicketHtml = (factura, { autoPrint = false } = {}) => {
             Duracion: ${garantia?.duracion_meses || 3} meses<br />
             Inicio: ${fechaInicioGarantia}<br />
             Vence: ${fechaVencimientoGarantia}<br />
-            Cubre: reparacion realizada y repuestos instalados por CTE.
+            Cubre: reparacion realizada y repuestos instalados por el servicio.
           </div>
           <div class="line"></div>
           <div class="small">
@@ -124,13 +125,12 @@ const buildTicketHtml = (factura, { autoPrint = false } = {}) => {
 };
 
 const FacturacionPage = () => {
-  const [facturas, setFacturas] = useState([]);
-  const [garantias, setGarantias] = useState([]);
   const [ordenes, setOrdenes] = useState([]);
   const [tablaActiva, setTablaActiva] = useState('facturas');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTicketId, setSelectedTicketId] = useState('');
   const [autoIva, setAutoIva] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     orden_id: '',
     monto_repuestos: '',
@@ -140,6 +140,18 @@ const FacturacionPage = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const facturasQuery = useInfiniteSecretariaList({
+    queryKey: ['secretaria', 'facturas'],
+    queryFn: getFacturas,
+    search: searchTerm,
+  });
+  const garantiasQuery = useInfiniteSecretariaList({
+    queryKey: ['secretaria', 'garantias'],
+    queryFn: getGarantias,
+    search: searchTerm,
+  });
+  const facturas = facturasQuery.rows;
+  const garantias = garantiasQuery.rows;
 
   const subtotal = useMemo(() => {
     return Number(form.monto_repuestos || 0) + Number(form.mano_obra || 0);
@@ -166,13 +178,7 @@ const FacturacionPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const [facturasResponse, garantiasResponse, ordenesResponse] = await Promise.all([
-        getFacturas(),
-        getGarantias(),
-        getOrdenesParaFacturar(),
-      ]);
-      setFacturas(facturasResponse.data.data || []);
-      setGarantias(garantiasResponse.data.data || []);
+      const ordenesResponse = await getOrdenesParaFacturar();
       setOrdenes(ordenesResponse.data.data || []);
     } catch (err) {
       setError(err?.response?.data?.error || err?.response?.data?.details || 'No se pudo cargar facturacion');
@@ -207,11 +213,16 @@ const FacturacionPage = () => {
       const facturaCreada = response.data?.data;
       setForm({ orden_id: '', monto_repuestos: '', mano_obra: '', impuestos: '', metodo_pago: '' });
       setAutoIva(true);
+      setShowForm(false);
       if (facturaCreada?.id_factura) {
         setSelectedTicketId(String(facturaCreada.id_factura));
         setTablaActiva('ticket');
       }
-      await loadData();
+      await Promise.all([
+        loadData(),
+        facturasQuery.refetch(),
+        garantiasQuery.refetch(),
+      ]);
     } catch (err) {
       setError(err?.response?.data?.error || err?.response?.data?.details || 'Error al crear la factura');
     } finally {
@@ -326,17 +337,8 @@ const FacturacionPage = () => {
   ];
 
   const columnasActivas = tablaActiva === 'facturas' ? columnasFacturas : columnasGarantias;
-  const datosActivos = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    const data = tablaActiva === 'facturas' ? facturas : garantias;
-
-    if (tablaActiva === 'ticket' || !query) return data;
-
-    return data.filter((row) => {
-      const cliente = tablaActiva === 'facturas' ? getClienteFactura(row) : getClienteGarantia(row);
-      return cliente.toLowerCase().includes(query);
-    });
-  }, [facturas, garantias, searchTerm, tablaActiva]);
+  const datosActivos = tablaActiva === 'facturas' ? facturas : garantias;
+  const activeListQuery = tablaActiva === 'facturas' ? facturasQuery : garantiasQuery;
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -347,6 +349,23 @@ const FacturacionPage = () => {
 
       {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">{error}</div>}
 
+      <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white px-4 py-3 shadow-sm">
+        <div>
+          <h2 className="text-base font-semibold text-gray-800">Emitir nueva factura</h2>
+          <p className="text-xs text-gray-500">Abra el formulario solo cuando vaya a registrar una factura.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowForm((visible) => !visible)}
+          aria-expanded={showForm}
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-700"
+        >
+          {showForm ? 'Cerrar formulario' : 'Nueva factura'}
+          {showForm ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      </div>
+
+      {showForm && (
       <form onSubmit={handleSubmit} className="mb-6 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -473,6 +492,7 @@ const FacturacionPage = () => {
           Crear Factura
         </button>
       </form>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -526,7 +546,13 @@ const FacturacionPage = () => {
             }}
           />
         ) : (
-          <Table columns={columnasActivas} data={datosActivos} />
+          <Table
+            columns={columnasActivas}
+            data={datosActivos}
+            onLoadMore={() => activeListQuery.fetchNextPage()}
+            hasMore={tablaActiva !== 'ticket' && activeListQuery.hasNextPage}
+            isLoadingMore={activeListQuery.isFetchingNextPage}
+          />
         )}
       </div>
     </div>
@@ -547,94 +573,270 @@ const TicketTerminal = ({ ticketFactura, onPrint, onSave, onBack }) => {
   ];
 
   return (
-    <div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="space-y-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          <ArrowLeft className="h-4 w-4" /> Volver a facturas
-        </button>
-
-        <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
-          Detalle del ticket seleccionado. Desde aqui puedes imprimirlo o guardarlo como archivo en la computadora.
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => onPrint(ticketFactura)}
-            disabled={!ticketFactura}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Printer className="h-4 w-4" /> Imprimir
-          </button>
-          <button
-            type="button"
-            onClick={() => onSave(ticketFactura)}
-            disabled={!ticketFactura}
-            className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" /> Guardar
-          </button>
-        </div>
-      </div>
-
-      <div className="mx-auto w-full max-w-[320px] rounded-sm border border-gray-200 bg-white p-5 font-mono text-sm text-gray-900 shadow-sm">
-        {ticketFactura ? (
-          <>
-            <div className="text-center">
-              <div className="font-bold">CENTRO TECNICO ELECTRONICO</div>
-              <div className="text-xs text-gray-500">Servicio tecnico y repuestos</div>
-              <div className="text-xs text-gray-500">Managua, Nicaragua</div>
-            </div>
-            <TicketDivider />
-            <div className="space-y-1 text-xs">
-              <div>Ticket: #{ticketFactura.id_factura}</div>
-              <div>Orden: #{ticketFactura.orden_id}</div>
-              <div>Fecha: {fecha}</div>
-              <div>Cliente: {getClienteFactura(ticketFactura) || 'Consumidor final'}</div>
-              <div>Equipo: {equipo}</div>
-              <div>Pago: {ticketFactura.metodo_pago || '-'}</div>
-            </div>
-            <TicketDivider />
-            <div className="space-y-1">
-              {rows.map(([label, value]) => (
-                <TicketRow key={label} label={label} value={money(value)} />
-              ))}
-              <div className="border-t border-dashed border-gray-400 pt-2">
-                <TicketRow label="TOTAL" value={money(ticketFactura.total)} strong />
-              </div>
-            </div>
-            <TicketDivider />
-            <div className="text-center text-xs text-gray-500">
-              Gracias por su visita<br />
-              Conserve este ticket para garantia.
-            </div>
-            <TicketDivider />
-            <div className="text-center">
-              <div className="font-bold">VOUCHER DE GARANTIA</div>
-              <div className="text-xs text-gray-500">Garantia {garantia?.id_garantia ? `#${garantia.id_garantia}` : 'pendiente'}</div>
-            </div>
-            <div className="mt-3 space-y-1 text-xs">
-              <div>Factura: #{ticketFactura.id_factura}</div>
-              <div>Duracion: {garantia?.duracion_meses || 3} meses</div>
-              <div>Inicio: {fechaInicioGarantia}</div>
-              <div>Vence: {fechaVencimientoGarantia}</div>
-              <div>Cubre: reparacion realizada y repuestos instalados por CTE.</div>
-            </div>
-            <TicketDivider />
-            <div className="text-xs leading-relaxed text-gray-600">
-              {garantia?.condiciones || 'Garantia de 3 meses sujeta a la reparacion realizada. No cubre golpes, humedad, mala manipulacion ni intervenciones de terceros.'}
-            </div>
-          </>
-        ) : (
-          <div className="py-16 text-center text-gray-400">No hay factura seleccionada</div>
-        )}
+  <div className="p-6 bg-gray-50 min-h-screen">
+    {/* Encabezado Principal */}
+    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="text-left">
+        <h2 className="text-3xl font-black text-gray-800 tracking-tight">Facturación</h2>
+        <p className="text-sm font-medium text-gray-500 italic mt-0.5">Campos reales: orden finalizada, montos, impuestos, total y método de pago.</p>
       </div>
     </div>
-  );
+
+    {error && (
+      <div className="mb-6 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-semibold rounded-r-lg flex items-center gap-2 text-left">
+        <span>{error}</span>
+      </div>
+    )}
+
+    {/* Formulario de Facturación */}
+    <form onSubmit={handleSubmit} className="mb-8 bg-white rounded-2xl shadow-xl border border-indigo-100 p-6 text-left">
+      <h3 className="text-base font-bold mb-4 text-gray-800">Emitir Nueva Factura</h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Orden</label>
+          <select 
+            required 
+            value={form.orden_id} 
+            onChange={(e) => handleOrdenChange(e.target.value)} 
+            className="w-full rounded-lg border border-gray-200 bg-white p-2 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition-all"
+          >
+            <option value="">Seleccione una orden</option>
+            {ordenes.map((orden) => (
+              <option key={orden.id_orden} value={orden.id_orden}>
+                #{orden.id_orden} - {orden.diagnostico?.equipo?.cliente?.nombre || 'Sin cliente'} - Repuestos {money(orden.monto_repuestos_calculado)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <Field label="Monto repuestos" value={form.monto_repuestos} onChange={(value) => setForm({ ...form, monto_repuestos: value })} readOnly />
+        <Field label="Mano de obra" value={form.mano_obra} onChange={(value) => handleMoneyChange('mano_obra', value)} />
+        <Field label="Impuestos" value={form.impuestos} onChange={handleManualImpuestoChange} helper={`IVA sugerido 15%: ${money(ivaSugerido)}`} />
+
+        <div>
+          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Método de pago</label>
+          <select 
+            required 
+            value={form.metodo_pago} 
+            onChange={(e) => setForm({ ...form, metodo_pago: e.target.value })} 
+            className="w-full rounded-lg border border-gray-200 bg-white p-2 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition-all"
+          >
+            <option value="">Seleccione método</option>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Tarjeta">Tarjeta</option>
+          </select>
+        </div>
+
+        <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 flex flex-col justify-between">
+          <div className="flex justify-between items-center text-xs text-gray-500 font-semibold">
+            <span>Subtotal</span>
+            <span className="text-gray-800 font-bold">{money(subtotal)}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm font-black text-indigo-900 mt-2 pt-2 border-t border-gray-200">
+            <span>Total</span>
+            <span className="text-indigo-600">{money(total)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-600">
+        <button 
+          type="button" 
+          onClick={applyIvaSugerido} 
+          className="px-3 py-1.5 font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-all"
+        >
+          Aplicar IVA 15%
+        </button>
+        <span className="font-medium">{autoIva ? 'IVA automático activo' : 'IVA editado manualmente'}</span>
+        <span className="italic text-gray-400">• La orden pasará a ENTREGADO al crear la factura.</span>
+      </div>
+
+      {selectedOrden && (
+        <div className="mt-5 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs text-indigo-950">
+          <div className="font-bold text-indigo-900 mb-2">Detalle de la orden #{selectedOrden.id_orden}</div>
+          
+          <div className="grid gap-2 md:grid-cols-3 mb-3">
+            <div className="rounded-lg bg-white p-2.5 border border-indigo-100/60 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-0.5">Equipo</div>
+              <div className="font-semibold text-gray-800">
+                {[selectedOrden.diagnostico?.equipo?.marca, selectedOrden.diagnostico?.equipo?.modelo].filter(Boolean).join(' ') || 'Sin equipo'}
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-white p-2.5 border border-indigo-100/60 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-0.5">Recepción</div>
+              <div className="font-semibold text-gray-800">
+                Cargador: {formatBool(selectedOrden.diagnostico?.deja_cargador)} | Enciende: {formatBool(selectedOrden.diagnostico?.enciende)}
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-white p-2.5 border border-indigo-100/60 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-0.5">Corriente AC</div>
+              <div className="font-semibold text-gray-800">
+                {formatBool(selectedOrden.diagnostico?.usa_corriente_ac)}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-3 mb-3">
+            <div className="rounded-lg bg-white p-2.5 border border-indigo-100/60 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-0.5">Resultado</div>
+              <div className="font-semibold text-gray-800">
+                {selectedOrden.resultado_final || selectedOrden.estado || 'Sin cierre'}
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-white p-2.5 border border-indigo-100/60 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-0.5">Enciende al salir</div>
+              <div className="font-semibold text-gray-800">
+                {selectedOrden.enciende_salida === null || selectedOrden.enciende_salida === undefined ? 'No registrado' : formatBool(selectedOrden.enciende_salida)}
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-white p-2.5 border border-indigo-100/60 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-0.5">AC al salir</div>
+              <div className="font-semibold text-gray-800">
+                {selectedOrden.usa_corriente_ac_salida === null || selectedOrden.usa_corriente_ac_salida === undefined ? 'No registrado' : formatBool(selectedOrden.usa_corriente_ac_salida)}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-white border border-indigo-100/80 overflow-hidden shadow-2xs">
+            <div className="flex items-center justify-between gap-3 border-b border-indigo-100 px-3 py-2 bg-indigo-50/30">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Repuestos agregados</div>
+                <div className="text-xs font-bold text-indigo-950">
+                  {money(selectedOrden.monto_repuestos_calculado)} facturable
+                </div>
+              </div>
+              {selectedOrden.repuestos_pendientes_count > 0 && (
+                <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                  {selectedOrden.repuestos_pendientes_count} pendiente(s)
+                </span>
+              )}
+            </div>
+
+            {getRepuestosOrden(selectedOrden).length === 0 ? (
+              <div className="px-3 py-4 text-xs italic text-gray-400 text-center">Esta orden no tiene repuestos agregados.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-xs">
+                  <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
+                    <tr>
+                      <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px]">Pieza</th>
+                      <th className="px-3 py-2 font-bold uppercase tracking-wider text-[10px]">Estado</th>
+                      <th className="px-3 py-2 text-right font-bold uppercase tracking-wider text-[10px]">Cant.</th>
+                      <th className="px-3 py-2 text-right font-bold uppercase tracking-wider text-[10px]">Precio</th>
+                      <th className="px-3 py-2 text-right font-bold uppercase tracking-wider text-[10px]">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {getRepuestosOrden(selectedOrden).map((detalle) => {
+                      const aprobado = String(detalle.estado_aprobacion || '').toUpperCase() === 'APROBADO';
+                      return (
+                        <tr key={detalle.id_detalle_repuesto} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-3 py-2 font-semibold text-gray-800">{getNombreRepuesto(detalle)}</td>
+                          <td className="px-3 py-2">
+                            <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${aprobado ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>
+                              {detalle.estado_aprobacion || 'PENDIENTE'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium">{detalle.cantidad_usada || 0}</td>
+                          <td className="px-3 py-2 text-right font-medium">{money(getPrecioUnitarioRepuesto(detalle))}</td>
+                          <td className="px-3 py-2 text-right font-bold">{aprobado ? money(getTotalRepuesto(detalle)) : money(0)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex justify-end">
+        <button
+          type="submit"
+          disabled={loading || !form.metodo_pago}
+          className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-md active:scale-95 transition-all disabled:opacity-60 disabled:pointer-events-none"
+        >
+          Crear Factura
+        </button>
+      </div>
+    </form>
+
+    {/* Historial / Tablas */}
+    <div className="bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden text-left">
+      <div className="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-base font-bold text-gray-800">Historial</h3>
+          <p className="text-xs font-medium text-gray-500">
+            {tablaActiva === 'facturas' ? `${facturas.length} facturas registradas` : `${garantias.length} garantías registradas`}
+          </p>
+        </div>
+        
+        <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
+          <button
+            type="button"
+            onClick={() => setTablaActiva('facturas')}
+            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${tablaActiva === 'facturas' ? 'bg-white text-indigo-700 shadow-xs' : 'text-gray-500 hover:text-gray-800'}`}
+          >
+            Facturas
+          </button>
+          <button
+            type="button"
+            onClick={() => setTablaActiva('garantias')}
+            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${tablaActiva === 'garantias' ? 'bg-white text-indigo-700 shadow-xs' : 'text-gray-500 hover:text-gray-800'}`}
+          >
+            Garantías
+          </button>
+        </div>
+      </div>
+
+      {tablaActiva !== 'ticket' && (
+        <div className="border-b border-gray-100 p-4">
+          <div className="relative max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por nombre del cliente..."
+              className="w-full rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-3 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 transition-all"
+            />
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="p-12 text-center text-xs font-bold text-indigo-600 flex justify-center items-center gap-2">
+          <span>Cargando...</span>
+        </div>
+      ) : tablaActiva === 'ticket' ? (
+        <TicketTerminal
+          ticketFactura={ticketFactura}
+          onPrint={printTicket}
+          onSave={saveTicket}
+          onBack={() => {
+            setSelectedTicketId('');
+            setTablaActiva('facturas');
+          }}
+        />
+      ) : (
+        <Table
+          columns={columnasActivas}
+          data={datosActivos}
+          onLoadMore={() => activeListQuery.fetchNextPage()}
+          hasMore={tablaActiva !== 'ticket' && activeListQuery.hasNextPage}
+          isLoadingMore={activeListQuery.isFetchingNextPage}
+        />
+      )}
+    </div>
+  </div>
+);
 };
 
 const TicketDivider = () => <div className="my-3 border-t border-dashed border-gray-400" />;

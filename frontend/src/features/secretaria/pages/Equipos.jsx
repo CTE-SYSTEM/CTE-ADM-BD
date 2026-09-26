@@ -6,6 +6,7 @@ import { Plus, Search, Edit, Phone, User, HelpCircle, X, ArrowRight } from 'luci
 import { GuidedTour, tourHighlightClass } from '../components/shared/GuidedTour';
 import { getClientes } from '../services/clientesService';
 import { createEquipo, getEquipos, updateEquipo } from '../services/equiposService';
+import { useInfiniteSecretariaList } from '../hooks/useInfiniteSecretariaList';
 
 const BASE_TIPOS_EQUIPO = ['Laptop', 'Celular', 'Impresora', 'Monitor', 'Tablet', 'Pc Escritorio', 'Consola'];
 
@@ -72,6 +73,17 @@ const EquipoForm = ({ onSubmit, onCancel, initialData = null, clientes = [], equ
     numero_serie: initialData?.numero_serie || '',
   });
   const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    setFormData({
+      cliente_id: initialData?.cliente_id || preSelectedClient?.id || '',
+      tipo: initialData?.tipo || '',
+      marca: initialData?.marca || '',
+      modelo: initialData?.modelo || '',
+      numero_serie: initialData?.numero_serie || '',
+    });
+    setFormError('');
+  }, [initialData, preSelectedClient?.id]);
 
   const clienteInfo = clientes.find(c => String(c.id_cliente) === String(formData.cliente_id));
   const marcasSugeridas = getMarcasSugeridas(equipos, formData.tipo);
@@ -240,7 +252,6 @@ const Equipos = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [clientes, setClientes] = useState([]);
-  const [equipos, setEquipos] = useState([]);
   const [showForm, setShowForm] = useState(!!location.state?.clienteId);
   const [editingEquipo, setEditingEquipo] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -248,6 +259,12 @@ const Equipos = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const equiposQuery = useInfiniteSecretariaList({
+    queryKey: ['secretaria', 'equipos'],
+    queryFn: getEquipos,
+    search: searchTerm,
+  });
+  const equipos = equiposQuery.rows;
   const tiposSugeridos = getTiposSugeridos(equipos);
 
   const preSelectedClient = location.state?.clienteId ? {
@@ -258,11 +275,12 @@ const Equipos = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [cRes, eRes] = await Promise.all([getClientes(), getEquipos()]);
-      // Carga la lista completa de clientes de la A a la Z para el componente Autocomplete
+      // El formulario usa un catálogo acotado; la tabla continúa paginada de 20 en 20.
+      const cRes = await getClientes({ page: 1, pageSize: 100 });
       setClientes(sortClientesByName(cRes.data.data || []));
-      setEquipos(eRes.data.data || []);
-    } catch (err) { console.error("Error al cargar datos"); }
+    } catch (err) {
+      setError('Error al cargar clientes');
+    }
     finally { setLoading(false); }
   };
 
@@ -324,7 +342,7 @@ const Equipos = () => {
       setShowForm(false);
       setEditingEquipo(null);
       window.history.replaceState({}, document.title);
-      await loadData();
+      await Promise.all([loadData(), equiposQuery.refetch()]);
     } catch {
       setError('Error al guardar. Revise que el cliente exista y que tipo, marca y modelo esten completos.');
     }
@@ -354,105 +372,115 @@ const Equipos = () => {
       accessor: 'acciones',
       render: (row) => (
         <div className="flex gap-2">
-          <button onClick={() => { setEditingEquipo(row); setShowForm(true); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Editar"><Edit className="w-4 h-4" /></button>
+          <button type="button" onClick={() => { setEditingEquipo(row); setShowForm(true); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Editar" aria-label={`Editar equipo ${row.id_equipo}`}><Edit className="w-4 h-4" /></button>
         </div>
       ),
     },
   ];
 
-  // Filtra los equipos y los ordena inversamente (los IDs más altos o nuevos arriba de primero)
-  const filteredEquipos = equipos
-    .filter(e => {
-      const term = searchTerm.toLowerCase();
-      return e.cliente?.nombre?.toLowerCase().includes(term);
-    })
-    .sort((a, b) => Number(b.id_equipo || 0) - Number(a.id_equipo || 0));
+  const filteredEquipos = equipos;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {showHelp && (
-        <GuidedTour
-          steps={tourSteps}
-          stepIndex={tourStep}
-          onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
-          onClose={closeTour}
-          onNext={handleTourNext}
-        />
-      )}
+  <div className="p-4 bg-gray-50 min-h-screen space-y-4">
+    {showHelp && (
+      <GuidedTour
+        steps={tourSteps}
+        stepIndex={tourStep}
+        onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
+        onClose={closeTour}
+        onNext={handleTourNext}
+      />
+    )}
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 italic">Equipos</h2>
-          <p className="text-sm text-gray-500">Listado general de dispositivos recibidos.</p>
-        </div>
-
-        <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
-          <button
-            type="button"
-            onClick={startTour}
-            className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 py-2 text-gray-700 shadow-sm hover:bg-gray-50"
-            title="Iniciar tutorial guiado"
-          >
-            <HelpCircle className="w-4 h-4" /> Ayuda
-          </button>
-          <button
-            onClick={() => { setEditingEquipo(null); setShowForm(true); }}
-            className="flex items-center justify-center gap-2 px-5 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 font-bold shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4" /> Nuevo Equipo
-          </button>
-        </div>
+    {/* Encabezado Principal */}
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-left">
+        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Equipos</h2>
+        <p className="text-xs text-gray-500 font-medium mt-0.5">Listado general de dispositivos recibidos.</p>
       </div>
 
-      {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</div>}
-
-      {showForm && (
-        <div className="mb-8 bg-white rounded-xl shadow-md p-6 border border-indigo-100 animate-in fade-in slide-in-from-top-2">
-          <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
-             <User className="w-5 h-5 text-indigo-600" />
-             {editingEquipo ? 'Editar Equipo' : 'Registro de Nuevo Equipo'}
-          </h3>
-          <EquipoForm 
-            onSubmit={handleSubmit} 
-            onCancel={() => { setShowForm(false); setEditingEquipo(null); }} 
-            initialData={editingEquipo} 
-            clientes={clientes}
-            equipos={equipos}
-            preSelectedClient={preSelectedClient}
-            tiposSugeridos={tiposSugeridos}
-            activeTourTarget={activeTourTarget}
-          />
-        </div>
-      )}
-
-      <div
-        data-tour-target="search"
-        className={`flex flex-col sm:flex-row gap-4 mb-6 ${tourHighlightClass(activeTourTarget === 'search')}`}
-      >
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre del cliente..." 
-            value={searchTerm} 
-            onChange={(e) => setSearchTerm(e.target.value)} 
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
-          />
-        </div>
-      </div>
-
-      <div
-        data-tour-target="table"
-        className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden ${tourHighlightClass(activeTourTarget === 'table')}`}
-      >
-        {loading && !equipos.length ? (
-          <div className="p-10 text-center text-gray-500 italic">Consultando servidor...</div>
-        ) : (
-          <Table columns={columnas} data={filteredEquipos} />
-        )}
+      <div data-tour-target="create" className={`flex flex-wrap items-center gap-2 ${tourHighlightClass(activeTourTarget === 'create')}`}>
+        <button
+          type="button"
+          onClick={startTour}
+          className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition-all"
+          title="Iniciar tutorial guiado"
+        >
+          <HelpCircle className="w-4 h-4 text-indigo-600" />
+          <span>Ayuda</span>
+        </button>
+        <button
+          onClick={() => { setEditingEquipo(null); setShowForm(true); }}
+          className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-xs transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Nuevo Equipo</span>
+        </button>
       </div>
     </div>
-  );
+
+    {error && (
+      <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 text-left">
+        {error}
+      </div>
+    )}
+
+    {/* Formulario de Registro / Edición */}
+    {showForm && (
+      <div className="bg-white rounded-lg shadow-xs p-4 border border-indigo-100 animate-in fade-in slide-in-from-top-2">
+        <h3 className="text-sm font-bold text-gray-900 mb-3 border-b pb-2 flex items-center gap-2 text-left">
+          <User className="w-4 h-4 text-indigo-600" />
+          {editingEquipo ? 'Editar Equipo' : 'Registro de Nuevo Equipo'}
+        </h3>
+        <EquipoForm 
+          onSubmit={handleSubmit} 
+          onCancel={() => { setShowForm(false); setEditingEquipo(null); }} 
+          initialData={editingEquipo} 
+          clientes={clientes}
+          equipos={equipos}
+          preSelectedClient={preSelectedClient}
+          tiposSugeridos={tiposSugeridos}
+          activeTourTarget={activeTourTarget}
+        />
+      </div>
+    )}
+
+    {/* Buscador */}
+    <div
+      data-tour-target="search"
+      className={`${tourHighlightClass(activeTourTarget === 'search')}`}
+    >
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input 
+          type="text" 
+          placeholder="Buscar por nombre del cliente..." 
+          value={searchTerm} 
+          onChange={(e) => setSearchTerm(e.target.value)} 
+          className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white transition-all" 
+        />
+      </div>
+    </div>
+
+    {/* Tabla de Equipos */}
+    <div
+      data-tour-target="table"
+      className={`bg-white rounded-lg shadow-xs border border-gray-200 overflow-hidden ${tourHighlightClass(activeTourTarget === 'table')}`}
+    >
+      {loading || (equiposQuery.isLoading && !equipos.length) ? (
+        <div className="p-6 text-center text-xs font-semibold text-gray-500">Consultando servidor...</div>
+      ) : (
+        <Table
+          columns={columnas}
+          data={filteredEquipos}
+          onLoadMore={() => equiposQuery.fetchNextPage()}
+          hasMore={equiposQuery.hasNextPage}
+          isLoadingMore={equiposQuery.isFetchingNextPage}
+        />
+      )}
+    </div>
+  </div>
+);
 };
 
 export default Equipos;

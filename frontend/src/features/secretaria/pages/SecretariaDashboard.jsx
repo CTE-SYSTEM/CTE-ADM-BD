@@ -4,6 +4,7 @@ import {
   AlertCircle,
   ClipboardList,
   Filter,
+  HelpCircle,
   Laptop,
   Package,
   ReceiptText,
@@ -12,6 +13,7 @@ import {
   Truck,
   Users,
 } from 'lucide-react';
+import { GuidedTour, tourHighlightClass } from '../components/shared/GuidedTour';
 import { getSecretariaDashboard } from '../services/dashboardService';
 
 const EMPTY_STATS = {
@@ -29,7 +31,35 @@ const filters = [
   { id: 'all', label: 'Todo' },
   { id: 'week', label: 'Semana' },
   { id: 'month', label: 'Mes' },
-  { id: 'year', label: 'Anio' },
+  { id: 'year', label: 'Año' },
+];
+
+const tourSteps = [
+  {
+    target: 'summary',
+    title: '1. Resumen del dashboard',
+    text: 'Este encabezado muestra el estado general del módulo de Secretaría y el período que estás revisando.',
+  },
+  {
+    target: 'filters',
+    title: '2. Filtrar por período',
+    text: 'Cambia entre todo, semana, mes o año para revisar actividad reciente sin salir del dashboard.',
+  },
+  {
+    target: 'actions',
+    title: '3. Entrar a módulos',
+    text: 'Estas tarjetas abren clientes, equipos, diagnósticos, órdenes, repuestos, proveedores y facturación.',
+  },
+  {
+    target: 'orders',
+    title: '4. Revisar órdenes recientes',
+    text: 'La tabla muestra las últimas órdenes para dar seguimiento rápido al trabajo del taller.',
+  },
+  {
+    target: 'new-order',
+    title: '5. Crear orden',
+    text: 'Usa Nueva orden cuando ya tengas el diagnóstico listo y necesites iniciar el trabajo técnico.',
+  },
 ];
 
 const getOrderDate = (orden) => {
@@ -39,13 +69,12 @@ const getOrderDate = (orden) => {
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 };
 
-const sortOrdenesRecientes = (ordenes = []) => (
+const sortOrdenesRecientes = (ordenes = []) =>
   [...ordenes].sort((a, b) => {
     const dateDiff = getOrderDate(b) - getOrderDate(a);
     if (dateDiff !== 0) return dateDiff;
     return Number(b.id_orden || 0) - Number(a.id_orden || 0);
-  })
-);
+  });
 
 const normalizeStats = (stats = {}) => ({
   clientes: Number(stats.clientes || 0),
@@ -64,7 +93,8 @@ const SecretariaDashboard = () => {
   const [filterType, setFilterType] = useState('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showHelp] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -78,7 +108,7 @@ const SecretariaDashboard = () => {
         setFilteredOrdenes(sortOrdenesRecientes(dashboard.recentOrders || []).slice(0, 5));
       } catch (err) {
         console.error(err);
-        setError('Ocurrio un problema al cargar el dashboard de Secretaria.');
+        setError('Ocurrió un problema al cargar el dashboard de Secretaría.');
         setStats(EMPTY_STATS);
         setFilteredOrdenes([]);
       } finally {
@@ -92,121 +122,222 @@ const SecretariaDashboard = () => {
   const quickActions = [
     { title: 'Clientes', value: stats.clientes, icon: Users, url: '/secretaria/clientes', color: 'bg-blue-600' },
     { title: 'Equipos', value: stats.equipos, icon: Laptop, url: '/secretaria/equipos', color: 'bg-cyan-600' },
-    { title: 'Diagnostico', value: stats.diagnosticos, icon: Stethoscope, url: '/secretaria/diagnostico', color: 'bg-purple-600' },
-    { title: 'Ordenes', value: stats.ordenes, icon: ClipboardList, url: '/secretaria/nueva-orden', color: 'bg-indigo-600' },
+    { title: 'Diagnóstico', value: stats.diagnosticos, icon: Stethoscope, url: '/secretaria/diagnostico', color: 'bg-purple-600' },
+    { title: 'Órdenes', value: stats.ordenes, icon: ClipboardList, url: '/secretaria/nueva-orden', color: 'bg-indigo-600' },
     { title: 'Repuestos', value: stats.repuestos, icon: Package, url: '/secretaria/repuestos', color: 'bg-amber-600' },
     { title: 'Tipos Repuesto', value: stats.tiposRepuesto, icon: Tags, url: '/secretaria/tipos-repuesto', color: 'bg-violet-600' },
     { title: 'Proveedores', value: stats.proveedores, icon: Truck, url: '/secretaria/proveedores', color: 'bg-slate-700' },
     { title: 'Facturas', value: stats.facturas, icon: ReceiptText, url: '/secretaria/facturacion', color: 'bg-rose-600' },
   ];
 
+  const activeTourTarget = showHelp ? tourSteps[tourStep].target : '';
+
+  useEffect(() => {
+    if (!showHelp || !activeTourTarget) return;
+
+    const scrollTimer = window.setTimeout(() => {
+      document
+        .querySelector(`[data-tour-target="${activeTourTarget}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }, 80);
+
+    return () => window.clearTimeout(scrollTimer);
+  }, [activeTourTarget, showHelp]);
+
+  const startTour = () => {
+    setTourStep(0);
+    setShowHelp(true);
+  };
+
+  const closeTour = () => {
+    setShowHelp(false);
+    setTourStep(0);
+  };
+
+  const handleTourNext = () => {
+    if (tourStep === tourSteps.length - 1) {
+      closeTour();
+      return;
+    }
+
+    setTourStep((step) => step + 1);
+  };
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+    <div className="min-h-screen bg-gray-50 p-4 space-y-4">
+      {showHelp && (
+        <GuidedTour
+          steps={tourSteps}
+          stepIndex={tourStep}
+          onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
+          onClose={closeTour}
+          onNext={handleTourNext}
+        />
+      )}
+
+      {/* Encabezado Principal */}
+      <div
+        data-tour-target="summary"
+        className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${tourHighlightClass(
+          activeTourTarget === 'summary'
+        )}`}
+      >
         <div className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
-            <ClipboardList className="h-6 w-6" />
+          <div className="h-10 w-10 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+            <ClipboardList className="h-5 w-5" />
           </div>
           <div className="text-left">
-            <h1 className="text-3xl font-bold text-gray-800 tracking-tight">Secretaria</h1>
-            <p className="text-gray-500 font-medium">Gestion operativa - {filterType === 'all' ? 'Historial completo' : `Filtro: ${filterType.toUpperCase()}`}</p>
+            <h1 className="m-0 text-xl font-bold text-gray-900 tracking-tight">Secretaría</h1>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">
+              Gestión operativa - {filterType === 'all' ? 'Historial completo' : `Filtro: ${filterType.toUpperCase()}`}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center bg-white border border-gray-200 p-1 rounded-xl shadow-sm">
-          {filters.map((filter) => (
-            <button
-              key={filter.id}
-              onClick={() => setFilterType(filter.id)}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
-                filterType === filter.id
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={startTour}
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition-all"
+            title="Iniciar tutorial guiado"
+          >
+            <HelpCircle className="w-4 h-4 text-indigo-600" />
+            <span>Ayuda</span>
+          </button>
+
+          <div
+            data-tour-target="filters"
+            className={`flex w-fit items-center rounded-lg border border-gray-200 bg-white p-1 shadow-xs ${tourHighlightClass(
+              activeTourTarget === 'filters'
+            )}`}
+          >
+            {filters.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setFilterType(filter.id)}
+                className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all ${
+                  filterType === filter.id
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {showHelp && (
-        <section className="mb-8 rounded-2xl bg-slate-950 p-6 text-white shadow-sm space-y-4 animate-fade-in">
-          <h2 className="text-lg font-bold">Mini tutorial de Secretaria</h2>
-        </section>
-      )}
-
       {error && (
-        <div className="mb-6 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 text-left">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 text-left">
+          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
           {error}
         </div>
       )}
 
-      <section className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-8 mb-8">
+      {/* Tarjetas de Acceso Rápido */}
+      <section
+        data-tour-target="actions"
+        className={`grid gap-2.5 grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 ${tourHighlightClass(
+          activeTourTarget === 'actions'
+        )}`}
+      >
         {quickActions.map((action) => {
           const Icon = action.icon;
           return (
-            <Link key={action.title} to={action.url} className="group bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all hover:-translate-y-1">
-              <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-white ${action.color} mb-3 shadow-sm`}>
-                <Icon className="w-5 h-5" />
+            <Link
+              key={action.title}
+              to={action.url}
+              className="group bg-white rounded-lg border border-gray-200 p-3 hover:shadow-xs transition-all hover:-translate-y-0.5 flex flex-col justify-between"
+            >
+              <div className={`inline-flex items-center justify-center w-7 h-7 rounded-md text-white ${action.color} mb-2 shadow-xs`}>
+                <Icon className="w-4 h-4" />
               </div>
-              <div className="text-xl font-bold text-gray-900">{loading ? '...' : action.value}</div>
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-left">{action.title}</div>
+              <div>
+                <div className="text-lg font-bold text-gray-900 leading-tight">
+                  {loading ? '...' : action.value}
+                </div>
+                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider text-left truncate mt-0.5">
+                  {action.title}
+                </div>
+              </div>
             </Link>
           );
         })}
       </section>
 
-      <section className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+      {/* Tabla de Órdenes Recientes */}
+      <section
+        data-tour-target="orders"
+        className={`bg-white rounded-lg border border-gray-200 p-4 shadow-xs ${tourHighlightClass(
+          activeTourTarget === 'orders'
+        )}`}
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
           <div className="text-left">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <Filter className="w-4 h-4 text-indigo-500" />
-              Ultimas ordenes ({filterType})
+            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-indigo-600" />
+              Últimas órdenes ({filterType})
             </h2>
-            <p className="text-sm text-gray-500 font-medium">Ordenes generadas en el sistema tecnico.</p>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">
+              Órdenes generadas en el sistema técnico.
+            </p>
           </div>
-          <Link to="/secretaria/nueva-orden" className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100">
+          <Link
+            data-tour-target="new-order"
+            to="/secretaria/nueva-orden"
+            className={`inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs transition-all ${tourHighlightClass(
+              activeTourTarget === 'new-order'
+            )}`}
+          >
             Nueva orden
           </Link>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm text-gray-600">
+          <table className="min-w-full text-left text-xs text-gray-600">
             <thead>
-              <tr className="bg-gray-50/50 text-gray-400 uppercase text-[10px] font-bold tracking-wider">
-                <th className="px-4 py-3 border-b border-gray-100">Orden</th>
-                <th className="px-4 py-3 border-b border-gray-100">Fecha</th>
-                <th className="px-4 py-3 border-b border-gray-100">Cliente</th>
-                <th className="px-4 py-3 border-b border-gray-100">Equipo</th>
-                <th className="px-4 py-3 border-b border-gray-100">Tecnico</th>
-                <th className="px-4 py-3 border-b border-gray-100 text-center">Estado</th>
+              <tr className="bg-gray-50/80 text-gray-500 uppercase text-[9px] font-bold tracking-wider">
+                <th className="px-3 py-2 border-b border-gray-100">Orden</th>
+                <th className="px-3 py-2 border-b border-gray-100">Fecha</th>
+                <th className="px-3 py-2 border-b border-gray-100">Cliente</th>
+                <th className="px-3 py-2 border-b border-gray-100">Equipo</th>
+                <th className="px-3 py-2 border-b border-gray-100">Técnico</th>
+                <th className="px-3 py-2 border-b border-gray-100 text-center">Estado</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100">
               {filteredOrdenes.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-4 py-10 text-center text-gray-400 italic font-medium">
-                    No se encontraron ordenes registradas en este periodo
+                  <td colSpan="6" className="px-3 py-6 text-center text-gray-400 italic font-medium text-xs">
+                    No se encontraron órdenes registradas en este período
                   </td>
                 </tr>
               ) : (
                 filteredOrdenes.map((orden) => (
-                  <tr key={orden.id_orden} className="hover:bg-gray-50 border-b border-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-bold text-indigo-600">#{orden.id_orden}</td>
-                    <td className="px-4 py-3">{orden.fecha_ingreso ? new Date(orden.fecha_ingreso).toLocaleDateString() : '-'}</td>
-                    <td className="px-4 py-3 font-semibold text-gray-700">{orden.diagnostico?.equipo?.cliente?.nombre || 'General'}</td>
-                    <td className="px-4 py-3 text-gray-600">
+                  <tr key={orden.id_orden} className="hover:bg-gray-50/80 transition-colors">
+                    <td className="px-3 py-2 font-bold text-indigo-600">#{orden.id_orden}</td>
+                    <td className="px-3 py-2 text-gray-700">
+                      {orden.fecha_ingreso ? new Date(orden.fecha_ingreso).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-3 py-2 font-semibold text-gray-800">
+                      {orden.diagnostico?.equipo?.cliente?.nombre || 'General'}
+                    </td>
+                    <td className="px-3 py-2 text-gray-600">
                       {[orden.diagnostico?.equipo?.marca, orden.diagnostico?.equipo?.modelo].filter(Boolean).join(' ') || '-'}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{orden.tecnico?.nombre || 'Sin asignar'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black border ${
-                        orden.estado === 'FINALIZADO'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                          : 'bg-amber-50 text-amber-700 border-amber-100'
-                      }`}>
+                    <td className="px-3 py-2 text-gray-600">
+                      {orden.tecnico?.nombre || 'Sin asignar'}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black border ${
+                          orden.estado === 'FINALIZADO'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                            : 'bg-amber-50 text-amber-700 border-amber-100'
+                        }`}
+                      >
                         {(orden.estado || 'PENDIENTE').replace('_', ' ')}
                       </span>
                     </td>

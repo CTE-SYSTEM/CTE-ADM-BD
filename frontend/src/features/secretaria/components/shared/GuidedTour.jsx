@@ -1,3 +1,5 @@
+// frontend/src/features/secretaria/components/shared/GuidedTour.jsx
+
 import { X } from 'lucide-react';
 
 export const tourHighlightClass = (isActive) =>

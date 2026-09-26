@@ -10,6 +10,7 @@ import {
   createRepuesto, deleteRepuesto, getRepuestos, updateRepuesto
 } from '../services/repuestosService';
 import { getTiposRepuesto } from '../services/tiposRepuestoService';
+import { useInfiniteSecretariaList } from '../hooks/useInfiniteSecretariaList';
 
 const sortCategorias = (categorias) => {
   return [...categorias].sort((a, b) => {
@@ -379,7 +380,6 @@ const RepuestoForm = ({ onSubmit, onCancel, initialData = null, categorias = [],
 };
 
 const Repuestos = () => {
-  const [repuestos, setRepuestos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingRepuesto, setEditingRepuesto] = useState(null);
@@ -389,12 +389,17 @@ const Repuestos = () => {
   const [filterCategoria, setFilterCategoria] = useState('');
   const [showHelp, setShowHelp] = useState(false);
   const [tourStep, setTourStep] = useState(0);
+  const repuestosQuery = useInfiniteSecretariaList({
+    queryKey: ['secretaria', 'repuestos'],
+    queryFn: getRepuestos,
+    search: filterNombre,
+  });
+  const repuestos = repuestosQuery.rows;
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [response, tiposResponse] = await Promise.all([getRepuestos(), getTiposRepuesto()]);
-      setRepuestos(response.data.data || []);
+      const tiposResponse = await getTiposRepuesto({ page: 1, pageSize: 100 });
       setCategorias(sortCategorias(tiposResponse.data.data || []));
     } catch (err) {
       setError('Error al cargar datos');
@@ -446,6 +451,7 @@ const Repuestos = () => {
 
   const handleSubmit = async (data) => {
     setLoading(true);
+    setError(null);
     try {
       if (editingRepuesto) {
         await updateRepuesto(editingRepuesto.id_repuesto, data);
@@ -454,9 +460,9 @@ const Repuestos = () => {
       }
       setShowForm(false);
       setEditingRepuesto(null);
-      await loadData();
+      await Promise.all([loadData(), repuestosQuery.refetch()]);
     } catch (err) {
-      setError('Error al procesar solicitud');
+      setError(err?.response?.data?.error || err?.response?.data?.message || 'Error al procesar la solicitud');
     } finally {
       setLoading(false);
     }
@@ -464,18 +470,22 @@ const Repuestos = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('¿Eliminar este repuesto?')) return;
+    setLoading(true);
+    setError(null);
     try {
       await deleteRepuesto(id);
-      await loadData();
+      await Promise.all([loadData(), repuestosQuery.refetch()]);
     } catch (err) {
-      setError('Error al eliminar');
+      setError(err?.response?.data?.error || err?.response?.data?.message || 'Error al descontinuar el repuesto');
+    } finally {
+      setLoading(false);
     }
   };
 
   const filteredRepuestos = repuestos.filter((repuesto) => {
-    const matchNombre = repuesto.nombre?.toLowerCase().includes(filterNombre.toLowerCase());
+    const matchNombre = !filterNombre || repuesto.nombre?.toLowerCase().includes(filterNombre.toLowerCase());
     const categoriaCompleta = `${repuesto.categoria?.nombre_tipo || ''} ${repuesto.categoria?.electronico || ''} ${repuesto.proveedor?.nombre || ''}`.toLowerCase();
-    const matchCat = categoriaCompleta.includes(filterCategoria.toLowerCase());
+    const matchCat = !filterCategoria || categoriaCompleta.includes(filterCategoria.toLowerCase());
     return matchNombre && matchCat;
   });
 
@@ -505,71 +515,121 @@ const Repuestos = () => {
     ) },
     { header: 'Acciones', render: (row) => (
       <div data-tour-target="actions" className={`flex gap-1 ${tourHighlightClass(activeTourTarget === 'actions')}`}>
-        <button onClick={() => { setEditingRepuesto(row); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
-        <button onClick={() => handleDelete(row.id_repuesto)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+        <button type="button" onClick={() => { setEditingRepuesto(row); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Editar repuesto" aria-label={`Editar repuesto ${row.id_repuesto}`}><Edit className="w-4 h-4" /></button>
+        <button type="button" onClick={() => handleDelete(row.id_repuesto)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Descontinuar repuesto" aria-label={`Descontinuar repuesto ${row.id_repuesto}`}><Trash2 className="w-4 h-4" /></button>
       </div>
     ) },
   ];
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {showHelp && (
-        <GuidedTour
-          steps={tourSteps}
-          stepIndex={tourStep}
-          onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
-          onClose={closeTour}
-          onNext={handleTourNext}
-        />
-      )}
+  <div className="p-6 bg-gray-50 min-h-screen">
+    {showHelp && (
+      <GuidedTour
+        steps={tourSteps}
+        stepIndex={tourStep}
+        onBack={() => setTourStep((step) => Math.max(step - 1, 0))}
+        onClose={closeTour}
+        onNext={handleTourNext}
+      />
+    )}
 
-      <div className="flex justify-between items-end mb-8">
-        <div className="text-left">
-          <h2 className="text-3xl font-black text-gray-800 tracking-tight">Inventario de Repuestos</h2>
-          <p className="text-gray-500 font-medium italic text-sm">Gestión de componentes para CTE</p>
-        </div>
-        <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
-          <button
-            type="button"
-            onClick={startTour}
-            className="flex items-center gap-2 px-6 py-3 text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-sm font-bold transition-all"
-            title="Iniciar tutorial guiado"
-          >
-            <HelpCircle className="w-5 h-5" /> Ayuda
-          </button>
-          <button
-            onClick={() => { setEditingRepuesto(null); setShowForm(true); }}
-            className="flex items-center gap-2 px-6 py-3 text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-xl font-bold transition-all active:scale-95"
-          >
-            <Plus className="w-5 h-5" /> Agregar Repuesto
-          </button>
-        </div>
+    {/* Encabezado Principal */}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
+      <div className="text-left">
+        <h2 className="text-3xl font-black text-gray-800 tracking-tight">Inventario de Repuestos</h2>
+        <p className="text-sm font-medium text-gray-500 italic mt-0.5">Gestión de componentes para inventario general</p>
       </div>
 
-      {error && <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex items-center gap-2 rounded"><AlertCircle className="w-5 h-5" /> {error}</div>}
+      <div data-tour-target="create" className={`flex flex-wrap gap-3 ${tourHighlightClass(activeTourTarget === 'create')}`}>
+        <button
+          type="button"
+          onClick={startTour}
+          className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 shadow-xs transition-all"
+          title="Iniciar tutorial guiado"
+        >
+          <HelpCircle className="w-4 h-4 text-indigo-600" />
+          <span>Ayuda</span>
+        </button>
 
-      {showForm && (
-        <div className="mb-8 bg-white rounded-2xl shadow-xl border border-indigo-100 p-8 animate-in fade-in zoom-in duration-200">
-          <RepuestoForm categorias={categorias} onSubmit={handleSubmit} onCancel={() => { setShowForm(false); setEditingRepuesto(null); }} initialData={editingRepuesto} activeTourTarget={activeTourTarget} />
-        </div>
-      )}
-
-      <div data-tour-target="table" className={`bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6 ${tourHighlightClass(activeTourTarget === 'table')}`}>
-        <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex flex-wrap gap-4 items-center">
-          <div className="flex items-center gap-2 text-gray-500 mr-2"><Filter className="w-4 h-4" /><span className="text-xs font-bold uppercase tracking-wider">Filtros:</span></div>
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Buscar por Modelo/Codigo..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm outline-none" value={filterNombre} onChange={(e) => setFilterNombre(e.target.value)} />
-          </div>
-          <div className="relative flex-1 min-w-[200px]">
-            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Filtrar por Categoria..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm outline-none" value={filterCategoria} onChange={(e) => setFilterCategoria(e.target.value)} />
-          </div>
-        </div>
-        {loading ? <div className="p-12 flex justify-center items-center gap-3 text-indigo-600"><Loader2 className="w-6 h-6 animate-spin" /><span className="font-bold">Sincronizando...</span></div> : <Table columns={columnas} data={filteredRepuestos} />}
+        <button
+          type="button"
+          onClick={() => { setEditingRepuesto(null); setShowForm(true); }}
+          className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-md active:scale-95 transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Agregar Repuesto</span>
+        </button>
       </div>
     </div>
-  );
+
+    {error && (
+      <div className="mb-6 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs font-semibold rounded-r-lg flex items-center gap-2 text-left">
+        <AlertCircle className="w-4 h-4 shrink-0" />
+        <span>{error}</span>
+      </div>
+    )}
+
+    {/* Formulario Modal/Desplegable */}
+    {showForm && (
+      <div className="mb-8 bg-white rounded-2xl shadow-xl border border-indigo-100 p-6 animate-in fade-in zoom-in duration-200">
+        <RepuestoForm
+          categorias={categorias}
+          onSubmit={handleSubmit}
+          onCancel={() => { setShowForm(false); setEditingRepuesto(null); }}
+          initialData={editingRepuesto}
+          activeTourTarget={activeTourTarget}
+        />
+      </div>
+    )}
+
+    {/* Tabla e Filtros */}
+    <div data-tour-target="table" className={`bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden mb-6 ${tourHighlightClass(activeTourTarget === 'table')}`}>
+      <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex flex-wrap gap-3 items-center">
+        <div className="flex items-center gap-1.5 text-gray-500 mr-2">
+          <Filter className="w-4 h-4 text-indigo-500" />
+          <span className="text-xs font-bold uppercase tracking-wider">Filtros:</span>
+        </div>
+
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por Modelo/Código..."
+            className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs outline-none bg-white transition-all"
+            value={filterNombre}
+            onChange={(e) => setFilterNombre(e.target.value)}
+          />
+        </div>
+
+        <div className="relative flex-1 min-w-[200px]">
+          <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Filtrar por Categoría..."
+            className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-xs outline-none bg-white transition-all"
+            value={filterCategoria}
+            onChange={(e) => setFilterCategoria(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {loading || repuestosQuery.isLoading ? (
+        <div className="p-12 flex justify-center items-center gap-3 text-indigo-600">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span className="text-xs font-bold">Sincronizando repuestos...</span>
+        </div>
+      ) : (
+        <Table
+          columns={columnas}
+          data={filteredRepuestos}
+          onLoadMore={() => repuestosQuery.fetchNextPage()}
+          hasMore={repuestosQuery.hasNextPage}
+          isLoadingMore={repuestosQuery.isFetchingNextPage}
+        />
+      )}
+    </div>
+  </div>
+);
 };
 
 export default Repuestos;

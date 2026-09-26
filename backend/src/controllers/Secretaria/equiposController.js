@@ -3,8 +3,8 @@ import equipoService from '../../services/Secretaria/equipoService.js';
 
 export const getEquipos = async (req, res) => {
   try {
-    const equipos = await equipoService.listarEquipos();
-    res.json({ data: equipos });
+    const result = await equipoService.listarEquipos(req.query);
+    res.json(result);
   } catch (error) {
     console.error('❌ Error en getEquipos:', error.message);
     console.error('Stack:', error.stack);

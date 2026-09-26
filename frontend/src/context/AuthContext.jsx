@@ -4,22 +4,28 @@ import api from '../services/api';
 
 export const AuthContext = createContext();
 
+const AUTH_TOKEN_KEY = 'token';
+const AUTH_USER_KEY = 'cte_user';
+
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState(() => {
-    const token = localStorage.getItem('token');
-    const stored = localStorage.getItem('cte_user');
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+
+    const token = sessionStorage.getItem(AUTH_TOKEN_KEY);
+    const stored = sessionStorage.getItem(AUTH_USER_KEY);
     if (!token || !stored) {
-      localStorage.removeItem('cte_user');
-      localStorage.removeItem('token');
+      sessionStorage.removeItem(AUTH_USER_KEY);
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
       return null;
     }
 
     try {
       return JSON.parse(stored);
     } catch {
-      localStorage.removeItem('cte_user');
-      localStorage.removeItem('token');
+      sessionStorage.removeItem(AUTH_USER_KEY);
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
       return null;
     }
   });
@@ -37,22 +43,22 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     const response = await api.post('/auth/login', { username, password });
     const { token, usuario } = response.data;
-    // Guardar token para futuras peticiones protegidas
-    localStorage.setItem('token', token);
+    // Session storage keeps auth isolated per browser tab/window.
+    sessionStorage.setItem(AUTH_TOKEN_KEY, token);
 
     const userData = {
       username: usuario?.nombre || username,
       rol: usuario?.rol,
     };
     setUser(userData);
-    localStorage.setItem('cte_user', JSON.stringify(userData));
+    sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
     return userData;
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('cte_user');
-    localStorage.removeItem('token');
+    sessionStorage.removeItem(AUTH_USER_KEY);
+    sessionStorage.removeItem(AUTH_TOKEN_KEY);
     navigate('/login');
   };
 

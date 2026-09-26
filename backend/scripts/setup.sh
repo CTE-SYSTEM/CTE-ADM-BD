@@ -14,9 +14,7 @@ COUNT=$(echo "$COUNT" | tr -d '[:space:]')
 
 if [ "${COUNT:-0}" -eq 0 ]; then
   echo ">>> [PRIMERA VEZ] Ejecutando semilla..."
-  npm run db:seed:container
-  echo ">>> [PRIMERA VEZ] Ejecutando datos operativos de prueba..."
-  npm run db:seed:operativo
+  npm run db:seed
 else
   echo ">>> [ARRANQUE NORMAL] Base de datos detectada. Saltando semilla."
 fi

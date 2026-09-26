@@ -2,19 +2,29 @@ import React, { useContext } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
+  Boxes,
+  BriefcaseBusiness,
   ClipboardCheck,
   ClipboardList,
+  ClipboardPenLine,
   ContactRound,
   Cpu,
   FileCheck,
+  FilePlus2,
   FileText,
+  Handshake,
   History,
   Laptop,
   LayoutDashboard,
   Monitor,
+  MonitorCog,
+  PanelLeftClose,
+  PanelLeftOpen,
   Package,
+  PackageSearch,
   Receipt,
   ShieldCheck,
+  ShoppingBag,
   ShoppingCart,
   SquareKanban,
   Stethoscope,
@@ -26,7 +36,6 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
-import BrandLogo from './BrandLogo';
 
 const adminRoles = ['Administrador', 'admin_pro'];
 
@@ -49,34 +58,56 @@ const allMenuItems = [
   { name: 'Historial Equipo', to: '/admin/historial-equipo', roles: adminRoles, icon: History },
   { name: 'Historial Repuesto', to: '/admin/historial-repuesto', roles: adminRoles, icon: TrendingUp },
 
-  { name: 'Dashboard', to: '/secretaria', roles: ['Secretaria'], icon: LayoutDashboard },
-  { name: 'Clientes', to: '/secretaria/clientes', roles: ['Secretaria'], icon: Users },
-  { name: 'Equipos', to: '/secretaria/equipos', roles: ['Secretaria'], icon: Monitor },
-  { name: 'Diagnostico', to: '/secretaria/diagnostico', roles: ['Secretaria'], icon: Stethoscope },
-  { name: 'Nueva Orden', to: '/secretaria/nueva-orden', roles: ['Secretaria'], icon: FileCheck },
+  { name: 'Dashboard', to: '/secretaria', roles: ['Secretaria'], icon: BriefcaseBusiness },
+  { name: 'Clientes', to: '/secretaria/clientes', roles: ['Secretaria'], icon: ContactRound },
+  { name: 'Equipos', to: '/secretaria/equipos', roles: ['Secretaria'], icon: MonitorCog },
+  { name: 'Diagnostico', to: '/secretaria/diagnostico', roles: ['Secretaria'], icon: ClipboardPenLine },
+  { name: 'Nueva Orden', to: '/secretaria/nueva-orden', roles: ['Secretaria'], icon: FilePlus2 },
   { name: 'Flujo atencion', to: '/secretaria/flujo-atencion', roles: ['Secretaria'], icon: SquareKanban },
-  { name: 'Repuestos', to: '/secretaria/repuestos', roles: ['Secretaria'], icon: Cpu },
+  { name: 'Repuestos', to: '/secretaria/repuestos', roles: ['Secretaria'], icon: PackageSearch },
   { name: 'Tipos Repuesto', to: '/secretaria/tipos-repuesto', roles: ['Secretaria'], icon: Tags },
-  { name: 'Compras', to: '/secretaria/compras', roles: ['Secretaria'], icon: ShoppingCart },
-  { name: 'Proveedores', to: '/secretaria/proveedores', roles: ['Secretaria'], icon: Truck },
+  { name: 'Compras', to: '/secretaria/compras', roles: ['Secretaria'], icon: ShoppingBag },
+  { name: 'Proveedores', to: '/secretaria/proveedores', roles: ['Secretaria'], icon: Handshake },
   { name: 'Facturacion', to: '/secretaria/facturacion', roles: ['Secretaria'], icon: Receipt },
 
   { name: 'Dashboard', to: '/tecnico-jefe', roles: ['TecnicoJefe'], icon: LayoutDashboard },
   { name: 'Dashboard', to: '/tecnico', roles: ['Tecnico'], icon: LayoutDashboard },
 ];
 
-const Sidebar = ({ open = true }) => {
+const Sidebar = ({ collapsed = false, onClose = () => {}, onToggleCollapse = () => {}, open = true }) => {
   const { user } = useContext(AuthContext);
   const menuItems = allMenuItems.filter((item) => item.roles.includes(user?.rol));
 
   return (
-    <aside className={`app-sidebar ${open ? 'flex' : 'hidden lg:flex'} flex-col w-20 lg:w-64 bg-[#0f1724] text-white h-screen sticky top-0 transition-all duration-300`}>
-      <div className="p-4 border-b border-gray-800 flex flex-col items-center lg:items-start gap-3">
-        <BrandLogo className="h-14 w-14 shadow-lg shadow-indigo-500/20 lg:h-16 lg:w-36" />
-        <div className="hidden lg:block overflow-hidden w-full">
+    <aside
+      className={`app-sidebar ${open ? 'is-open' : ''} ${collapsed ? 'is-collapsed' : ''} flex flex-col bg-[#0f1724] text-white`}
+      aria-label="Barra lateral de navegación"
+    >
+      <div className="sidebar-header p-4 border-b border-gray-800 flex flex-col items-center lg:items-start gap-3">
+        <div className="sidebar-brand-row flex w-full items-center justify-center gap-3 lg:justify-start">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-indigo-400/20 bg-indigo-500/15 text-indigo-200 shadow-lg shadow-indigo-950/20">
+            <Boxes className="h-6 w-6" aria-hidden="true" />
+          </div>
+          <div className="sidebar-brand-copy min-w-0">
+            <div className="truncate text-sm font-black uppercase tracking-wide text-white">Sistema</div>
+            <div className="truncate text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">Gestion operativa</div>
+          </div>
+        </div>
+        <div className="sidebar-user-panel w-full overflow-hidden">
           <div className="text-sm font-semibold truncate text-gray-100">{user?.username}</div>
           <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">{user?.rol}</div>
         </div>
+        <button
+          type="button"
+          className="sidebar-collapse-toggle inline-flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-300/20 px-2 py-1.5 text-xs font-semibold text-indigo-100 transition hover:border-indigo-300/40 hover:bg-indigo-500/15"
+          onClick={onToggleCollapse}
+          aria-label={collapsed ? 'Expandir barra lateral' : 'Minimizar barra lateral'}
+          aria-expanded={!collapsed}
+          title={collapsed ? 'Expandir barra lateral' : 'Minimizar barra lateral'}
+        >
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" aria-hidden="true" /> : <PanelLeftClose className="h-4 w-4" aria-hidden="true" />}
+          <span>{collapsed ? 'Expandir' : 'Minimizar'}</span>
+        </button>
       </div>
 
       <nav className="p-2 flex-1 overflow-y-auto custom-scrollbar">
@@ -86,15 +117,17 @@ const Sidebar = ({ open = true }) => {
               <NavLink
                 to={item.to}
                 end={item.to === '/admin' || item.to === '/secretaria'}
+                onClick={onClose}
                 className={({ isActive }) =>
                   `flex w-full min-w-0 items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
                   ${isActive
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                     : 'text-gray-400 hover:bg-gray-800/50 hover:text-white'}`
                 }
+                title={collapsed ? item.name : undefined}
               >
                 <item.icon className="w-5 h-5 flex-shrink-0" />
-                <span className="hidden min-w-0 flex-1 truncate text-sm font-medium tracking-wide lg:inline">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium tracking-wide">
                   {item.name}
                 </span>
               </NavLink>
@@ -103,7 +136,7 @@ const Sidebar = ({ open = true }) => {
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-gray-800 hidden lg:block bg-[#0b111a]">
+      <div className="sidebar-footer bg-[#0b111a] p-4 border-t border-gray-800">
         <div className="text-[10px] uppercase tracking-widest text-gray-500 font-bold mb-1">
           Sistema de Gestion
         </div>
